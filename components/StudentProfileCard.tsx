@@ -1,0 +1,173 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Linkedin, Mail, ExternalLink } from 'lucide-react';
+import { incrementConnections, incrementCollaborations, getCurrentStudentId } from '@/lib/statsTracker';
+import type { StudentRecord } from '@/lib/students';
+
+interface StudentProfileCardProps {
+  student: StudentRecord;
+  onSelect?: (student: StudentRecord) => void;
+}
+
+export function StudentProfileCard({
+  student,
+  onSelect,
+}: StudentProfileCardProps) {
+  const [collaborateOpen, setCollaborateOpen] = useState(false);
+
+  const handleConnect = () => {
+    const currentStudentId = getCurrentStudentId();
+    
+    // Only increment if connecting to a different student
+    if (currentStudentId && currentStudentId !== student.userId) {
+      incrementConnections(currentStudentId);
+      console.log('[v0] Connected to student:', student.userId);
+    }
+
+    // Redirect to LinkedIn profile in new tab
+    const linkedinUrl = student.linkedinUrl || 'https://linkedin.com';
+    window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCollaborateLinkedIn = () => {
+    const currentStudentId = getCurrentStudentId();
+    
+    // Only increment if collaborating with a different student
+    if (currentStudentId && currentStudentId !== student.userId) {
+      incrementCollaborations(currentStudentId);
+      console.log('[v0] Collaboration initiated via LinkedIn with:', student.userId);
+    }
+
+    // Redirect to LinkedIn profile in new tab
+    const linkedinUrl = student.linkedinUrl || 'https://linkedin.com';
+    window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
+    setCollaborateOpen(false);
+  };
+
+  const handleCollaborateEmail = () => {
+    const currentStudentId = getCurrentStudentId();
+    
+    // Only increment if collaborating with a different student
+    if (currentStudentId && currentStudentId !== student.userId) {
+      incrementCollaborations(currentStudentId);
+      console.log('[v0] Collaboration initiated via Email with:', student.userId);
+    }
+
+    // Open email client
+    if (student.email) {
+      const subject = encodeURIComponent('Project Collaboration Request');
+      const body = encodeURIComponent(
+        `Hi ${student.name},\n\nI would like to collaborate with you on a project. Please let me know if you are interested!\n\nBest regards`
+      );
+      window.location.href = `mailto:${student.email}?subject=${subject}&body=${body}`;
+    }
+    setCollaborateOpen(false);
+  };
+
+  return (
+    <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group overflow-hidden">
+      <div className="space-y-4">
+        {/* Header with initials */}
+        <div className="flex items-start justify-between">
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
+            {student.name
+              .split(' ')
+              .map(n => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2)}
+          </div>
+          <Badge className="bg-primary/20 text-primary text-xs">
+            {student.department}
+          </Badge>
+        </div>
+
+        {/* Student Info */}
+        <div className="space-y-2">
+          <h3 className="font-bold group-hover:text-primary smooth-transition line-clamp-2">
+            {student.name}
+          </h3>
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {student.course}
+          </p>
+          <div className="flex flex-col gap-1">
+            {student.email && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                {student.email}
+              </p>
+            )}
+            {student.mobileNo && (
+              <p className="text-xs text-muted-foreground">
+                {student.mobileNo}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="pt-2 space-y-2 border-t border-primary/10">
+          <Button
+            onClick={handleConnect}
+            size="sm"
+            className="w-full smooth-button bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Linkedin className="w-3 h-3 mr-1.5" />
+            Connect
+          </Button>
+
+          <div className="relative">
+            <Button
+              onClick={() => setCollaborateOpen(!collaborateOpen)}
+              size="sm"
+              variant="outline"
+              className="w-full smooth-button"
+            >
+              Collaborate
+            </Button>
+
+            {collaborateOpen && (
+              <div className="absolute bottom-12 left-0 right-0 z-50 bg-card border border-primary/20 rounded-lg shadow-lg overflow-hidden">
+                <Button
+                  onClick={handleCollaborateLinkedIn}
+                  size="sm"
+                  variant="ghost"
+                  className="w-full justify-start rounded-none hover:bg-primary/10"
+                >
+                  <Linkedin className="w-3 h-3 mr-2" />
+                  via LinkedIn
+                </Button>
+                <Button
+                  onClick={handleCollaborateEmail}
+                  size="sm"
+                  variant="ghost"
+                  className="w-full justify-start rounded-none border-t border-primary/10 hover:bg-primary/10"
+                  disabled={!student.email}
+                >
+                  <Mail className="w-3 h-3 mr-2" />
+                  via Email {!student.email && '(N/A)'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {onSelect && (
+            <Button
+              onClick={() => onSelect(student)}
+              size="sm"
+              variant="outline"
+              className="w-full smooth-button bg-transparent"
+            >
+              <ExternalLink className="w-3 h-3 mr-1.5" />
+              View Profile
+            </Button>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}

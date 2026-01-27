@@ -1,0 +1,260 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Navbar } from '@/components/Navbar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft, Trash2, CheckCircle2, Eye, EyeOff, Clock } from 'lucide-react';
+import Link from 'next/link';
+
+interface FeedbackSubmission {
+  id: string;
+  userRole: 'student' | 'staff';
+  userId: string;
+  subject: string;
+  message: string;
+  date: string;
+  read: boolean;
+  resolved: boolean;
+}
+
+export default function AdminFeedbackPage() {
+  const router = useRouter();
+  const [feedbackList, setFeedbackList] = useState<FeedbackSubmission[]>([]);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'resolved' | 'pending'>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is admin
+    const userType = localStorage.getItem('userType');
+    if (userType !== 'admin') {
+      router.push('/auth');
+      return;
+    }
+
+    setIsAuthorized(true);
+    loadFeedback();
+  }, [router]);
+
+  const loadFeedback = () => {
+    const stored = localStorage.getItem('allFeedback');
+    if (stored) {
+      const feedback = JSON.parse(stored) as FeedbackSubmission[];
+      setFeedbackList(feedback);
+    }
+    setLoading(false);
+  };
+
+  const toggleRead = (id: string) => {
+    const updated = feedbackList.map((f) =>
+      f.id === id ? { ...f, read: !f.read } : f
+    );
+    setFeedbackList(updated);
+    localStorage.setItem('allFeedback', JSON.stringify(updated));
+  };
+
+  const toggleResolved = (id: string) => {
+    const updated = feedbackList.map((f) =>
+      f.id === id ? { ...f, resolved: !f.resolved } : f
+    );
+    setFeedbackList(updated);
+    localStorage.setItem('allFeedback', JSON.stringify(updated));
+  };
+
+  const deleteFeedback = (id: string) => {
+    const updated = feedbackList.filter((f) => f.id !== id);
+    setFeedbackList(updated);
+    localStorage.setItem('allFeedback', JSON.stringify(updated));
+  };
+
+  const filteredFeedback = feedbackList.filter((f) => {
+    if (filter === 'unread') return !f.read;
+    if (filter === 'resolved') return f.resolved;
+    if (filter === 'pending') return !f.resolved;
+    return true;
+  });
+
+  if (!isAuthorized) {
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen gradient-bg">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin">
+            <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+              <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = {
+    total: feedbackList.length,
+    unread: feedbackList.filter((f) => !f.read).length,
+    resolved: feedbackList.filter((f) => f.resolved).length,
+    pending: feedbackList.filter((f) => !f.resolved).length,
+  };
+
+  return (
+    <div className="min-h-screen gradient-bg">
+      <Navbar />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="hover:bg-primary/20">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Feedback Management
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Review and manage all student and staff feedback
+            </p>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="p-4 bg-card/50 backdrop-blur-sm border-primary/20">
+            <p className="text-sm text-muted-foreground mb-2">Total Feedback</p>
+            <p className="text-3xl font-bold text-primary">{stats.total}</p>
+          </Card>
+          <Card className="p-4 bg-card/50 backdrop-blur-sm border-primary/20">
+            <p className="text-sm text-muted-foreground mb-2">Unread</p>
+            <p className="text-3xl font-bold text-yellow-600">{stats.unread}</p>
+          </Card>
+          <Card className="p-4 bg-card/50 backdrop-blur-sm border-primary/20">
+            <p className="text-sm text-muted-foreground mb-2">Pending</p>
+            <p className="text-3xl font-bold text-orange-600">{stats.pending}</p>
+          </Card>
+          <Card className="p-4 bg-card/50 backdrop-blur-sm border-primary/20">
+            <p className="text-sm text-muted-foreground mb-2">Resolved</p>
+            <p className="text-3xl font-bold text-green-600">{stats.resolved}</p>
+          </Card>
+        </div>
+
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {(['all', 'unread', 'resolved', 'pending'] as const).map((f) => (
+            <Button
+              key={f}
+              variant={filter === f ? 'default' : 'outline'}
+              onClick={() => setFilter(f)}
+              className="capitalize"
+            >
+              {f === 'all' ? 'All Feedback' : f.charAt(0).toUpperCase() + f.slice(1)}
+            </Button>
+          ))}
+        </div>
+
+        {/* Feedback List */}
+        <div className="space-y-4">
+          {filteredFeedback.length === 0 ? (
+            <Card className="p-8 text-center bg-card/50 backdrop-blur-sm border-primary/20">
+              <p className="text-muted-foreground">No feedback to display</p>
+            </Card>
+          ) : (
+            filteredFeedback.map((feedback) => (
+              <Card
+                key={feedback.id}
+                className={`p-6 bg-card/50 backdrop-blur-sm border-primary/20 transition-all ${
+                  !feedback.read ? 'border-l-4 border-l-yellow-500' : ''
+                } ${feedback.resolved ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    {/* Top row with badges */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge
+                        variant={feedback.userRole === 'student' ? 'default' : 'secondary'}
+                        className="capitalize"
+                      >
+                        {feedback.userRole}
+                      </Badge>
+                      {!feedback.read && (
+                        <Badge variant="destructive" className="bg-yellow-600">
+                          Unread
+                        </Badge>
+                      )}
+                      {feedback.resolved && (
+                        <Badge variant="secondary" className="bg-green-600">
+                          Resolved
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Subject and User Info */}
+                    <h3 className="text-lg font-semibold mb-2 text-foreground">
+                      {feedback.subject}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      From: <span className="font-medium">{feedback.userId}</span> • {feedback.date}
+                    </p>
+
+                    {/* Message */}
+                    <p className="text-foreground mb-4 leading-relaxed">
+                      {feedback.message}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2 min-w-fit">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleRead(feedback.id)}
+                      className="justify-start"
+                    >
+                      {feedback.read ? (
+                        <>
+                          <EyeOff className="w-4 h-4 mr-2" />
+                          Mark Unread
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Mark Read
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleResolved(feedback.id)}
+                      className="justify-start"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      {feedback.resolved ? 'Undo Resolve' : 'Mark Resolved'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteFeedback(feedback.id)}
+                      className="justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -51,9 +51,10 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute inset-0 -z-10 opacity-30">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-72 h-72 bg-accent/20 rounded-full blur-3xl"></div>
+        <div className="absolute inset-0 -z-10 opacity-40">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-primary/30 rounded-full blur-[100px] animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/30 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"></div>
         </div>
         
         <div className="max-w-5xl mx-auto text-center space-y-6">
@@ -64,7 +65,7 @@ export default function Home() {
           
           <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold text-balance leading-tight smooth-transition ${isLoaded ? 'slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.1s' }}>
             Your Work Matters.
-            <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+            <span className="block bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent drop-shadow-sm">
               Your Campus Sees You.
             </span>
           </h1>
@@ -89,7 +90,8 @@ export default function Home() {
       </section>
 
       {/* AI Problem Solver Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-y backdrop-blur-sm">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-y backdrop-blur-sm relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10"></div>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12 space-y-3">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AI Problem Solver</h2>
@@ -98,10 +100,10 @@ export default function Home() {
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { year: '1st Year', desc: 'Foundation & Basics', color: 'from-blue-500 to-blue-600' },
-              { year: '2nd Year', desc: 'Intermediate Projects', color: 'from-purple-500 to-purple-600' },
-              { year: '3rd Year', desc: 'Advanced Work', color: 'from-green-500 to-green-600' },
-              { year: 'Final Year', desc: 'Capstone Projects', color: 'from-orange-500 to-orange-600' }
+              { year: '1st Year', desc: 'Foundation & Basics', color: 'from-violet-500 to-purple-600' },
+              { year: '2nd Year', desc: 'Intermediate Projects', color: 'from-fuchsia-500 to-pink-600' },
+              { year: '3rd Year', desc: 'Advanced Work', color: 'from-blue-500 to-cyan-600' },
+              { year: 'Final Year', desc: 'Capstone Projects', color: 'from-indigo-500 to-violet-600' }
             ].map((item, idx) => (
               <div 
                 key={item.year}

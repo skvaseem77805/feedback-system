@@ -20,7 +20,7 @@ export default function Home() {
     const staffId = localStorage.getItem('staffId');
     const adminId = localStorage.getItem('adminId');
     const userType = localStorage.getItem('userType');
-    
+
     // Check if any user type is logged in
     const isLoggedIn = !!(studentId || staffId || adminId || userType);
     setIsLoggedIn(isLoggedIn);
@@ -32,10 +32,10 @@ export default function Home() {
     const staffId = localStorage.getItem('staffId');
     const adminId = localStorage.getItem('adminId');
     const userType = localStorage.getItem('userType');
-    
+
     // Check if any user type is logged in
     const isLoggedIn = !!(studentId || staffId || adminId || userType);
-    
+
     if (isLoggedIn) {
       // User is logged in, go directly to upload page
       router.push('/upload');
@@ -48,7 +48,7 @@ export default function Home() {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 -z-10 opacity-40">
@@ -56,32 +56,39 @@ export default function Home() {
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/30 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }}></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"></div>
         </div>
-        
+
         <div className="max-w-5xl mx-auto text-center space-y-6">
           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20 smooth-transition ${isLoaded ? 'fade-in' : 'opacity-0'}`}>
             <Sparkles className="w-4 h-4 animate-pulse" />
             <span className="text-sm font-medium">Welcome to CRR PROJECT HUB</span>
           </div>
-          
+
           <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold text-balance leading-tight smooth-transition ${isLoaded ? 'slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.1s' }}>
             Your Work Matters.
             <span className="block bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent drop-shadow-sm">
               Your Campus Sees You.
             </span>
           </h1>
-          
+
           <p className={`text-lg text-muted-foreground max-w-2xl mx-auto text-balance smooth-transition ${isLoaded ? 'slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>
             Showcase your academic projects to your campus community. Discover amazing work from your peers. Collaborate and grow together.
           </p>
-          
+
           <div className={`flex flex-col sm:flex-row gap-4 justify-center pt-8 smooth-transition ${isLoaded ? 'slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.3s' }}>
+            <Button
+              onClick={handleStartUploading}
+              size="lg"
+              className="gap-2 smooth-button bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl scale-105"
+            >
+              Start Uploading Now <Upload className="w-4 h-4" />
+            </Button>
             <Link href="/college">
-              <Button size="lg" className="gap-2 smooth-button bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button size="lg" variant="outline" className="gap-2 smooth-button bg-background/50 backdrop-blur-sm hover:bg-background/80">
                 Visit College Portal <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
             <Link href="/projects">
-              <Button size="lg" variant="outline" className="smooth-button bg-transparent">
+              <Button size="lg" variant="ghost" className="smooth-button hover:bg-primary/10">
                 Explore Projects
               </Button>
             </Link>
@@ -97,7 +104,7 @@ export default function Home() {
             <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AI Problem Solver</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">Get personalized guidance, upload your projects, and connect with peers. Your AI assistant adapts to your academic year level.</p>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { year: '1st Year', desc: 'Foundation & Basics', color: 'from-violet-500 to-purple-600' },
@@ -105,7 +112,7 @@ export default function Home() {
               { year: '3rd Year', desc: 'Advanced Work', color: 'from-blue-500 to-cyan-600' },
               { year: 'Final Year', desc: 'Capstone Projects', color: 'from-indigo-500 to-violet-600' }
             ].map((item, idx) => (
-              <div 
+              <div
                 key={item.year}
                 className={`p-4 rounded-xl bg-gradient-to-br ${item.color} text-white text-center cursor-pointer hover-lift smooth-transition group`}
                 style={{ animationDelay: `${idx * 0.1}s` }}
@@ -187,7 +194,7 @@ export default function Home() {
             <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Why Join CRR PROJECT HUB?</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">Everything you need to showcase, discover, and collaborate on amazing projects</p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { href: '/upload', icon: Upload, title: 'Easy Upload', desc: 'Share your projects with just a link and description. Support for images, videos, and live demos.' },
@@ -223,7 +230,7 @@ export default function Home() {
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="max-w-3xl mx-auto text-center space-y-8 relative z-10">
           <div className="space-y-4">
             <h2 className="text-4xl font-bold">Ready to Showcase Your Work?</h2>
@@ -231,10 +238,10 @@ export default function Home() {
               Join hundreds of students who are already sharing their projects, connecting with peers, and growing their skills every day.
             </p>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleStartUploading}
-            size="lg" 
+            size="lg"
             className="smooth-button bg-primary-foreground text-primary hover:bg-white gap-2"
           >
             Start Uploading Now

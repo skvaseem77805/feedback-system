@@ -1,13 +1,6 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
-/**
- * GET /api/connections?studentId=...
- * Returns { connections: string[], sent: string[], received: string[] }
- * - connections: student ids with accepted connection
- * - sent: student ids to whom current user sent pending request
- * - received: student ids from whom current user received pending request
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,18 +9,19 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: 'studentId required' }, { status: 400 });
     }
 
-    const [reqRows] = await query<{ from_student_id: string; to_student_id: string; status: string }>(
-      `SELECT from_student_id, to_student_id, status FROM connection_requests
-       WHERE from_student_id = ? OR to_student_id = ?`,
-      [studentId, studentId]
-    );
-    const reqList = Array.isArray(reqRows) ? reqRows : [];
+    // Fetch all requests involving this student
+    const { data: reqList, error } = await supabase
+      .from('connection_requests')
+      .select('from_student_id, to_student_id, status')
+      .or(`from_student_id.eq.${studentId},to_student_id.eq.${studentId}`);
+
+    if (error) throw error;
 
     const connections: string[] = [];
     const sent: string[] = [];
     const received: string[] = [];
 
-    for (const r of reqList) {
+    for (const r of (reqList || [])) {
       const other = r.from_student_id === studentId ? r.to_student_id : r.from_student_id;
       if (r.status === 'accepted') {
         if (!connections.includes(other)) connections.push(other);

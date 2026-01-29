@@ -44,11 +44,20 @@ export interface ApiStudent {
   collaborationsCount?: number;
 }
 
-export async function apiAuthValidate(studentId: string): Promise<{ found: boolean; student?: ApiStudent }> {
+export async function apiAuthValidate(studentId: string, password?: string): Promise<{ found: boolean; student?: ApiStudent }> {
   const res = await fetch(`${BASE}/api/auth/validate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ studentId }),
+    body: JSON.stringify({ studentId, password }),
+  });
+  return handleRes(res);
+}
+
+export async function apiAuthSetup(studentId: string, password: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/auth/setup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentId, password }),
   });
   return handleRes(res);
 }

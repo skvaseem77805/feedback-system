@@ -1,34 +1,39 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
-/**
- * POST { studentId, otherStudentId }
- * Accepts a pending request from otherStudentId -> studentId.
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const studentId = (body?.studentId ?? body?.student_id ?? '').trim();
     const otherId = (body?.otherStudentId ?? body?.other_student_id ?? '').trim();
+
     if (!studentId || !otherId) {
       return Response.json({ error: 'studentId and otherStudentId required' }, { status: 400 });
     }
 
-    const [raw] = await query(
-      `UPDATE connection_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
-       WHERE from_student_id = ? AND to_student_id = ? AND status = 'pending'`,
-      [otherId, studentId]
-    );
-    const header = raw as { affectedRows?: number };
-    const ok = (header?.affectedRows ?? 0) > 0;
-    if (!ok) {
+    // Update status to accepted
+    const { data: updated, error: updateError } = await supabase
+      .from('connection_requests')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .match({ from_student_id: otherId, to_student_id: studentId, status: 'pending' })
+      .select();
+
+    if (updateError) throw updateError;
+    if (!updated || updated.length === 0) {
       return Response.json({ error: 'No pending request found to accept' }, { status: 404 });
     }
-    await query(
-      `INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations) VALUES (?, 0, 1, 0), (?, 0, 1, 0)
-       ON DUPLICATE KEY UPDATE connections = connections + 1`,
-      [studentId, otherId]
-    );
+
+    // Update stats for both users
+    // Need to increment 'connections' count for both
+
+    // 1. Student ID
+    const { data: s1 } = await supabase.from('student_stats').select('connections').eq('student_id', studentId).single();
+    await supabase.from('student_stats').upsert({ student_id: studentId, connections: (s1?.connections || 0) + 1 });
+
+    // 2. Other ID
+    const { data: s2 } = await supabase.from('student_stats').select('connections').eq('student_id', otherId).single();
+    await supabase.from('student_stats').upsert({ student_id: otherId, connections: (s2?.connections || 0) + 1 });
+
     return Response.json({ accepted: true });
   } catch (e) {
     console.error('POST /api/connections/accept', e);

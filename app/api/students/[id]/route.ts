@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { queryOne } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -11,29 +11,26 @@ export async function GET(
     if (!sid) {
       return Response.json({ error: 'Student ID required' }, { status: 400 });
     }
-    const row = await queryOne<{
-      id: string;
-      name: string;
-      registration_no: string;
-      unique_id: string | null;
-      year: number;
-      course: string | null;
-      email: string;
-      mobile_no: string;
-      department: string;
-      section: string;
-      linkedin_url: string | null;
-      bio: string | null;
-      skills: string | null;
-      avatar: string | null;
-    }>(
-      `SELECT id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, bio, skills, avatar FROM students WHERE id = ?`,
-      [sid]
-    );
-    if (!row) {
+
+    const { data: row, error } = await supabase
+      .from('students')
+      .select('id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, bio, skills, avatar')
+      .eq('id', sid)
+      .single();
+
+    if (error || !row) {
+      if (error && error.code !== 'PGRST116') {
+        console.error('Supabase error:', error);
+        return Response.json({ error: 'Database error', details: error.message }, { status: 500 });
+      }
       return Response.json({ error: 'Student not found' }, { status: 404 });
     }
+
     const academicYear = formatYear(row.year);
+
+    // Supabase returns JSONB columns as parsed objects/arrays
+    const skills = row.skills;
+
     return Response.json({
       id: row.id,
       userId: row.id,
@@ -48,7 +45,7 @@ export async function GET(
       section: row.section || 'E',
       linkedinUrl: row.linkedin_url ?? undefined,
       bio: row.bio ?? undefined,
-      skills: row.skills ? (JSON.parse(row.skills) as string[]) : undefined,
+      skills: Array.isArray(skills) ? skills : (typeof skills === 'string' ? JSON.parse(skills) : undefined),
       avatar: row.avatar ?? undefined,
       academicYear,
     });

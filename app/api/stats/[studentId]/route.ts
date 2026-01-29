@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { queryOne, query } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 /**
  * GET /api/stats/[studentId]
@@ -14,15 +14,14 @@ export async function GET(
     const sid = (studentId || '').trim();
     if (!sid) return Response.json({ error: 'studentId required' }, { status: 400 });
 
-    const row = await queryOne<{
-      projects_uploaded: number;
-      connections: number;
-      collaborations: number;
-    }>(
-      `SELECT projects_uploaded, connections, collaborations FROM student_stats WHERE student_id = ?`,
-      [sid]
-    );
+    const { data: row } = await supabase
+      .from('student_stats')
+      .select('projects_uploaded, connections, collaborations')
+      .eq('student_id', sid)
+      .single();
+
     if (!row) return Response.json({ projectsUploaded: 0, connections: 0, collaborations: 0 });
+
     return Response.json({
       projectsUploaded: Number(row.projects_uploaded) || 0,
       connections: Number(row.connections) || 0,
@@ -53,47 +52,61 @@ export async function PATCH(
 
     const body = await request.json().catch(() => ({}));
     const set = body?.set;
+
+    let targetProjectsUploaded = 0;
+    let targetConnections = 0;
+    let targetCollaborations = 0;
+
     if (set && typeof set === 'object') {
-      const p = Number(set.projectsUploaded);
-      const c = Number(set.connections);
-      const col = Number(set.collaborations);
-      await query(
-        `INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           projects_uploaded = VALUES(projects_uploaded),
-           connections = VALUES(connections),
-           collaborations = VALUES(collaborations)`,
-        [sid, isNaN(p) ? 0 : p, isNaN(c) ? 0 : c, isNaN(col) ? 0 : col]
-      );
+      // Set absolute values
+      targetProjectsUploaded = Number(set.projectsUploaded) || 0;
+      targetConnections = Number(set.connections) || 0;
+      targetCollaborations = Number(set.collaborations) || 0;
     } else {
-      const inc = { projectsUploaded: 0, connections: 0, collaborations: 0 };
-      if (typeof body?.projectsUploaded === 'number') inc.projectsUploaded = body.projectsUploaded;
-      if (typeof body?.connections === 'number') inc.connections = body.connections;
-      if (typeof body?.collaborations === 'number') inc.collaborations = body.collaborations;
-      if (inc.projectsUploaded === 0 && inc.connections === 0 && inc.collaborations === 0) {
+      // Increment logic
+      // 1. Fetch current
+      const { data: current } = await supabase
+        .from('student_stats')
+        .select('projects_uploaded, connections, collaborations')
+        .eq('student_id', sid)
+        .single();
+
+      const curP = current?.projects_uploaded || 0;
+      const curC = current?.connections || 0;
+      const curCol = current?.collaborations || 0;
+
+      const incP = Number(body?.projectsUploaded) || 0;
+      const incC = Number(body?.connections) || 0;
+      const incCol = Number(body?.collaborations) || 0;
+
+      if (incP === 0 && incC === 0 && incCol === 0) {
         return Response.json({ error: 'Provide projectsUploaded, connections, or collaborations to increment' }, { status: 400 });
       }
-      await query(
-        `INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
-         VALUES (?, 0, 0, 0)
-         ON DUPLICATE KEY UPDATE
-           projects_uploaded = projects_uploaded + ?,
-           connections = connections + ?,
-           collaborations = collaborations + ?`,
-        [sid, inc.projectsUploaded, inc.connections, inc.collaborations]
-      );
+
+      targetProjectsUploaded = curP + incP;
+      targetConnections = curC + incC;
+      targetCollaborations = curCol + incCol;
     }
 
-    const row = await queryOne<{ projects_uploaded: number; connections: number; collaborations: number }>(
-      `SELECT projects_uploaded, connections, collaborations FROM student_stats WHERE student_id = ?`,
-      [sid]
-    );
-    if (!row) return Response.json({ projectsUploaded: 0, connections: 0, collaborations: 0 });
+    // 2. Upsert
+    const { data: updated, error } = await supabase
+      .from('student_stats')
+      .upsert({
+        student_id: sid,
+        projects_uploaded: targetProjectsUploaded,
+        connections: targetConnections,
+        collaborations: targetCollaborations,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error || !updated) throw error || new Error('Upsert failed');
+
     return Response.json({
-      projectsUploaded: Number(row.projects_uploaded) || 0,
-      connections: Number(row.connections) || 0,
-      collaborations: Number(row.collaborations) || 0,
+      projectsUploaded: Number(updated.projects_uploaded) || 0,
+      connections: Number(updated.connections) || 0,
+      collaborations: Number(updated.collaborations) || 0,
     });
   } catch (e) {
     console.error('PATCH /api/stats/[studentId]', e);

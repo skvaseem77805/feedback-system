@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(
   request: NextRequest,
@@ -12,10 +12,13 @@ export async function POST(
     if (!projectId || !studentId) {
       return Response.json({ error: 'projectId and studentId required' }, { status: 400 });
     }
-    await query(
-      `INSERT IGNORE INTO project_saves (project_id, student_id) VALUES (?, ?)`,
-      [projectId, studentId]
-    );
+
+    const { error } = await supabase
+      .from('project_saves')
+      .upsert({ project_id: projectId, student_id: studentId }, { onConflict: 'project_id, student_id', ignoreDuplicates: true });
+
+    if (error) throw error;
+
     return Response.json({ saved: true });
   } catch (e) {
     console.error('POST /api/projects/[id]/save', e);

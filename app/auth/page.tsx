@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, ChevronLeft } from 'lucide-react';
 
-type LoginStep = 'initial' | 'roleSelection' | 'studentForm' | 'staffForm' | 'adminForm';
+type LoginStep = 'initial' | 'roleSelection' | 'studentForm' | 'staffForm' | 'adminForm' | 'setupForm';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -22,6 +22,10 @@ export default function AuthPage() {
   const [studentId, setStudentId] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
   const [selectedYear, setSelectedYear] = useState<'25' | '24' | '23' | '22' | null>(null);
+
+  // Setup Form State
+  const [setupPassword, setSetupPassword] = useState('');
+  const [confirmSetupPassword, setConfirmSetupPassword] = useState('');
 
   // Staff Form State
   const [staffId, setStaffId] = useState('');
@@ -58,6 +62,40 @@ export default function AuthPage() {
     setSelectedYear(prefix as '25' | '24' | '23' | '22');
     setStudentId(prefix);
     setError('');
+  };
+
+  const handleSetupPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (setupPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (setupPassword !== confirmSetupPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { apiAuthSetup } = await import('@/lib/api');
+      const { success } = await apiAuthSetup(studentId, setupPassword);
+      if (success) {
+        alert('Password set successfully! Please login.');
+        setStep('studentForm');
+        setStudentPassword('');
+        setSetupPassword('');
+        setConfirmSetupPassword('');
+      } else {
+        setError('Failed to set password. Try again.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error setting password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const validateStudentForm = (): boolean => {
@@ -134,13 +172,17 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const { apiAuthValidate } = await import('@/lib/api');
-      const { found, student } = await apiAuthValidate(studentId.trim());
-      if (found && student) {
-        if (studentPassword.length < 4) {
-          setError('Invalid password');
-          setIsLoading(false);
-          return;
-        }
+
+      // We manually fetch to handle 401 specifically if needed with custom message parsing
+      const res = await fetch('/api/auth/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: studentId.trim(), password: studentPassword })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.found && data.student) {
+        const student = data.student;
         localStorage.setItem('userType', 'student');
         localStorage.setItem('studentId', studentId);
         localStorage.setItem('currentStudentId', studentId);
@@ -152,7 +194,19 @@ export default function AuthPage() {
         localStorage.removeItem('redirectAfterLogin');
         router.push(redirectUrl);
       } else {
-        setError('Student ID not found in database. Please check and try again.');
+        // Handle specific "Account not set up" case
+        if (res.status === 400 && data.error && data.error.includes('Password already set')) {
+          setError(data.error);
+        } else if (res.status === 401 && data.error && data.error.includes('Account not set up')) {
+          setError('Account not set up. Please set a password.');
+          // Optional: automatically switch to setup step?
+          // setStep('setupForm'); 
+          // Better to let user click the link in the error message, or auto switch.
+          // Let's auto switch for convenience
+          setStep('setupForm');
+        } else {
+          setError(data.error || 'Student ID not found or invalid password.');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Database error. Is MySQL running?');
@@ -173,7 +227,7 @@ export default function AuthPage() {
     setTimeout(() => {
       localStorage.setItem('userType', 'staff');
       localStorage.setItem('staffId', staffId);
-      
+
       // Check if user tried to access upload page before login
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || '/projects';
       localStorage.removeItem('redirectAfterLogin');
@@ -194,7 +248,7 @@ export default function AuthPage() {
       localStorage.setItem('userType', 'admin');
       localStorage.setItem('adminEmail', adminEmail);
       localStorage.setItem('adminId', 'admin-' + Date.now());
-      
+
       router.push('/admin/feedback');
     }, 1000);
   };
@@ -202,7 +256,7 @@ export default function AuthPage() {
   // Initial State - Only Login Button
   if (step === 'initial') {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center relative"
         style={{ backgroundImage: 'url(/campus-bg.jpg)' }}
       >
@@ -236,7 +290,7 @@ export default function AuthPage() {
   // Role Selection State
   if (step === 'roleSelection') {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center relative"
         style={{ backgroundImage: 'url(/campus-bg.jpg)' }}
       >
@@ -267,7 +321,7 @@ export default function AuthPage() {
                 >
                   Student Login
                 </Button>
-                
+
                 <Button
                   onClick={() => setStep('adminForm')}
                   variant="outline"
@@ -286,7 +340,7 @@ export default function AuthPage() {
   // Student Login Form
   if (step === 'studentForm') {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center relative"
         style={{ backgroundImage: 'url(/campus-bg.jpg)' }}
       >
@@ -328,11 +382,10 @@ export default function AuthPage() {
                         key={year.prefix}
                         type="button"
                         onClick={() => handleYearClick(year.prefix)}
-                        className={`p-3 rounded-lg text-center transition-all ${
-                          selectedYear === year.prefix
-                            ? `${year.color} text-white shadow-lg`
-                            : 'bg-muted hover:bg-muted/80'
-                        }`}
+                        className={`p-3 rounded-lg text-center transition-all ${selectedYear === year.prefix
+                          ? `${year.color} text-white shadow-lg`
+                          : 'bg-muted hover:bg-muted/80'
+                          }`}
                       >
                         <div className="font-semibold text-sm">{year.label}</div>
                         <div className="text-xs opacity-75">{year.prefix}</div>
@@ -401,7 +454,7 @@ export default function AuthPage() {
   // Admin Login Form
   if (step === 'adminForm') {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center relative"
         style={{ backgroundImage: 'url(/campus-bg.jpg)' }}
       >
@@ -491,7 +544,7 @@ export default function AuthPage() {
   // Staff Login Form
   if (step === 'staffForm') {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-fixed flex items-center justify-center relative"
         style={{ backgroundImage: 'url(/campus-bg.jpg)' }}
       >

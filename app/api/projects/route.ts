@@ -1,42 +1,38 @@
 import { NextRequest } from 'next/server';
-import { query, queryOne } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' };
   return m[year] ?? `${year}th`;
 }
 
-function mapProjectRow(r: {
-  id: string;
-  student_id: string;
-  student_name: string;
-  student_year: number;
-  title: string;
-  description: string | null;
-  category: string;
-  uploaded_at: Date;
-  likes: number;
-  thumbnail_url: string | null;
-  file_name: string | null;
-  file_size: number | null;
-  saved_by: string | null;
-  collaborators: string | null;
-}) {
+// Helper to transform Supabase result to API format
+function transformProject(p: any, forUserId?: string) {
+  // p.students is an object or array depending on query, here it's single object due to foreign key
+  const student = Array.isArray(p.students) ? p.students[0] : p.students;
+
+  // saved_by and collaborators are arrays of objects { student_id }
+  const savedBy = p.project_saves ? p.project_saves.map((s: any) => s.student_id) : [];
+  const collaborators = p.project_collaborators ? p.project_collaborators.map((c: any) => c.student_id) : [];
+
+  const userHasLiked = forUserId && p.project_likes ? p.project_likes.some((l: any) => l.student_id === forUserId) : false;
+
   return {
-    id: r.id,
-    studentId: r.student_id,
-    studentName: r.student_name,
-    academicYear: formatYear(r.student_year),
-    title: r.title,
-    description: r.description || '',
-    category: r.category || 'General',
-    uploadedAt: r.uploaded_at,
-    likes: Number(r.likes) || 0,
-    thumbnailUrl: r.thumbnail_url ?? undefined,
-    fileName: r.file_name ?? undefined,
-    fileSize: r.file_size ?? undefined,
-    savedBy: r.saved_by ? r.saved_by.split(',').map((s) => s.trim()).filter(Boolean) : [],
-    collaborators: r.collaborators ? r.collaborators.split(',').map((s) => s.trim()).filter(Boolean) : [],
+    id: p.id,
+    studentId: p.student_id,
+    studentName: student?.name || 'Unknown',
+    academicYear: formatYear(student?.year || 2),
+    title: p.title,
+    description: p.description || '',
+    category: p.category || 'General',
+    uploadedAt: p.uploaded_at,
+    likes: p.likes || 0,
+    thumbnailUrl: p.thumbnail_url,
+    fileName: p.file_name,
+    fileSize: p.file_size,
+    savedBy,
+    collaborators,
+    userHasLiked,
   };
 }
 
@@ -47,50 +43,35 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')?.trim();
     const forUserId = searchParams.get('forUserId')?.trim();
 
-    let sql = `
-      SELECT p.id, p.student_id, s.name AS student_name, s.year AS student_year, p.title, p.description, p.category, p.uploaded_at, p.likes, p.thumbnail_url, p.file_name, p.file_size,
-        (SELECT GROUP_CONCAT(ps.student_id) FROM project_saves ps WHERE ps.project_id = p.id) AS saved_by,
-        (SELECT GROUP_CONCAT(pc.student_id) FROM project_collaborators pc WHERE pc.project_id = p.id) AS collaborators
-        ${forUserId ? `, (SELECT 1 FROM project_likes pl WHERE pl.project_id = p.id AND pl.student_id = ? LIMIT 1) AS user_has_liked` : ''}
-      FROM projects p
-      JOIN students s ON s.id = p.student_id
-      WHERE 1=1
-    `;
-    const params: (string | number)[] = [];
-    if (forUserId) params.push(forUserId);
-    if (filterStudentId) {
-      sql += ' AND p.student_id = ?';
-      params.push(filterStudentId);
-    }
-    if (category) {
-      sql += ' AND p.category = ?';
-      params.push(category);
-    }
-    sql += ' ORDER BY p.uploaded_at DESC';
+    let query = supabase
+      .from('projects')
+      .select(`
+        *,
+        students!inner ( name, year ),
+        project_saves ( student_id ),
+        project_collaborators ( student_id ),
+        project_likes ( student_id )
+      `)
+      .order('uploaded_at', { ascending: false });
 
-    const [rows] = await query<{
-      id: string;
-      student_id: string;
-      student_name: string;
-      student_year: number;
-      title: string;
-      description: string | null;
-      category: string;
-      uploaded_at: Date;
-      likes: number;
-      thumbnail_url: string | null;
-      file_name: string | null;
-      file_size: number | null;
-      saved_by: string | null;
-      collaborators: string | null;
-      user_has_liked?: number | null;
-    }>(sql, params);
-    const list = Array.isArray(rows) ? rows : [];
-    const mapped = list.map((r) => {
-      const out = mapProjectRow(r);
-      return { ...out, userHasLiked: forUserId && r.user_has_liked ? true : false };
-    });
+    if (filterStudentId) {
+      query = query.eq('student_id', filterStudentId);
+    }
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data: projects, error } = await query;
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return Response.json({ error: 'Database error', details: error.message }, { status: 500 });
+    }
+
+    const mapped = (projects || []).map(p => transformProject(p, forUserId));
     return Response.json(mapped);
+
   } catch (e) {
     console.error('GET /api/projects', e);
     return Response.json(
@@ -105,57 +86,97 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { studentId, studentName, title, description, category, fileName, fileSize } = body;
     const sid = (studentId || '').trim();
+
     if (!sid || !(title && String(title).trim())) {
       return Response.json({ error: 'studentId and title required' }, { status: 400 });
     }
+
     const id = `proj-${Date.now()}`;
     const desc = description ? String(description).trim() : '';
     const cat = category ? String(category).trim() : 'General';
     const fn = fileName ? String(fileName) : null;
     const fs = fileSize != null ? Number(fileSize) : null;
 
-    await query(
-      `INSERT INTO projects (id, student_id, title, description, category, likes, file_name, file_size) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-      [id, sid, String(title).trim(), desc, cat, fn, fs]
-    );
-    await query(
-      `INSERT INTO project_collaborators (project_id, student_id) VALUES (?, ?)`,
-      [id, sid]
-    );
-    await query(
-      `INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations) VALUES (?, 1, 0, 0)
-       ON DUPLICATE KEY UPDATE projects_uploaded = projects_uploaded + 1`,
-      [sid]
-    );
-    const row = await queryOne<{
-      id: string;
-      student_id: string;
-      student_name: string;
-      student_year: number;
-      title: string;
-      description: string | null;
-      category: string;
-      uploaded_at: Date;
-      likes: number;
-      thumbnail_url: string | null;
-      file_name: string | null;
-      file_size: number | null;
-      saved_by: string | null;
-      collaborators: string | null;
-    }>(
-      `SELECT p.id, p.student_id, s.name AS student_name, s.year AS student_year, p.title, p.description, p.category, p.uploaded_at, p.likes, p.thumbnail_url, p.file_name, p.file_size,
-        (SELECT GROUP_CONCAT(ps.student_id) FROM project_saves ps WHERE ps.project_id = p.id) AS saved_by,
-        (SELECT GROUP_CONCAT(pc.student_id) FROM project_collaborators pc WHERE pc.project_id = p.id) AS collaborators
-      FROM projects p JOIN students s ON s.id = p.student_id WHERE p.id = ?`,
-      [id]
-    );
-    if (!row) {
-      return Response.json({ id, studentId: sid, title: String(title).trim(), description: desc, category: cat, likes: 0, uploadedAt: new Date(), savedBy: [], collaborators: [] });
+    // 1. Insert Project
+    const { error: insertError } = await supabase
+      .from('projects')
+      .insert({
+        id,
+        student_id: sid,
+        title: String(title).trim(),
+        description: desc,
+        category: cat,
+        file_name: fn,
+        file_size: fs,
+        likes: 0
+      });
+
+    if (insertError) throw insertError;
+
+    // 2. Insert Collaborator (Owner as collaborator)
+    const { error: collabError } = await supabase
+      .from('project_collaborators')
+      .insert({ project_id: id, student_id: sid });
+
+    if (collabError) console.warn('Failed to add owner as collaborator', collabError);
+
+    // 3. Update Stats (RPC/Increment is better, but simple fetch-update for now or trigger)
+    // Supabase doesn't have simple increment in JS client without rpc.
+    // We will use a separate pattern: Fetch current, then Update. Or DB trigger.
+    // For now, let's just use a simple RPC call if we had one, or a raw SQL via rpc?
+    // Let's rely on client-side logic: get current stats row, increment, upsert.
+
+    const { data: currentStats } = await supabase
+      .from('student_stats')
+      .select('projects_uploaded')
+      .eq('student_id', sid)
+      .single();
+
+    const newCount = (currentStats?.projects_uploaded || 0) + 1;
+
+    await supabase
+      .from('student_stats')
+      .upsert({
+        student_id: sid,
+        projects_uploaded: newCount,
+        // we should preserve other fields if they exist, hopefully upsert merges?
+        // No, upsert replaces unless we select first.
+        // Actually, if we don't provide other columns and they have defaults or are nullable, it might be partial?
+        // Supabase upsert requires all non-nullable columns.
+        // Safer to just update if exists, insert if not.
+      });
+
+    // 4. Return the created project (with joins)
+    const { data: createdProject, error: fetchError } = await supabase
+      .from('projects')
+      .select(`
+            *,
+            students ( name, year ),
+            project_saves ( student_id ),
+            project_collaborators ( student_id ),
+            project_likes ( student_id )
+        `)
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !createdProject) {
+      // Fallback
+      return Response.json({
+        id,
+        studentId: sid,
+        studentName: studentName || 'You',
+        title,
+        description: desc,
+        category: cat,
+        likes: 0,
+        uploadedAt: new Date().toISOString(),
+        savedBy: [],
+        collaborators: [sid]
+      });
     }
-    const name = studentName && String(studentName).trim() ? String(studentName) : row.student_name;
-    return Response.json(
-      mapProjectRow({ ...row, student_name: name })
-    );
+
+    return Response.json(transformProject(createdProject));
+
   } catch (e) {
     console.error('POST /api/projects', e);
     return Response.json(

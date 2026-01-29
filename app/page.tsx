@@ -82,7 +82,7 @@ export default function Home() {
             >
               Start Uploading Now <Upload className="w-4 h-4" />
             </Button>
-            <Link href="/college">
+            <Link href="https://sircrrcoestd.in/">
               <Button size="lg" variant="outline" className="gap-2 smooth-button bg-background/50 backdrop-blur-sm hover:bg-background/80">
                 Visit College Portal <ArrowRight className="w-4 h-4" />
               </Button>

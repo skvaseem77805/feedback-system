@@ -1,56 +1,84 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
 import {
   Search,
   UserPlus,
   MessageCircle,
   Zap,
 } from 'lucide-react';
-import { getAllStudents, sendConnectionRequest, acceptConnection } from '@/lib/data';
-import type { StudentProfile } from '@/lib/data';
-import { useSearchParams } from 'next/navigation';
+import { apiStudents, apiConnections, apiConnectionRequest, apiConnectionAccept } from '@/lib/api';
+import type { ApiStudent } from '@/lib/api';
+import { getCurrentStudentId } from '@/lib/statsTracker';
 import ConnectLoading from './loading';
 
 function ConnectContent() {
-  const [students, setStudents] = useState<StudentProfile[]>(getAllStudents());
+  const [students, setStudents] = useState<ApiStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredStudents, setFilteredStudents] = useState<StudentProfile[]>(students);
+  const [filteredStudents, setFilteredStudents] = useState<ApiStudent[]>([]);
   const [sentRequests, setSentRequests] = useState<string[]>([]);
   const [connections, setConnections] = useState<string[]>([]);
-  const currentStudentId = 'student1';
-  const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const currentStudentId = getCurrentStudentId() ?? '';
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [list, conn] = await Promise.all([
+          apiStudents(),
+          currentStudentId ? apiConnections(currentStudentId) : { connections: [] as string[], sent: [] as string[], received: [] as string[] },
+        ]);
+        setStudents(list);
+        setConnections(conn.connections);
+        setSentRequests(conn.sent);
+      } catch (e) {
+        console.error('Connect load error:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [currentStudentId]);
+
+  useEffect(() => {
+    const q = searchQuery.toLowerCase();
+    const me = currentStudentId;
     const filtered = students.filter(
-      (student) =>
-        student.id !== currentStudentId &&
-        (student.name.toLowerCase().includes(query.toLowerCase()) ||
-          student.bio?.toLowerCase().includes(query.toLowerCase()) ||
-          student.skills?.some((skill) =>
-            skill.toLowerCase().includes(query.toLowerCase())
-          ))
+      (s) =>
+        (!me || s.id !== me) &&
+        (q === '' ||
+          s.name.toLowerCase().includes(q) ||
+          (s.bio && s.bio.toLowerCase().includes(q)) ||
+          (s.skills && s.skills.some((sk) => sk.toLowerCase().includes(q))))
     );
     setFilteredStudents(filtered);
-  };
+  }, [searchQuery, students, currentStudentId]);
 
-  const handleSendRequest = (targetStudentId: string) => {
-    if (sendConnectionRequest(currentStudentId, targetStudentId)) {
-      setSentRequests([...sentRequests, targetStudentId]);
+  const handleSearch = (query: string) => setSearchQuery(query);
+
+  const handleSendRequest = async (targetStudentId: string) => {
+    if (!currentStudentId) return;
+    try {
+      await apiConnectionRequest(currentStudentId, targetStudentId);
+      setSentRequests((prev) => (prev.includes(targetStudentId) ? prev : [...prev, targetStudentId]));
+    } catch (e) {
+      console.error('Send request error:', e);
     }
   };
 
-  const handleAcceptConnection = (targetStudentId: string) => {
-    if (acceptConnection(currentStudentId, targetStudentId)) {
-      setConnections([...connections, targetStudentId]);
-      setSentRequests(sentRequests.filter(id => id !== targetStudentId));
+  const handleAcceptConnection = async (targetStudentId: string) => {
+    if (!currentStudentId) return;
+    try {
+      await apiConnectionAccept(currentStudentId, targetStudentId);
+      setConnections((prev) => (prev.includes(targetStudentId) ? prev : [...prev, targetStudentId]));
+      setSentRequests((prev) => prev.filter((id) => id !== targetStudentId));
+    } catch (e) {
+      console.error('Accept connection error:', e);
     }
   };
 
@@ -99,7 +127,9 @@ function ConnectContent() {
         </div>
 
         {/* Students Grid */}
-        {filteredStudents.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading…</div>
+        ) : filteredStudents.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredStudents.map((student) => (
               <Card
@@ -161,15 +191,15 @@ function ConnectContent() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2 mb-4 text-center py-3 border-t border-b border-border/50">
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-primary">{student.uploadedProjects.length}</p>
+                    <p className="text-2xl font-bold text-primary">{student.projectsUploaded ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Projects</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-accent">{student.connections.length}</p>
+                    <p className="text-2xl font-bold text-accent">{student.connectionsCount ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Connections</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-secondary">{student.collaborations.length}</p>
+                    <p className="text-2xl font-bold text-secondary">{student.collaborationsCount ?? 0}</p>
                     <p className="text-xs text-muted-foreground">Collabs</p>
                   </div>
                 </div>

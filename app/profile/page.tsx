@@ -53,56 +53,39 @@ export default function ProfilePage() {
         return;
       }
 
-      // Initialize stats if not exist
-      initializeStudentStats(studentId);
-      const currentStats = getStudentStats(studentId);
-      setStats(currentStats);
-
-      // Get existing profile data from localStorage
       const storageKey = `studentProfile_${studentId}`;
       const existing = localStorage.getItem(storageKey);
-      
-      if (existing) {
-        const parsed = JSON.parse(existing);
-        setStudentData(parsed);
-        if (parsed.profilePhoto) {
-          setPhotoPreview(parsed.profilePhoto);
+
+      try {
+        const { apiStudent, apiStats } = await import('@/lib/api');
+        const [dbStudent, dbStats] = await Promise.all([apiStudent(studentId), apiStats(studentId).catch(() => null)]);
+        if (dbStats) {
+          setStats({
+            projectsUploaded: dbStats.projectsUploaded,
+            connections: dbStats.connections,
+            collaborations: dbStats.collaborations,
+          });
+        } else {
+          initializeStudentStats(studentId);
+          setStats(getStudentStats(studentId));
         }
-      } else {
-        // Try to fetch student data from CSV database
-        try {
-          const { findStudentById, formatYear } = await import('@/lib/students');
-          const csvStudent = findStudentById(studentId);
-          
-          if (csvStudent) {
-            // Create profile from CSV data
-            const newStudent: StudentData = {
-              name: csvStudent.name,
-              studentId: csvStudent.userId,
-              department: csvStudent.department,
-              year: formatYear(csvStudent.year),
-              email: csvStudent.email || 'Not provided',
-              linkedinUrl: csvStudent.linkedinUrl || '',
-            };
-            setStudentData(newStudent);
-            localStorage.setItem(storageKey, JSON.stringify(newStudent));
-          } else {
-            // Fallback: create default profile if not in CSV
-            const newStudent: StudentData = {
-              name: localStorage.getItem('studentName') || 'Your Name',
-              studentId,
-              department: localStorage.getItem('studentDepartment') || 'CSE',
-              year: '2nd',
-              email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
-              linkedinUrl: '',
-            };
-            setStudentData(newStudent);
-            localStorage.setItem(storageKey, JSON.stringify(newStudent));
-          }
-        } catch (error) {
-          console.error('Error loading student data:', error);
-          // Fallback profile
+        if (dbStudent) {
           const newStudent: StudentData = {
+            name: dbStudent.name,
+            studentId: dbStudent.userId,
+            department: dbStudent.department,
+            year: dbStudent.academicYear,
+            email: dbStudent.email || 'Not provided',
+            linkedinUrl: dbStudent.linkedinUrl || '',
+          };
+          setStudentData(newStudent);
+          if (!existing) localStorage.setItem(storageKey, JSON.stringify(newStudent));
+        } else if (existing) {
+          const parsed = JSON.parse(existing);
+          setStudentData(parsed);
+          if (parsed.profilePhoto) setPhotoPreview(parsed.profilePhoto);
+        } else {
+          const fallback: StudentData = {
             name: localStorage.getItem('studentName') || 'Your Name',
             studentId,
             department: localStorage.getItem('studentDepartment') || 'CSE',
@@ -110,22 +93,46 @@ export default function ProfilePage() {
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
           };
-          setStudentData(newStudent);
-          localStorage.setItem(storageKey, JSON.stringify(newStudent));
+          setStudentData(fallback);
+          localStorage.setItem(storageKey, JSON.stringify(fallback));
+        }
+      } catch (error) {
+        console.error('Error loading student data:', error);
+        if (existing) {
+          const parsed = JSON.parse(existing);
+          setStudentData(parsed);
+          if (parsed.profilePhoto) setPhotoPreview(parsed.profilePhoto);
+        } else {
+          initializeStudentStats(studentId);
+          setStats(getStudentStats(studentId));
+          const fallback: StudentData = {
+            name: localStorage.getItem('studentName') || 'Your Name',
+            studentId,
+            department: localStorage.getItem('studentDepartment') || 'CSE',
+            year: '2nd',
+            email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
+            linkedinUrl: '',
+          };
+          setStudentData(fallback);
+          localStorage.setItem(storageKey, JSON.stringify(fallback));
         }
       }
     };
 
     initializeStudent();
 
-    // Set up interval to refresh stats every second
-    const interval = setInterval(() => {
-      const studentId = getCurrentStudentId();
-      if (studentId) {
-        setStats(getStudentStats(studentId));
+    const studentId = getCurrentStudentId();
+    if (!studentId) return;
+    const interval = setInterval(async () => {
+      try {
+        const { apiStats } = await import('@/lib/api');
+        const s = await apiStats(studentId);
+        setStats({ projectsUploaded: s.projectsUploaded, connections: s.connections, collaborations: s.collaborations });
+      } catch {
+        const cur = getCurrentStudentId();
+        if (cur) setStats(getStudentStats(cur));
       }
-    }, 1000);
-
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 

@@ -8,23 +8,40 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StudentProfileCard } from '@/components/StudentProfileCard';
 import { Search, Users, ArrowRight, ExternalLink } from 'lucide-react';
-import type { StudentRecord } from '@/lib/students';
+import type { ApiStudent } from '@/lib/api';
+
+function toRecord(s: ApiStudent) {
+  return {
+    userId: s.userId,
+    name: s.name,
+    registrationNo: s.registrationNo,
+    uniqueId: s.uniqueId ?? '',
+    year: s.year,
+    course: s.course ?? '',
+    email: s.email,
+    mobileNo: s.mobileNo,
+    department: s.department,
+    section: s.section,
+    linkedinUrl: s.linkedinUrl,
+  };
+}
 
 export default function SelectStudentPage() {
   const router = useRouter();
-  const [students, setStudents] = useState<StudentRecord[]>([]);
-  const [filteredStudents, setFilteredStudents] = useState<StudentRecord[]>([]);
+  const [students, setStudents] = useState<ReturnType<typeof toRecord>[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<ReturnType<typeof toRecord>[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<ReturnType<typeof toRecord> | null>(null);
 
   useEffect(() => {
     const loadStudents = async () => {
       try {
-        const { getAllStudents } = await import('@/lib/students');
-        const allStudents = getAllStudents();
-        setStudents(allStudents);
-        setFilteredStudents(allStudents);
+        const { apiStudents } = await import('@/lib/api');
+        const list = await apiStudents();
+        const recs = list.map(toRecord);
+        setStudents(recs);
+        setFilteredStudents(recs);
       } catch (error) {
         console.error('Error loading students:', error);
       } finally {
@@ -41,12 +58,12 @@ export default function SelectStudentPage() {
       student =>
         student.name.toLowerCase().includes(query.toLowerCase()) ||
         student.userId.toLowerCase().includes(query.toLowerCase()) ||
-        student.email.toLowerCase().includes(query.toLowerCase())
+        (student.email && student.email.toLowerCase().includes(query.toLowerCase()))
     );
     setFilteredStudents(filtered);
   };
 
-  const switchToStudent = (student: StudentRecord) => {
+  const switchToStudent = (student: ReturnType<typeof toRecord>) => {
     // Set the student as logged in
     localStorage.setItem('currentStudentId', student.userId);
     localStorage.setItem('studentId', student.userId);
@@ -109,11 +126,17 @@ export default function SelectStudentPage() {
         {/* Students Grid */}
         {filteredStudents.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredStudents.map(student => (
+            {filteredStudents.map((student) => (
               <StudentProfileCard
                 key={student.userId}
-                student={student}
+                student={student as import('@/lib/students').StudentRecord}
                 onSelect={switchToStudent}
+                onIncrementStats={async (kind) => {
+                  const { getCurrentStudentId } = await import('@/lib/statsTracker');
+                  const { apiStatsIncrement } = await import('@/lib/api');
+                  const id = getCurrentStudentId();
+                  if (id) await apiStatsIncrement(id, kind === 'connections' ? { connections: 1 } : { collaborations: 1 });
+                }}
               />
             ))}
           </div>

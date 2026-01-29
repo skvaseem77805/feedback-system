@@ -11,53 +11,43 @@ import type { StudentRecord } from '@/lib/students';
 interface StudentProfileCardProps {
   student: StudentRecord;
   onSelect?: (student: StudentRecord) => void;
+  /** When provided, called instead of localStorage stats (e.g. when using DB). */
+  onIncrementStats?: (kind: 'connections' | 'collaborations') => void | Promise<void>;
 }
 
 export function StudentProfileCard({
   student,
   onSelect,
+  onIncrementStats,
 }: StudentProfileCardProps) {
   const [collaborateOpen, setCollaborateOpen] = useState(false);
 
-  const handleConnect = () => {
+  const inc = (kind: 'connections' | 'collaborations') => {
     const currentStudentId = getCurrentStudentId();
-    
-    // Only increment if connecting to a different student
-    if (currentStudentId && currentStudentId !== student.userId) {
-      incrementConnections(currentStudentId);
-      console.log('[v0] Connected to student:', student.userId);
+    if (!currentStudentId || currentStudentId === student.userId) return;
+    if (onIncrementStats) {
+      void Promise.resolve(onIncrementStats(kind));
+    } else {
+      if (kind === 'connections') incrementConnections(currentStudentId);
+      else incrementCollaborations(currentStudentId);
     }
+  };
 
-    // Redirect to LinkedIn profile in new tab
+  const handleConnect = () => {
+    inc('connections');
     const linkedinUrl = student.linkedinUrl || 'https://linkedin.com';
     window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCollaborateLinkedIn = () => {
-    const currentStudentId = getCurrentStudentId();
-    
-    // Only increment if collaborating with a different student
-    if (currentStudentId && currentStudentId !== student.userId) {
-      incrementCollaborations(currentStudentId);
-      console.log('[v0] Collaboration initiated via LinkedIn with:', student.userId);
-    }
-
-    // Redirect to LinkedIn profile in new tab
+    inc('collaborations');
     const linkedinUrl = student.linkedinUrl || 'https://linkedin.com';
     window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
     setCollaborateOpen(false);
   };
 
   const handleCollaborateEmail = () => {
-    const currentStudentId = getCurrentStudentId();
-    
-    // Only increment if collaborating with a different student
-    if (currentStudentId && currentStudentId !== student.userId) {
-      incrementCollaborations(currentStudentId);
-      console.log('[v0] Collaboration initiated via Email with:', student.userId);
-    }
-
-    // Open email client
+    inc('collaborations');
     if (student.email) {
       const subject = encodeURIComponent('Project Collaboration Request');
       const body = encodeURIComponent(

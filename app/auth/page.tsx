@@ -132,20 +132,15 @@ export default function AuthPage() {
     }
 
     setIsLoading(true);
-    
-    // Import student database dynamically
-    const { findStudentById } = await import('@/lib/students');
-    const student = findStudentById(studentId);
-    
-    if (student) {
-      // Simulate password check (in real app, this would be backend validation)
-      if (studentPassword.length < 4) {
-        setError('Invalid password');
-        setIsLoading(false);
-        return;
-      }
-      
-      setTimeout(() => {
+    try {
+      const { apiAuthValidate } = await import('@/lib/api');
+      const { found, student } = await apiAuthValidate(studentId.trim());
+      if (found && student) {
+        if (studentPassword.length < 4) {
+          setError('Invalid password');
+          setIsLoading(false);
+          return;
+        }
         localStorage.setItem('userType', 'student');
         localStorage.setItem('studentId', studentId);
         localStorage.setItem('currentStudentId', studentId);
@@ -153,14 +148,15 @@ export default function AuthPage() {
         localStorage.setItem('studentName', student.name);
         localStorage.setItem('studentDepartment', student.department);
         localStorage.setItem('studentEmail', student.email);
-        
-        // Check if user tried to access upload page before login
         const redirectUrl = localStorage.getItem('redirectAfterLogin') || '/profile';
         localStorage.removeItem('redirectAfterLogin');
         router.push(redirectUrl);
-      }, 1000);
-    } else {
-      setError('Student ID not found in database. Please check and try again.');
+      } else {
+        setError('Student ID not found in database. Please check and try again.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Database error. Is MySQL running?');
+    } finally {
       setIsLoading(false);
     }
   };

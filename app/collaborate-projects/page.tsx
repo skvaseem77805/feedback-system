@@ -18,17 +18,16 @@ import {
   Users,
   Plus,
   CheckCircle,
-  Clock,
-  Pause,
   MessageSquare,
   GitBranch,
 } from 'lucide-react';
-import { mockProjects, getStudentProfile, joinCollaboration } from '@/lib/data';
-import type { Project, StudentProfile } from '@/lib/data';
+import { apiProjects, apiCreateProject, apiJoinProject, apiStudent } from '@/lib/api';
+import type { ApiProject } from '@/lib/api';
+import { getCurrentStudentId } from '@/lib/statsTracker';
 
 export default function CollaborateProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>(Object.values(mockProjects));
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'open'>('all');
   const [showNewCollaborationDialog, setShowNewCollaborationDialog] = useState(false);
@@ -37,66 +36,81 @@ export default function CollaborateProjectsPage() {
     description: '',
     technologies: '',
   });
-  const [userJoinedProjects, setUserJoinedProjects] = useState<string[]>([]);
-  const currentStudentId = 'student1';
-  const currentStudent = getStudentProfile(currentStudentId);
+  const [creating, setCreating] = useState(false);
+  const currentStudentId = getCurrentStudentId() ?? '';
+  const [currentStudentName, setCurrentStudentName] = useState('');
 
   useEffect(() => {
-    let filtered = projects;
+    const load = async () => {
+      try {
+        const list = await apiProjects({ forUserId: currentStudentId || undefined });
+        setProjects(list);
+        if (currentStudentId) {
+          const s = await apiStudent(currentStudentId).catch(() => null);
+          if (s) setCurrentStudentName(s.name);
+        }
+      } catch (e) {
+        console.error('Collaborate load error:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [currentStudentId]);
 
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (p) =>
-          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+  const filteredProjects = projects.filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const matchSearch =
+      !q ||
+      p.title.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q);
+    const matchStatus =
+      selectedStatus === 'all' ||
+      (selectedStatus === 'open' && !p.collaborators.includes(currentStudentId)) ||
+      (selectedStatus === 'active' && p.collaborators.includes(currentStudentId));
+    return matchSearch && matchStatus;
+  });
 
-    if (selectedStatus === 'open') {
-      filtered = filtered.filter((p) => !p.collaborators.includes(currentStudentId));
-    } else if (selectedStatus === 'active') {
-      filtered = filtered.filter((p) => p.collaborators.includes(currentStudentId));
-    }
-
-    setFilteredProjects(filtered);
-  }, [searchQuery, selectedStatus, projects]);
-
-  const handleJoinProject = (projectId: string) => {
-    if (joinCollaboration(projectId, currentStudentId)) {
-      setUserJoinedProjects([...userJoinedProjects, projectId]);
-      setProjects(projects.map((p) => (p.id === projectId ? { ...p, collaborators: [...p.collaborators, currentStudentId] } : p)));
+  const handleJoinProject = async (project: ApiProject) => {
+    if (!currentStudentId) return;
+    try {
+      const res = await apiJoinProject(project.id, currentStudentId);
+      if (res.joined || res.already) {
+        setProjects((prev) =>
+          prev.map((q) =>
+            q.id === project.id
+              ? { ...q, collaborators: q.collaborators.includes(currentStudentId) ? q.collaborators : [...q.collaborators, currentStudentId] }
+              : q
+          )
+        );
+      }
+    } catch (e) {
+      console.error('Join error:', e);
     }
   };
 
-  const handleCreateCollaboration = () => {
-    if (newCollaborationData.title && newCollaborationData.description) {
-      const newProject: Project = {
-        id: `proj-${Date.now()}`,
+  const handleCreateCollaboration = async () => {
+    if (!newCollaborationData.title.trim() || !currentStudentId) return;
+    setCreating(true);
+    try {
+      const created = await apiCreateProject({
         studentId: currentStudentId,
-        studentName: currentStudent?.name || 'Anonymous',
-        academicYear: currentStudent?.academicYear || '2nd',
-        title: newCollaborationData.title,
-        description: newCollaborationData.description,
+        studentName: currentStudentName || undefined,
+        title: newCollaborationData.title.trim(),
+        description: newCollaborationData.description.trim() || undefined,
         category: 'Collaboration',
-        uploadedAt: new Date(),
-        likes: 0,
-        savedBy: [],
-        collaborators: [currentStudentId],
-      };
-      setProjects([newProject, ...projects]);
+      });
+      setProjects((prev) => [created, ...prev]);
       setShowNewCollaborationDialog(false);
       setNewCollaborationData({ title: '', description: '', technologies: '' });
+    } catch (e) {
+      console.error('Create collaboration error:', e);
+    } finally {
+      setCreating(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    if (status === 'active') return <CheckCircle className="w-4 h-4 text-green-500" />;
-    if (status === 'paused') return <Pause className="w-4 h-4 text-yellow-500" />;
-    return <Clock className="w-4 h-4 text-blue-500" />;
-  };
-
-  const isAlreadyJoined = (projectId: string) => userJoinedProjects.includes(projectId) || false;
-  const isProjectOwner = (project: Project) => project.studentId === currentStudentId;
+  const isProjectOwner = (project: ApiProject) => project.studentId === currentStudentId;
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -147,7 +161,9 @@ export default function CollaborateProjectsPage() {
         </div>
 
         {/* Collaboration Projects Grid */}
-        {filteredProjects.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading…</div>
+        ) : filteredProjects.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
               const collaboratorCount = project.collaborators.length;
@@ -242,7 +258,7 @@ export default function CollaborateProjectsPage() {
                       <Button
                         className="w-full smooth-button bg-primary text-primary-foreground"
                         size="sm"
-                        onClick={() => handleJoinProject(project.id)}
+                        onClick={() => handleJoinProject(project)}
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Join Team
@@ -324,8 +340,9 @@ export default function CollaborateProjectsPage() {
                 <Button
                   className="flex-1 smooth-button bg-primary text-primary-foreground"
                   onClick={handleCreateCollaboration}
+                  disabled={creating || !newCollaborationData.title.trim()}
                 >
-                  Create Collaboration
+                  {creating ? 'Creating…' : 'Create Collaboration'}
                 </Button>
                 <Button
                   variant="outline"

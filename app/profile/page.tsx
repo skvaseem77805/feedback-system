@@ -77,6 +77,7 @@ export default function ProfilePage() {
             year: dbStudent.academicYear,
             email: dbStudent.email || 'Not provided',
             linkedinUrl: dbStudent.linkedinUrl || '',
+            profilePhoto: dbStudent.avatar || undefined,
           };
           setStudentData(newStudent);
           if (!existing) localStorage.setItem(storageKey, JSON.stringify(newStudent));
@@ -136,18 +137,51 @@ export default function ProfilePage() {
     return () => clearInterval(interval);
   }, []);
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const saveProfile = async () => {
     if (!studentData) return;
+
+    let avatarUrl = studentData.profilePhoto;
+
+    // Upload to Supabase Storage if a new file is selected
+    if (selectedFile) {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `avatar_${studentData.studentId}_${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        avatarUrl = publicUrl;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        // Fallback: don't block profile save, just alert or log
+        // alert('Failed to upload image, saving other changes.');
+      }
+    }
 
     const updated: StudentData = {
       ...studentData,
       ...editData,
+      profilePhoto: avatarUrl, // Use the new URL (or existing)
     };
 
     // Optimistic UI update
-    if (photoPreview && photoPreview.startsWith('data:')) {
-      updated.profilePhoto = photoPreview;
-    }
+    // If we have a preview (base64) and just uploaded, we might want to keep showing the preview 
+    // until we refresh, but 'updated.profilePhoto' now holds the remote URL. 
+    // The img src will handle it.
 
     const storageKey = `studentProfile_${studentData.studentId}`;
     localStorage.setItem(storageKey, JSON.stringify(updated));
@@ -160,9 +194,15 @@ export default function ProfilePage() {
       const payload: any = {};
       if (editData.email) payload.email = editData.email;
       if (editData.linkedinUrl) payload.linkedinUrl = editData.linkedinUrl;
-      if (editData.profilePhoto) payload.profilePhoto = editData.profilePhoto;
 
-      // We do NOT send 'name' even if it was in editData (it shouldn't be accessible anyway)
+      // Always send the avatarUrl if it changed or if we just uploaded
+      if (avatarUrl !== studentData.profilePhoto) {
+        payload.avatar = avatarUrl; // Note: API expects 'avatar', frontend uses 'profilePhoto'. checking interface... 
+        // editData doesn't track 'avatar', so we must be careful.
+        // Wait, 'apiUpdateStudent' takes Partial<ApiStudent>. ApiStudent has 'avatar'.
+        // Frontend 'StudentData' has 'profilePhoto'.
+        // We need to map correctly.
+      }
 
       if (Object.keys(payload).length > 0) {
         await apiUpdateStudent(studentData.studentId, payload);
@@ -174,16 +214,19 @@ export default function ProfilePage() {
 
     setIsEditing(false);
     setEditData({});
+    setSelectedFile(null);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
+      // Create local preview
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         setPhotoPreview(result);
-        setEditData(prev => ({ ...prev, profilePhoto: result }));
+        setEditData(prev => ({ ...prev, profilePhoto: result })); // Keep for immediate feedback
       };
       reader.readAsDataURL(file);
     }

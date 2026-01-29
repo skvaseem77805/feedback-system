@@ -25,20 +25,8 @@ INSERT INTO public.student_stats (student_id, projects_uploaded, connections, co
 SELECT id, 0, 0, 0 FROM public.students
 ON CONFLICT (student_id) DO NOTHING;
 
--- Sample projects
-INSERT INTO public.projects (id, student_id, title, description, category, likes, uploaded_at) VALUES
-('proj1', '24B81A05Q5', 'AI-Powered Study Assistant', 'A web app that helps students organize notes and create study plans', 'Web Development', 234, '2024-01-15 10:00:00+00'),
-('proj2', '24B81A05Q5', 'Real-time Chat Application', 'WebSocket-based chat with user authentication', 'Web Development', 189, '2024-01-10 10:00:00+00'),
-('proj3', '24B81A05Q6', 'Mobile Banking App', 'Cross-platform mobile app with payment integration', 'Mobile App', 156, '2024-01-08 10:00:00+00')
-ON CONFLICT (id) DO UPDATE SET
-  title = EXCLUDED.title,
-  description = EXCLUDED.description,
-  likes = EXCLUDED.likes;
-
--- Sample project interactions
-INSERT INTO public.project_collaborators (project_id, student_id) VALUES ('proj1', '24B81A05Q6') ON CONFLICT DO NOTHING;
-INSERT INTO public.project_likes (project_id, student_id) VALUES ('proj1', '24B81A05Q6'), ('proj1', '24B81A05Q7') ON CONFLICT DO NOTHING;
-INSERT INTO public.project_saves (project_id, student_id) VALUES ('proj1', '24B81A05Q6'), ('proj3', '24B81A05Q5') ON CONFLICT DO NOTHING;
+-- No demo projects - starting fresh
+-- Projects table will be empty initially
 
 -- Sample connections
 INSERT INTO public.connection_requests (id, from_student_id, to_student_id, status) VALUES

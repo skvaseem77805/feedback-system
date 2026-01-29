@@ -145,17 +145,16 @@ export function StudentProfileCard({
             )}
           </div>
 
-          {onSelect && (
-            <Button
-              onClick={() => onSelect(student)}
-              size="sm"
-              variant="outline"
-              className="w-full smooth-button bg-transparent"
-            >
-              <ExternalLink className="w-3 h-3 mr-1.5" />
-              View Profile
-            </Button>
-          )}
+          {/* Public View Profile Link */}
+          <Button
+            onClick={() => window.location.href = `/student/${student.userId}`}
+            size="sm"
+            variant="outline"
+            className="w-full smooth-button bg-transparent hover:bg-primary/5"
+          >
+            <ExternalLink className="w-3 h-3 mr-1.5" />
+            View Profile
+          </Button>
         </div>
       </div>
     </Card>

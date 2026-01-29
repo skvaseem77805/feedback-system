@@ -47,7 +47,7 @@ export default function ProfilePage() {
     const initializeStudent = async () => {
       // Get student ID from auth login
       const studentId = getCurrentStudentId();
-      
+
       if (!studentId) {
         console.warn('No student ID found. Please log in first.');
         return;
@@ -136,7 +136,7 @@ export default function ProfilePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!studentData) return;
 
     const updated: StudentData = {
@@ -144,6 +144,7 @@ export default function ProfilePage() {
       ...editData,
     };
 
+    // Optimistic UI update
     if (photoPreview && photoPreview.startsWith('data:')) {
       updated.profilePhoto = photoPreview;
     }
@@ -151,6 +152,26 @@ export default function ProfilePage() {
     const storageKey = `studentProfile_${studentData.studentId}`;
     localStorage.setItem(storageKey, JSON.stringify(updated));
     setStudentData(updated);
+
+    // Persist to Backend
+    try {
+      const { apiUpdateStudent } = await import('@/lib/api');
+      // Only send changed fields and allowed fields
+      const payload: any = {};
+      if (editData.email) payload.email = editData.email;
+      if (editData.linkedinUrl) payload.linkedinUrl = editData.linkedinUrl;
+      if (editData.profilePhoto) payload.profilePhoto = editData.profilePhoto;
+
+      // We do NOT send 'name' even if it was in editData (it shouldn't be accessible anyway)
+
+      if (Object.keys(payload).length > 0) {
+        await apiUpdateStudent(studentData.studentId, payload);
+      }
+    } catch (e) {
+      console.error('Failed to save profile to server', e);
+      // Optional: show toast error
+    }
+
     setIsEditing(false);
     setEditData({});
   };
@@ -259,14 +280,16 @@ export default function ProfilePage() {
             ) : (
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Student Name</label>
+                  <label className="text-sm font-medium">Student Name (Read Only)</label>
                   <Input
-                    value={editData.name || studentData.name}
-                    onChange={(e) =>
-                      setEditData({ ...editData, name: e.target.value })
-                    }
-                    className="mt-1"
+                    value={studentData.name}
+                    disabled
+                    className="mt-1 bg-muted cursor-not-allowed"
+                    title="Name cannot be changed"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Name cannot be changed from official records
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -450,9 +473,8 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Profile Photo</span>
                     <span
-                      className={`text-xs ${
-                        photoPreview ? 'text-accent' : 'text-muted-foreground'
-                      }`}
+                      className={`text-xs ${photoPreview ? 'text-accent' : 'text-muted-foreground'
+                        }`}
                     >
                       {photoPreview ? '✓ Added' : '○ Not Added'}
                     </span>
@@ -460,9 +482,8 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">LinkedIn Profile</span>
                     <span
-                      className={`text-xs ${
-                        studentData.linkedinUrl ? 'text-accent' : 'text-muted-foreground'
-                      }`}
+                      className={`text-xs ${studentData.linkedinUrl ? 'text-accent' : 'text-muted-foreground'
+                        }`}
                     >
                       {studentData.linkedinUrl ? '✓ Added' : '○ Not Added'}
                     </span>

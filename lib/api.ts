@@ -44,6 +44,15 @@ export interface ApiStudent {
   collaborationsCount?: number;
 }
 
+export async function apiUpdateStudent(studentId: string, data: Partial<ApiStudent>): Promise<{ success: boolean; message?: string }> {
+  const res = await fetch(`${BASE}/api/students/${encodeURIComponent(studentId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleRes(res);
+}
+
 export async function apiAuthValidate(studentId: string, password?: string): Promise<{ found: boolean; student?: ApiStudent }> {
   const res = await fetch(`${BASE}/api/auth/validate`, {
     method: 'POST',

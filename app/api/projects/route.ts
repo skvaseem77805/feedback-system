@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       .from('projects')
       .select(`
         *,
-        students!inner ( name, year ),
+        students!projects_student_id_fkey!inner ( name, year ),
         project_saves ( student_id ),
         project_collaborators ( student_id ),
         project_likes ( student_id )
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       .from('projects')
       .select(`
             *,
-            students ( name, year ),
+            students!projects_student_id_fkey ( name, year ),
             project_saves ( student_id ),
             project_collaborators ( student_id ),
             project_likes ( student_id )

@@ -58,6 +58,56 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const sid = (id || '').trim().toUpperCase();
+
+    // Basic validation
+    if (!sid) {
+      return Response.json({ error: 'Student ID required' }, { status: 400 });
+    }
+
+    // Filter allowed fields only. Explicitly ignoring 'name', 'department', 'year', 'registration_no'.
+    // Allowed: email, linkedinUrl (mapped to linkedin_url), bio, avatar (profilePhoto), mobileNo (mobile_no)
+    const updates: any = {};
+
+    if (body.email !== undefined) updates.email = body.email;
+    if (body.linkedinUrl !== undefined) updates.linkedin_url = body.linkedinUrl;
+    if (body.bio !== undefined) updates.bio = body.bio;
+    if (body.avatar !== undefined || body.profilePhoto !== undefined) updates.avatar = body.avatar || body.profilePhoto;
+    if (body.mobileNo !== undefined) updates.mobile_no = body.mobileNo;
+
+    // Check if there's anything to update
+    if (Object.keys(updates).length === 0) {
+      return Response.json({ message: 'No valid fields to update' });
+    }
+
+    const { error } = await supabase
+      .from('students')
+      .update(updates)
+      .eq('id', sid);
+
+    if (error) {
+      console.error('Supabase PATCH error:', error);
+      return Response.json({ error: 'Failed to update profile' }, { status: 500 });
+    }
+
+    return Response.json({ success: true, message: 'Profile updated' });
+
+  } catch (e) {
+    console.error('PATCH /api/students/[id]', e);
+    return Response.json(
+      { error: e instanceof Error ? e.message : 'Server error' },
+      { status: 500 }
+    );
+  }
+}
+
 function formatYear(year: number): string {
   const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' };
   return m[year] ?? `${year}th`;

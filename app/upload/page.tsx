@@ -45,7 +45,7 @@ export default function UploadPage() {
     const staffId = localStorage.getItem('staffId');
     const adminId = localStorage.getItem('adminId');
     const userType = localStorage.getItem('userType');
-    
+
     // Check if any user type is logged in
     const authenticated = !!(studentId || staffId || adminId || userType);
     setIsLoggedIn(authenticated);
@@ -111,20 +111,40 @@ export default function UploadPage() {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // Increment projects uploaded for the current student
+
+    try {
       const studentId = getCurrentStudentId();
-      if (studentId) {
-        incrementProjectsUploaded(studentId);
-        console.log('[v0] Project uploaded. Stats incremented for student:', studentId);
+      if (!studentId) {
+        throw new Error("Student ID not found");
       }
 
+      const { apiCreateProject } = await import('@/lib/api');
+
+      // We need to implement proper URL storage in the next iteration or schema update.
+      // For now, let's append URL to description so it's not lost.
+
+      const enhancedDescription = `${formData.description}\n\nProject URL: ${formData.projectUrl}\n${formData.videoUrl ? `Video URL: ${formData.videoUrl}` : ''}`;
+
+      await apiCreateProject({
+        studentId,
+        studentName: localStorage.getItem('studentName') || 'Student',
+        title: formData.title,
+        description: enhancedDescription,
+        category: formData.category,
+      });
+
+      incrementProjectsUploaded(studentId);
       setSuccess(true);
       setTimeout(() => {
         router.push('/projects');
       }, 2000);
-    }, 1000);
+
+    } catch (e) {
+      console.error('Upload failed', e);
+      setError('Failed to upload project. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isLoggedIn) {
@@ -145,7 +165,7 @@ export default function UploadPage() {
         </div>
       );
     }
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
         <Navbar />

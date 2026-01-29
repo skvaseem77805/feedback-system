@@ -63,19 +63,8 @@ export default function SelectStudentPage() {
     setFilteredStudents(filtered);
   };
 
-  const switchToStudent = (student: ReturnType<typeof toRecord>) => {
-    // Set the student as logged in
-    localStorage.setItem('currentStudentId', student.userId);
-    localStorage.setItem('studentId', student.userId);
-    localStorage.setItem('userType', 'student');
-    localStorage.setItem('year', '2');
-    localStorage.setItem('studentName', student.name);
-    localStorage.setItem('studentDepartment', student.department);
-    localStorage.setItem('studentEmail', student.email);
+  // switchToStudent removed for security
 
-    // Navigate to profile
-    router.push('/profile');
-  };
 
   if (isLoading) {
     return (
@@ -130,7 +119,7 @@ export default function SelectStudentPage() {
               <StudentProfileCard
                 key={student.userId}
                 student={student as import('@/lib/students').StudentRecord}
-                onSelect={switchToStudent}
+                /* onSelect removed to prevent impersonation/login switching */
                 onIncrementStats={async (kind) => {
                   const { getCurrentStudentId } = await import('@/lib/statsTracker');
                   const { apiStatsIncrement } = await import('@/lib/api');

@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard } from 'lucide-react';
+import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose } from '@/components/ui/drawer';
 
 export function Navbar() {
   const router = useRouter();
@@ -115,6 +116,106 @@ export function Navbar() {
                 </Link>
               </>
             )}
+          </div>
+
+          {/* Mobile Menu */}
+          <div className="md:hidden flex items-center gap-2">
+            <Drawer direction="right">
+              <DrawerTrigger asChild>
+                <Button variant="ghost" size="icon" className="gap-2">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </DrawerTrigger>
+
+              <DrawerContent>
+                <DrawerHeader>
+                  <div className="flex items-center justify-between w-full">
+                    <Link href="/" className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">CRR</span>
+                      </div>
+                      <span className="font-bold">PROJECT HUB</span>
+                    </Link>
+                    <DrawerClose asChild>
+                      <Button variant="ghost" size="icon">
+                        <X className="w-5 h-5" />
+                      </Button>
+                    </DrawerClose>
+                  </div>
+                </DrawerHeader>
+
+                <div className="p-4 space-y-2">
+                  {userType === 'admin' ? (
+                    <>
+                      <Link href="/admin/feedback">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <MessageSquare className="w-4 h-4" />
+                          Feedback
+                        </Button>
+                      </Link>
+                      <Link href="/">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <LayoutDashboard className="w-4 h-4" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Home
+                        </Button>
+                      </Link>
+
+                      <Link href={isLoggedIn ? '/profile' : '/auth'}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <User className="w-4 h-4" />
+                          Profile
+                        </Button>
+                      </Link>
+
+                      <Link href={isLoggedIn ? '/select-student' : '/auth'}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Users className="w-4 h-4" />
+                          Connect Student
+                        </Button>
+                      </Link>
+
+                      <Link href="/projects">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Compass className="w-4 h-4" />
+                          Projects
+                        </Button>
+                      </Link>
+
+                      <Link href="/feedback">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Send className="w-4 h-4" />
+                          Feedback
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+
+                  <div className="pt-2 border-t">
+                    {isLoggedIn ? (
+                      <DrawerClose asChild>
+                        <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2">
+                          <LogOut className="w-4 h-4" />
+                          Logout
+                        </Button>
+                      </DrawerClose>
+                    ) : (
+                      <Link href="/auth">
+                        <Button className="w-full">Login</Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
 
           {/* Auth Buttons */}

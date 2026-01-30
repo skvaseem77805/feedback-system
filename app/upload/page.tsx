@@ -178,7 +178,7 @@ export default function UploadPage() {
       setSuccess(true);
       setTimeout(() => {
         router.push('/projects');
-      }, 2000);
+      }, 500);
 
     } catch (e) {
       console.error('Upload failed', e);

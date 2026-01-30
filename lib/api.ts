@@ -122,6 +122,15 @@ export async function apiCreateProject(body: {
   return handleRes<ApiProject>(res);
 }
 
+export async function apiDeleteProject(projectId: string, studentId: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(projectId)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentId }),
+  });
+  return handleRes<{ deleted: boolean }>(res);
+}
+
 export async function apiLikeProject(projectId: string, studentId: string): Promise<{ liked: boolean; likes: number }> {
   const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(projectId)}/like`, {
     method: 'POST',
@@ -129,7 +138,7 @@ export async function apiLikeProject(projectId: string, studentId: string): Prom
     body: JSON.stringify({ studentId }),
   });
   return handleRes(res);
-}
+} 
 
 export async function apiSaveProject(projectId: string, studentId: string): Promise<{ saved: boolean }> {
   const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(projectId)}/save`, {

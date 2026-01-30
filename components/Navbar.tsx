@@ -65,10 +65,10 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/college">
+                <Link href="/">
                   <Button variant="ghost" size="sm" className="gap-2 hover:text-primary smooth-transition">
                     <Building2 className="w-4 h-4" />
-                    College
+                    Home
                   </Button>
                 </Link>
                 <Link href="/profile">
@@ -89,7 +89,7 @@ export function Navbar() {
                     Projects
                   </Button>
                 </Link>
-                <Link href="/problem-solver">
+                {/* <Link href="/problem-solver">
                   <Button variant="ghost" size="sm" className="gap-2 hover:text-primary smooth-transition">
                     <MessageSquare className="w-4 h-4" />
                     AI Chat
@@ -106,7 +106,7 @@ export function Navbar() {
                     <Users className="w-4 h-4" />
                     Collaborate
                   </Button>
-                </Link>
+                </Link> */}
                 <Link href="/feedback">
                   <Button variant="ghost" size="sm" className="gap-2">
                     <Send className="w-4 h-4" />
@@ -121,9 +121,9 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             {isLoggedIn ? (
               <>
-                <span className="text-xs text-muted-foreground px-2 hidden sm:inline">
+                {/* <span className="text-xs text-muted-foreground px-2 hidden sm:inline">
                   {userType === 'admin' ? 'Admin' : userType === 'staff' ? 'Staff' : 'Student'}
-                </span>
+                </span> */}
                 <Button
                   variant="ghost"
                   size="sm"

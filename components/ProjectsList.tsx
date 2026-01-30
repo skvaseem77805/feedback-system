@@ -4,7 +4,10 @@ import React from "react"
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { type Project, type AcademicYear } from '@/lib/data';
+import { apiDeleteProject } from '@/lib/api';
+import { getCurrentStudentId } from '@/lib/statsTracker';
 import {
   FileText,
   Calendar,
@@ -15,14 +18,18 @@ import {
   Database,
   Brain,
   Gamepad2,
+  Trash2,
 } from 'lucide-react';
 
 interface ProjectsListProps {
   projects: Project[];
   filterByYear?: AcademicYear;
+  onDelete?: (id: string) => void;
 }
 
-export function ProjectsList({ projects, filterByYear }: ProjectsListProps) {
+export function ProjectsList({ projects, filterByYear, onDelete }: ProjectsListProps) {
+  const [deleting, setDeleting] = React.useState<Record<string, boolean>>({});
+
   const filteredProjects = filterByYear
     ? projects.filter((p) => p.academicYear === filterByYear)
     : projects;
@@ -99,7 +106,7 @@ export function ProjectsList({ projects, filterByYear }: ProjectsListProps) {
                   </p>
                 </div>
                 <Badge
-                  className={`flex-shrink-0 gap-1 px-3 py-1 ${getCategoryColor(
+                  className={`shrink-0 gap-1 px-3 py-1 ${getCategoryColor(
                     project.category
                   )}`}
                 >
@@ -135,6 +142,34 @@ export function ProjectsList({ projects, filterByYear }: ProjectsListProps) {
                     ? 'Final Year'
                     : `${project.academicYear} Year`}
                 </Badge>
+
+                {project.studentId === getCurrentStudentId() && (
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={async () => {
+                        const ok = confirm('Are you sure you want to delete this project? This cannot be undone.');
+                        if (!ok) return;
+                        setDeleting((prev) => ({ ...prev, [project.id]: true }));
+                        try {
+                          await apiDeleteProject(project.id, getCurrentStudentId());
+                          onDelete?.(project.id);
+                        } catch (e) {
+                          console.error('Failed to delete project', e);
+                          alert('Failed to delete project. Please try again.');
+                        } finally {
+                          setDeleting((prev) => ({ ...prev, [project.id]: false }));
+                        }
+                      }}
+                      disabled={!!deleting[project.id]}
+                      className="ml-2"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </Card>

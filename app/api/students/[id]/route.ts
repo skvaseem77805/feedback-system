@@ -72,8 +72,8 @@ export async function PATCH(
       return Response.json({ error: 'Student ID required' }, { status: 400 });
     }
 
-    // Filter allowed fields only. Explicitly ignoring 'name', 'department', 'year', 'registration_no'.
-    // Allowed: email, linkedinUrl (mapped to linkedin_url), bio, avatar (profilePhoto), mobileNo (mobile_no)
+    // Filter allowed fields only. Explicitly ignoring 'name', 'department', 'registration_no'.
+    // Allowed: email, linkedinUrl (mapped to linkedin_url), bio, avatar (profilePhoto), mobileNo (mobile_no), academicYear/year
     const updates: any = {};
 
     if (body.email !== undefined) updates.email = body.email;
@@ -81,6 +81,40 @@ export async function PATCH(
     if (body.bio !== undefined) updates.bio = body.bio;
     if (body.avatar !== undefined || body.profilePhoto !== undefined) updates.avatar = body.avatar || body.profilePhoto;
     if (body.mobileNo !== undefined) updates.mobile_no = body.mobileNo;
+
+    // Support updating academic year. The front-end sends 'academicYear' (strings like '1st','2nd','3rd','final').
+    if (body.academicYear !== undefined) {
+      const mapping: Record<string, number> = {
+        '1st': 1,
+        '2nd': 2,
+        '3rd': 3,
+        'final': 4,
+        '4th': 4,
+        'Final': 4,
+      };
+      const val = typeof body.academicYear === 'string' ? body.academicYear.trim() : String(body.academicYear);
+      const mapped = mapping[val] ?? (Number(val) || undefined);
+      if (mapped) updates.year = mapped;
+    }
+
+    // Also allow numeric 'year' to be passed directly
+    if (body.year !== undefined) {
+      const y = Number(body.year);
+      if (!Number.isNaN(y) && y > 0) updates.year = y;
+    }
+
+    // Support updating skills - expect an array of strings (or JSON string)
+    if (body.skills !== undefined) {
+      if (Array.isArray(body.skills)) {
+        updates.skills = body.skills;
+      } else if (typeof body.skills === 'string') {
+        try {
+          updates.skills = JSON.parse(body.skills);
+        } catch {
+          updates.skills = [String(body.skills)];
+        }
+      }
+    }
 
     // Check if there's anything to update
     if (Object.keys(updates).length === 0) {

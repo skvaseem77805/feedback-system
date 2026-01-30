@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { ProjectsList } from '@/components/ProjectsList';
+import type { Project, AcademicYear } from '@/lib/data';
 import {
   Mail,
   Briefcase,
@@ -33,6 +35,7 @@ interface StudentData {
   email: string;
   profilePhoto?: string;
   linkedinUrl?: string;
+  skills?: string[];
 }
 
 export default function ProfilePage() {
@@ -78,6 +81,7 @@ export default function ProfilePage() {
             email: dbStudent.email || 'Not provided',
             linkedinUrl: dbStudent.linkedinUrl || '',
             profilePhoto: dbStudent.avatar || undefined,
+            skills: dbStudent.skills || [],
           };
           setStudentData(newStudent);
           if (!existing) localStorage.setItem(storageKey, JSON.stringify(newStudent));
@@ -93,6 +97,7 @@ export default function ProfilePage() {
             year: '2nd',
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
+            skills: [],
           };
           setStudentData(fallback);
           localStorage.setItem(storageKey, JSON.stringify(fallback));
@@ -138,6 +143,58 @@ export default function ProfilePage() {
   }, []);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [skillInput, setSkillInput] = useState('');
+  const [userProjects, setUserProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!studentData) return;
+      try {
+        setProjectsLoading(true);
+        const { apiProjects } = await import('@/lib/api');
+        const p = await apiProjects({ studentId: studentData.studentId });
+
+        // Map ApiProject -> Project, normalize academicYear and uploadedAt types
+        const normalizeAcademicYear = (val: any): AcademicYear => {
+          const s = String(val || '').toLowerCase();
+          if (s.startsWith('1')) return '1st';
+          if (s.startsWith('2')) return '2nd';
+          if (s.startsWith('3')) return '3rd';
+          if (s.startsWith('4') || s.includes('final')) return 'final';
+          if (s === '1st' || s === '2nd' || s === '3rd' || s === 'final') return s as AcademicYear;
+          return 'final';
+        };
+
+        const mapped = p.map((pr: any) => ({
+          id: pr.id,
+          studentId: pr.studentId,
+          studentName: pr.studentName,
+          academicYear: normalizeAcademicYear(pr.academicYear),
+          title: pr.title,
+          description: pr.description || '',
+          category: pr.category || 'other',
+          uploadedAt: pr.uploadedAt ? new Date(pr.uploadedAt) : new Date(),
+          likes: pr.likes || 0,
+          savedBy: pr.savedBy || [],
+          collaborators: pr.collaborators || [],
+          thumbnailUrl: pr.thumbnailUrl,
+          fileName: pr.fileName,
+          fileSize: pr.fileSize,
+        }));
+
+        if (!mounted) return;
+        setUserProjects(mapped);
+      } catch (e) {
+        console.error('Failed to load user projects', e);
+      } finally {
+        if (mounted) setProjectsLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [studentData]);
 
   const saveProfile = async () => {
     if (!studentData) return;
@@ -194,6 +251,8 @@ export default function ProfilePage() {
       const payload: any = {};
       if (editData.email) payload.email = editData.email;
       if (editData.linkedinUrl) payload.linkedinUrl = editData.linkedinUrl;
+      if (editData.year && editData.year !== studentData.year) payload.academicYear = editData.year;
+      if (editData.skills) payload.skills = editData.skills;
 
       // Always send the avatarUrl if it changed or if we just uploaded
       if (avatarUrl !== studentData.profilePhoto) {
@@ -275,7 +334,7 @@ export default function ProfilePage() {
                   className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold">
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold">
                   {getInitials(studentData.name)}
                 </div>
               )}
@@ -311,13 +370,18 @@ export default function ProfilePage() {
                   <Badge className="bg-primary/20 text-primary">
                     {studentData.department}
                   </Badge>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">ID:</span>
-                  <code className="text-xs bg-muted px-2 py-1 rounded">
-                    {studentData.studentId}
-                  </code>
+                  {/* Skills display */}
+                  {studentData.skills && studentData.skills.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Skills</p>
+                      <div className="flex flex-wrap gap-2">
+                        {studentData.skills.map((skill) => (
+                          <Badge key={skill} className="bg-muted/20 text-muted-foreground text-xs">{skill}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -347,14 +411,19 @@ export default function ProfilePage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Year (From CSV)</label>
-                    <Input
-                      value={studentData.year}
-                      disabled
-                      className="mt-1 bg-muted cursor-not-allowed"
-                    />
+                    <label className="text-sm font-medium">Year</label>
+                    <select
+                      value={editData.year || studentData.year}
+                      onChange={(e) => setEditData({ ...editData, year: e.target.value })}
+                      className="mt-1 bg-muted w-full p-2 rounded"
+                    >
+                      <option value="1st">1st Year</option>
+                      <option value="2nd">2nd Year</option>
+                      <option value="3rd">3rd Year</option>
+                      <option value="final">4th Year</option>
+                    </select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Cannot be changed - from official records
+                      Select your academic year
                     </p>
                   </div>
                 </div>
@@ -384,6 +453,55 @@ export default function ProfilePage() {
                     Used for connection and collaboration features
                   </p>
                 </div>
+
+                {/* Skills editor */}
+                <div>
+                  <label className="text-sm font-medium">Skills</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(editData.skills || studentData.skills || []).map((s) => (
+                      <span key={s} className="inline-flex items-center gap-2 bg-muted/60 px-2 py-1 rounded-full text-xs">
+                        <span>{s}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = (editData.skills || studentData.skills || []).filter(sk => sk !== s);
+                            setEditData({ ...editData, skills: next });
+                          }}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      placeholder="Add a skill and press Enter"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && skillInput.trim()) {
+                          const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
+                          setEditData({ ...editData, skills: existing });
+                          setSkillInput('');
+                        }
+                      }}
+                      className="flex-1 mt-0"
+                    />
+                    <Button
+                      onClick={() => {
+                        if (!skillInput.trim()) return;
+                        const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
+                        setEditData({ ...editData, skills: existing });
+                        setSkillInput('');
+                      }}
+                      className="ml-1"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Add skills that represent your expertise (e.g., React, Python)</p>
+                </div>
               </div>
             )}
 
@@ -394,7 +512,7 @@ export default function ProfilePage() {
                   <Button
                     onClick={() => {
                       setIsEditing(true);
-                      setEditData({});
+                      setEditData({ skills: studentData.skills || [] });
                     }}
                     className="smooth-button bg-primary text-primary-foreground"
                   >
@@ -466,12 +584,12 @@ export default function ProfilePage() {
             >
               {/* Gradient background */}
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 hover:opacity-5 smooth-transition pointer-events-none`}
+                className={`absolute inset-0 bg-linear-to-br ${stat.color} opacity-0 hover:opacity-5 smooth-transition pointer-events-none`}
               />
 
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
+                  <div className={`w-12 h-12 rounded-lg bg-linear-to-br ${stat.color} flex items-center justify-center`}>
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -493,9 +611,12 @@ export default function ProfilePage() {
 
         {/* Activity Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full md:w-fit grid-cols-2 gap-2 smooth-transition">
+          <TabsList className="grid w-full md:w-fit grid-cols-3 gap-2 smooth-transition">
             <TabsTrigger value="overview" className="smooth-transition">
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="smooth-transition">
+              Projects
             </TabsTrigger>
             <TabsTrigger value="guide" className="smooth-transition">
               How It Works
@@ -556,6 +677,16 @@ export default function ProfilePage() {
                 </div>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Projects Tab */}
+          <TabsContent value="projects" className="space-y-4">
+            <h2 className="text-2xl font-bold">Your Projects</h2>
+            {projectsLoading ? (
+              <p className="text-muted-foreground">Loading your projects...</p>
+            ) : (
+              <ProjectsList projects={userProjects} onDelete={(id) => setUserProjects(prev => prev.filter(p => p.id !== id))} />
+            )}
           </TabsContent>
 
           {/* Guide Tab */}

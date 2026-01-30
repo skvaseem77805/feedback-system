@@ -113,6 +113,7 @@ export async function apiCreateProject(body: {
   category?: string;
   fileName?: string;
   fileSize?: number;
+  thumbnailUrl?: string;
 }): Promise<ApiProject> {
   const res = await fetch(`${BASE}/api/projects`, {
     method: 'POST',

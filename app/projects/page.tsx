@@ -224,6 +224,17 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
+                      {project.thumbnailUrl && (
+                        <div className="w-full h-48 mb-4 rounded-md overflow-hidden bg-muted/20 border border-border/50">
+                          <img
+                            src={project.thumbnailUrl}
+                            alt={project.title}
+                            className="w-full h-full object-cover hover:scale-105 smooth-transition duration-500"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground py-3 border-t border-b border-border/50 mb-4">
                         <div>
                           <div className="font-bold text-foreground">{project.likes}</div>
@@ -263,7 +274,7 @@ export default function ProjectsPage() {
               <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
                 <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4 text-lg">No projects found matching your search.</p>
-                <Button 
+                <Button
                   className="smooth-button bg-primary text-primary-foreground"
                   onClick={() => { setSearch(''); setFilterYear(''); setFilterCategory(''); }}
                 >

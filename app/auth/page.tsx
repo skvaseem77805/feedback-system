@@ -244,13 +244,32 @@ export default function AuthPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('userType', 'admin');
-      localStorage.setItem('adminEmail', adminEmail);
-      localStorage.setItem('adminId', 'admin-' + Date.now());
+    try {
+      const { validateAdmin, seedAdminsIfMissing } = await import('@/lib/admins');
+      // Ensure admin "database" exists
+      seedAdminsIfMissing();
 
-      router.push('/admin/feedback');
-    }, 1000);
+      const result = validateAdmin(adminEmail.trim(), adminPassword);
+      if (result.valid && result.admin) {
+        localStorage.setItem('userType', 'admin');
+        localStorage.setItem('adminEmail', result.admin.email);
+        localStorage.setItem('adminId', result.admin.id || 'admin-' + Date.now());
+
+        router.push('/admin/feedback');
+      } else {
+        if (result.reason === 'not_found') {
+          setError('Admin account not found.');
+        } else if (result.reason === 'invalid_password') {
+          setError('Invalid password for admin account.');
+        } else {
+          setError('Invalid admin credentials.');
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error validating admin');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Initial State - Only Login Button

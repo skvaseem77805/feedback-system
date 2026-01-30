@@ -91,11 +91,11 @@ export function StudentProfileCard({
                 {student.email}
               </p>
             )}
-            {student.mobileNo && (
+            {/* {student.mobileNo && (
               <p className="text-xs text-muted-foreground">
                 {student.mobileNo}
               </p>
-            )}
+            )} */}
           </div>
         </div>
 

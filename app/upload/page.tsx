@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
 import { supabase } from '@/lib/supabase';
+import { apiCreateProject } from '@/lib/api';
 
 interface FormData {
   title: string;
@@ -130,16 +131,12 @@ export default function UploadPage() {
     setIsSubmitting(true);
 
     try {
-      const studentId = getCurrentStudentId();
+      const studentId = getCurrentStudentId() || localStorage.getItem('studentId');
       if (!studentId) {
-        throw new Error("Student ID not found");
+        throw new Error("Student ID not found. Please log in again.");
       }
 
-      const { apiCreateProject } = await import('@/lib/api');
-
-      // We need to implement proper URL storage in the next iteration or schema update.
-      // For now, let's append URL to description so it's not lost.
-
+      // Updated description with URL
       const enhancedDescription = `${formData.description}\n\nProject URL: ${formData.projectUrl}\n${formData.videoUrl ? `Video URL: ${formData.videoUrl}` : ''}`;
 
       let uploadedThumbnailUrl = '';
@@ -181,9 +178,8 @@ export default function UploadPage() {
         router.push('/projects');
       }, 500);
 
-    } catch (e) {
       console.error('Upload failed', e);
-      setError('Failed to upload project. Please try again.');
+      setError(e instanceof Error ? e.message : 'Failed to upload project. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { studentId, studentName, title, description, category, fileName, fileSize } = body;
+    const { studentId, studentName, title, description, category, fileName, fileSize, thumbnailUrl } = body;
     const sid = (studentId || '').trim();
 
     if (!sid || !(title && String(title).trim())) {
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
     const cat = category ? String(category).trim() : 'General';
     const fn = fileName ? String(fileName) : null;
     const fs = fileSize != null ? Number(fileSize) : null;
+    const tn = thumbnailUrl ? String(thumbnailUrl) : null;
 
     // 1. Insert Project
     const { error: insertError } = await supabase
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
         category: cat,
         file_name: fn,
         file_size: fs,
+        thumbnail_url: tn,
         likes: 0
       });
 

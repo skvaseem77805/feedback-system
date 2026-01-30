@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
+import { supabase } from '@/lib/supabase';
 
 interface FormData {
   title: string;
@@ -20,6 +21,7 @@ interface FormData {
   category: string;
   department: string;
   videoUrl?: string;
+  thumbnailUrl?: string;
 }
 
 export default function UploadPage() {
@@ -35,6 +37,8 @@ export default function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +68,19 @@ export default function UploadPage() {
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
+  };
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Image size should be less than 5MB');
+        return;
+      }
+      setThumbnailFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setThumbnailPreview(previewUrl);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -125,12 +142,36 @@ export default function UploadPage() {
 
       const enhancedDescription = `${formData.description}\n\nProject URL: ${formData.projectUrl}\n${formData.videoUrl ? `Video URL: ${formData.videoUrl}` : ''}`;
 
+      let uploadedThumbnailUrl = '';
+
+      if (thumbnailFile) {
+        const fileExt = thumbnailFile.name.split('.').pop();
+        const fileName = `${studentId}-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('project-thumbnails')
+          .upload(filePath, thumbnailFile);
+
+        if (uploadError) {
+          console.error('Error uploading thumbnail:', uploadError);
+          // Continue without thumbnail or throw error? Let's warn but continue or throw.
+          // throw new Error('Failed to upload thumbnail image');
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('project-thumbnails')
+            .getPublicUrl(filePath);
+          uploadedThumbnailUrl = publicUrl;
+        }
+      }
+
       await apiCreateProject({
         studentId,
         studentName: localStorage.getItem('studentName') || 'Student',
         title: formData.title,
         description: enhancedDescription,
         category: formData.category,
+        thumbnailUrl: uploadedThumbnailUrl
       });
 
       incrementProjectsUploaded(studentId);
@@ -314,6 +355,33 @@ export default function UploadPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     YouTube, Vimeo, or other video platform link
                   </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Project Cover Photo (Optional)
+                  </label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a cover image for your project card (Max 5MB)
+                  </p>
+                  {thumbnailPreview && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium mb-2">Preview:</p>
+                      <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                        <img
+                          src={thumbnailPreview}
+                          alt="Thumbnail preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Button

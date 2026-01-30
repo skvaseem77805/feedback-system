@@ -71,13 +71,13 @@ export function Navbar() {
                     Home
                   </Button>
                 </Link>
-                <Link href="/profile">
+                <Link href={isLoggedIn ? '/profile' : '/auth'}>
                   <Button variant="ghost" size="sm" className="gap-2">
                     <User className="w-4 h-4" />
                     Profile
                   </Button>
                 </Link>
-                <Link href="/select-student">
+                <Link href={isLoggedIn ? '/select-student' : '/auth'}>
                   <Button variant="ghost" size="sm" className="gap-2 hover:text-accent smooth-transition">
                     <Users className="w-4 h-4" />
                     <span className="hidden lg:inline text-xs">connect Student</span>

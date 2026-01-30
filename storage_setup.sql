@@ -7,17 +7,20 @@
 -- Policies (Run these in the SQL Editor)
 
 -- 1. Allow public access to view files
+drop policy if exists "Public Access" on storage.objects;
 create policy "Public Access"
 on storage.objects for select
 using ( bucket_id = 'project-thumbnails' );
 
 -- 2. Allow authenticated users to upload files
+drop policy if exists "Authenticated users can upload images" on storage.objects;
 create policy "Authenticated users can upload images"
 on storage.objects for insert
 to authenticated
 with check ( bucket_id = 'project-thumbnails' );
 
 -- 3. Allow users to update their own files (optional, good for editing)
+drop policy if exists "Users can update their own images" on storage.objects;
 create policy "Users can update their own images"
 on storage.objects for update
 to authenticated

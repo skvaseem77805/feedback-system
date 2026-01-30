@@ -155,14 +155,15 @@ export default function UploadPage() {
 
         if (uploadError) {
           console.error('Error uploading thumbnail:', uploadError);
-          // Continue without thumbnail or throw error? Let's warn but continue or throw.
-          // throw new Error('Failed to upload thumbnail image');
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('project-thumbnails')
-            .getPublicUrl(filePath);
-          uploadedThumbnailUrl = publicUrl;
+          setError('Failed to upload project image: ' + uploadError.message);
+          setIsSubmitting(false);
+          return;
         }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('project-thumbnails')
+          .getPublicUrl(filePath);
+        uploadedThumbnailUrl = publicUrl;
       }
 
       await apiCreateProject({

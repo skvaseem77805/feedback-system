@@ -1,32 +1,45 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/db';
 
 function formatYear(year: number): string {
-  const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' };
+  const m: Record<number, string> = {
+    1: '1st',
+    2: '2nd',
+    3: '3rd',
+    4: 'Final',
+  };
   return m[year] ?? `${year}th`;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { data: list, error } = await supabase
-      .from('students')
-      .select(`
-        *,
-        student_stats (
-          projects_uploaded,
-          connections,
-          collaborations
-        )
-      `)
-      .order('name');
+    const [rows] = await query<any>(
+      `
+      SELECT
+        s.*,
+        ss.projects_uploaded,
+        ss.connections,
+        ss.collaborations
+      FROM students s
+      LEFT JOIN student_stats ss
+      ON s.id = ss.student_id
+      ORDER BY s.name
+      `
+    );
 
-    if (error) throw error;
+    const students = rows.map((s: any) => {
+      let skills: string[] = [];
 
-    const students = (list || []).map((s: any) => {
-      // s.student_stats is likely a single object due to PK constraint, but check
-      const stats = Array.isArray(s.student_stats) ? s.student_stats[0] : s.student_stats;
-
-      const skills = s.skills;
+      if (s.skills) {
+        try {
+          skills =
+            typeof s.skills === 'string'
+              ? JSON.parse(s.skills)
+              : s.skills;
+        } catch {
+          skills = [];
+        }
+      }
 
       return {
         id: s.id,
@@ -42,20 +55,21 @@ export async function GET(request: NextRequest) {
         section: s.section || 'E',
         linkedinUrl: s.linkedin_url ?? undefined,
         bio: s.bio ?? undefined,
-        skills: Array.isArray(skills) ? skills : (typeof skills === 'string' ? JSON.parse(skills) : undefined),
+        skills,
         avatar: s.avatar ?? undefined,
         academicYear: formatYear(s.year),
-        projectsUploaded: Number(stats?.projects_uploaded) || 0,
-        connectionsCount: Number(stats?.connections) || 0,
-        collaborationsCount: Number(stats?.collaborations) || 0,
+        projectsUploaded: Number(s.projects_uploaded) || 0,
+        connectionsCount: Number(s.connections) || 0,
+        collaborationsCount: Number(s.collaborations) || 0,
       };
     });
 
     return Response.json(students);
-  } catch (e) {
-    console.error('GET /api/students', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }

@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { queryOne, query } from '@/lib/db';
 
 /**
  * GET /api/stats/[studentId]
- * Returns { projectsUploaded, connections, collaborations }.
  */
 export async function GET(
   request: NextRequest,
@@ -12,25 +11,45 @@ export async function GET(
   try {
     const { studentId } = await params;
     const sid = (studentId || '').trim();
-    if (!sid) return Response.json({ error: 'studentId required' }, { status: 400 });
 
-    const { data: row } = await supabase
-      .from('student_stats')
-      .select('projects_uploaded, connections, collaborations')
-      .eq('student_id', sid)
-      .single();
+    if (!sid) {
+      return Response.json(
+        { error: 'studentId required' },
+        { status: 400 }
+      );
+    }
 
-    if (!row) return Response.json({ projectsUploaded: 0, connections: 0, collaborations: 0 });
+    const row = await queryOne<any>(
+      `
+      SELECT
+        projects_uploaded,
+        connections,
+        collaborations
+      FROM student_stats
+      WHERE student_id = ?
+      LIMIT 1
+      `,
+      [sid]
+    );
+
+    if (!row) {
+      return Response.json({
+        projectsUploaded: 0,
+        connections: 0,
+        collaborations: 0,
+      });
+    }
 
     return Response.json({
       projectsUploaded: Number(row.projects_uploaded) || 0,
       connections: Number(row.connections) || 0,
       collaborations: Number(row.collaborations) || 0,
     });
-  } catch (e) {
-    console.error('GET /api/stats/[studentId]', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }
@@ -38,8 +57,6 @@ export async function GET(
 
 /**
  * PATCH /api/stats/[studentId]
- * Body: { projectsUploaded?, connections?, collaborations? } (increments)
- * Or { set: { projectsUploaded, connections, collaborations } } to set absolute values.
  */
 export async function PATCH(
   request: NextRequest,
@@ -48,70 +65,95 @@ export async function PATCH(
   try {
     const { studentId } = await params;
     const sid = (studentId || '').trim();
-    if (!sid) return Response.json({ error: 'studentId required' }, { status: 400 });
+
+    if (!sid) {
+      return Response.json(
+        { error: 'studentId required' },
+        { status: 400 }
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const set = body?.set;
 
-    let targetProjectsUploaded = 0;
-    let targetConnections = 0;
-    let targetCollaborations = 0;
+    let projectsUploaded = 0;
+    let connections = 0;
+    let collaborations = 0;
 
     if (set && typeof set === 'object') {
-      // Set absolute values
-      targetProjectsUploaded = Number(set.projectsUploaded) || 0;
-      targetConnections = Number(set.connections) || 0;
-      targetCollaborations = Number(set.collaborations) || 0;
+      projectsUploaded = Number(set.projectsUploaded) || 0;
+      connections = Number(set.connections) || 0;
+      collaborations = Number(set.collaborations) || 0;
     } else {
-      // Increment logic
-      // 1. Fetch current
-      const { data: current } = await supabase
-        .from('student_stats')
-        .select('projects_uploaded, connections, collaborations')
-        .eq('student_id', sid)
-        .single();
+      const current = await queryOne<any>(
+        `
+        SELECT
+          projects_uploaded,
+          connections,
+          collaborations
+        FROM student_stats
+        WHERE student_id = ?
+        LIMIT 1
+        `,
+        [sid]
+      );
 
-      const curP = current?.projects_uploaded || 0;
-      const curC = current?.connections || 0;
-      const curCol = current?.collaborations || 0;
+      const curP = Number(current?.projects_uploaded) || 0;
+      const curC = Number(current?.connections) || 0;
+      const curCol = Number(current?.collaborations) || 0;
 
       const incP = Number(body?.projectsUploaded) || 0;
       const incC = Number(body?.connections) || 0;
       const incCol = Number(body?.collaborations) || 0;
 
       if (incP === 0 && incC === 0 && incCol === 0) {
-        return Response.json({ error: 'Provide projectsUploaded, connections, or collaborations to increment' }, { status: 400 });
+        return Response.json(
+          {
+            error:
+              'Provide projectsUploaded, connections or collaborations',
+          },
+          { status: 400 }
+        );
       }
 
-      targetProjectsUploaded = curP + incP;
-      targetConnections = curC + incC;
-      targetCollaborations = curCol + incCol;
+      projectsUploaded = curP + incP;
+      connections = curC + incC;
+      collaborations = curCol + incCol;
     }
 
-    // 2. Upsert
-    const { data: updated, error } = await supabase
-      .from('student_stats')
-      .upsert({
-        student_id: sid,
-        projects_uploaded: targetProjectsUploaded,
-        connections: targetConnections,
-        collaborations: targetCollaborations,
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error || !updated) throw error || new Error('Upsert failed');
+    await query(
+      `
+      INSERT INTO student_stats
+      (
+        student_id,
+        projects_uploaded,
+        connections,
+        collaborations
+      )
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        projects_uploaded = VALUES(projects_uploaded),
+        connections = VALUES(connections),
+        collaborations = VALUES(collaborations)
+      `,
+      [
+        sid,
+        projectsUploaded,
+        connections,
+        collaborations,
+      ]
+    );
 
     return Response.json({
-      projectsUploaded: Number(updated.projects_uploaded) || 0,
-      connections: Number(updated.connections) || 0,
-      collaborations: Number(updated.collaborations) || 0,
+      projectsUploaded,
+      connections,
+      collaborations,
     });
-  } catch (e) {
-    console.error('PATCH /api/stats/[studentId]', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }

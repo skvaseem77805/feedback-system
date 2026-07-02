@@ -1,5 +1,15 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { queryOne, query } from '@/lib/db';
+
+function formatYear(year: number): string {
+  const m: Record<number, string> = {
+    1: '1st',
+    2: '2nd',
+    3: '3rd',
+    4: 'Final',
+  };
+  return m[year] ?? `${year}th`;
+}
 
 export async function GET(
   request: NextRequest,
@@ -8,28 +18,57 @@ export async function GET(
   try {
     const { id } = await params;
     const sid = (id || '').trim().toUpperCase();
+
     if (!sid) {
-      return Response.json({ error: 'Student ID required' }, { status: 400 });
+      return Response.json(
+        { error: 'Student ID required' },
+        { status: 400 }
+      );
     }
 
-    const { data: row, error } = await supabase
-      .from('students')
-      .select('id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, bio, skills, avatar')
-      .eq('id', sid)
-      .single();
+    const row = await queryOne<any>(
+      `
+      SELECT
+        id,
+        name,
+        registration_no,
+        unique_id,
+        year,
+        course,
+        email,
+        mobile_no,
+        department,
+        section,
+        linkedin_url,
+        bio,
+        skills,
+        avatar
+      FROM students
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [sid]
+    );
 
-    if (error || !row) {
-      if (error && error.code !== 'PGRST116') {
-        console.error('Supabase error:', error);
-        return Response.json({ error: 'Database error', details: error.message }, { status: 500 });
+    if (!row) {
+      return Response.json(
+        { error: 'Student not found' },
+        { status: 404 }
+      );
+    }
+
+    let skills: string[] = [];
+
+    if (row.skills) {
+      try {
+        skills =
+          typeof row.skills === 'string'
+            ? JSON.parse(row.skills)
+            : row.skills;
+      } catch {
+        skills = [];
       }
-      return Response.json({ error: 'Student not found' }, { status: 404 });
     }
-
-    const academicYear = formatYear(row.year);
-
-    // Supabase returns JSONB columns as parsed objects/arrays
-    const skills = row.skills;
 
     return Response.json({
       id: row.id,
@@ -45,14 +84,15 @@ export async function GET(
       section: row.section || 'E',
       linkedinUrl: row.linkedin_url ?? undefined,
       bio: row.bio ?? undefined,
-      skills: Array.isArray(skills) ? skills : (typeof skills === 'string' ? JSON.parse(skills) : undefined),
+      skills,
       avatar: row.avatar ?? undefined,
-      academicYear,
+      academicYear: formatYear(row.year),
     });
-  } catch (e) {
-    console.error('GET /api/students/[id]', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }
@@ -64,85 +104,102 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
     const sid = (id || '').trim().toUpperCase();
 
-    // Basic validation
     if (!sid) {
-      return Response.json({ error: 'Student ID required' }, { status: 400 });
+      return Response.json(
+        { error: 'Student ID required' },
+        { status: 400 }
+      );
     }
 
-    // Filter allowed fields only. Explicitly ignoring 'name', 'department', 'registration_no'.
-    // Allowed: email, linkedinUrl (mapped to linkedin_url), bio, avatar (profilePhoto), mobileNo (mobile_no), academicYear/year
-    const updates: any = {};
+    const body = await request.json();
 
-    if (body.email !== undefined) updates.email = body.email;
-    if (body.linkedinUrl !== undefined) updates.linkedin_url = body.linkedinUrl;
-    if (body.bio !== undefined) updates.bio = body.bio;
-    if (body.avatar !== undefined || body.profilePhoto !== undefined) updates.avatar = body.avatar || body.profilePhoto;
-    if (body.mobileNo !== undefined) updates.mobile_no = body.mobileNo;
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    // Support updating academic year. The front-end sends 'academicYear' (strings like '1st','2nd','3rd','final').
+    if (body.email !== undefined) {
+      updates.push('email = ?');
+      values.push(body.email);
+    }
+
+    if (body.linkedinUrl !== undefined) {
+      updates.push('linkedin_url = ?');
+      values.push(body.linkedinUrl);
+    }
+
+    if (body.bio !== undefined) {
+      updates.push('bio = ?');
+      values.push(body.bio);
+    }
+
+    if (body.avatar !== undefined || body.profilePhoto !== undefined) {
+      updates.push('avatar = ?');
+      values.push(body.avatar || body.profilePhoto);
+    }
+
+    if (body.mobileNo !== undefined) {
+      updates.push('mobile_no = ?');
+      values.push(body.mobileNo);
+    }
+
+    if (body.skills !== undefined) {
+      updates.push('skills = ?');
+      values.push(JSON.stringify(body.skills));
+    }
+
     if (body.academicYear !== undefined) {
       const mapping: Record<string, number> = {
         '1st': 1,
         '2nd': 2,
         '3rd': 3,
-        'final': 4,
         '4th': 4,
         'Final': 4,
+        'final': 4,
       };
-      const val = typeof body.academicYear === 'string' ? body.academicYear.trim() : String(body.academicYear);
-      const mapped = mapping[val] ?? (Number(val) || undefined);
-      if (mapped) updates.year = mapped;
-    }
 
-    // Also allow numeric 'year' to be passed directly
-    if (body.year !== undefined) {
-      const y = Number(body.year);
-      if (!Number.isNaN(y) && y > 0) updates.year = y;
-    }
+      const y =
+        mapping[String(body.academicYear)] ??
+        Number(body.academicYear);
 
-    // Support updating skills - expect an array of strings (or JSON string)
-    if (body.skills !== undefined) {
-      if (Array.isArray(body.skills)) {
-        updates.skills = body.skills;
-      } else if (typeof body.skills === 'string') {
-        try {
-          updates.skills = JSON.parse(body.skills);
-        } catch {
-          updates.skills = [String(body.skills)];
-        }
+      if (y) {
+        updates.push('year = ?');
+        values.push(y);
       }
     }
 
-    // Check if there's anything to update
-    if (Object.keys(updates).length === 0) {
-      return Response.json({ message: 'No valid fields to update' });
+    if (body.year !== undefined) {
+      updates.push('year = ?');
+      values.push(Number(body.year));
     }
 
-    const { error } = await supabase
-      .from('students')
-      .update(updates)
-      .eq('id', sid);
-
-    if (error) {
-      console.error('Supabase PATCH error:', error);
-      return Response.json({ error: 'Failed to update profile' }, { status: 500 });
+    if (updates.length === 0) {
+      return Response.json({
+        message: 'No valid fields to update',
+      });
     }
 
-    return Response.json({ success: true, message: 'Profile updated' });
+    values.push(sid);
 
-  } catch (e) {
-    console.error('PATCH /api/students/[id]', e);
+    await query(
+      `
+      UPDATE students
+      SET ${updates.join(', ')}
+      WHERE id = ?
+      `,
+      values
+    );
+
+    return Response.json({
+      success: true,
+      message: 'Profile updated',
+    });
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Server error' },
+      { error: 'Server error' },
       { status: 500 }
     );
   }
-}
-
-function formatYear(year: number): string {
-  const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' };
-  return m[year] ?? `${year}th`;
 }

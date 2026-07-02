@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
@@ -7,23 +7,40 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params;
+
     const body = await request.json().catch(() => ({}));
-    const studentId = (body?.studentId ?? body?.student_id ?? '').trim();
+
+    const studentId = (
+      body.studentId ||
+      body.student_id ||
+      ''
+    ).trim();
+
     if (!projectId || !studentId) {
-      return Response.json({ error: 'projectId and studentId required' }, { status: 400 });
+      return Response.json(
+        { error: 'projectId and studentId required' },
+        { status: 400 }
+      );
     }
 
-    const { error } = await supabase
-      .from('project_saves')
-      .upsert({ project_id: projectId, student_id: studentId }, { onConflict: 'project_id, student_id', ignoreDuplicates: true });
+    await query(
+      `
+      INSERT IGNORE INTO project_saves
+      (project_id, student_id)
+      VALUES (?, ?)
+      `,
+      [projectId, studentId]
+    );
 
-    if (error) throw error;
+    return Response.json({
+      saved: true,
+    });
 
-    return Response.json({ saved: true });
-  } catch (e) {
-    console.error('POST /api/projects/[id]/save', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }

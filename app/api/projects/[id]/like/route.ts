@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { query, queryOne } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
@@ -7,39 +7,64 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params;
+
     const body = await request.json().catch(() => ({}));
-    const studentId = (body?.studentId ?? body?.student_id ?? '').trim();
+
+    const studentId = (
+      body.studentId ||
+      body.student_id ||
+      ''
+    ).trim();
+
     if (!projectId || !studentId) {
-      return Response.json({ error: 'projectId and studentId required' }, { status: 400 });
+      return Response.json(
+        { error: 'projectId and studentId required' },
+        { status: 400 }
+      );
     }
 
-    // 1. Insert Like (ignore duplicates)
-    const { error: insertError } = await supabase
-      .from('project_likes')
-      .upsert({ project_id: projectId, student_id: studentId }, { onConflict: 'project_id, student_id', ignoreDuplicates: true });
+    // Ignore duplicate likes
+    await query(
+      `
+      INSERT IGNORE INTO project_likes
+      (project_id, student_id)
+      VALUES (?, ?)
+      `,
+      [projectId, studentId]
+    );
 
-    if (insertError) throw insertError;
+    // Count total likes
+    const row = await queryOne<any>(
+      `
+      SELECT COUNT(*) AS total
+      FROM project_likes
+      WHERE project_id = ?
+      `,
+      [projectId]
+    );
 
-    // 2. Count likes
-    const { count, error: countError } = await supabase
-      .from('project_likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('project_id', projectId);
+    const likes = Number(row?.total || 0);
 
-    if (countError) throw countError;
-    const newCount = count || 0;
+    // Update projects table
+    await query(
+      `
+      UPDATE projects
+      SET likes = ?
+      WHERE id = ?
+      `,
+      [likes, projectId]
+    );
 
-    // 3. Update project like count (optional but good for performance)
-    await supabase
-      .from('projects')
-      .update({ likes: newCount })
-      .eq('id', projectId);
+    return Response.json({
+      liked: true,
+      likes,
+    });
 
-    return Response.json({ liked: true, likes: newCount });
-  } catch (e) {
-    console.error('POST /api/projects/[id]/like', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }

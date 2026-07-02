@@ -1,44 +1,79 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const studentId = (body?.studentId ?? body?.student_id ?? '').trim();
-    const otherId = (body?.otherStudentId ?? body?.other_student_id ?? '').trim();
+
+    const studentId = (
+      body.studentId ||
+      body.student_id ||
+      ''
+    ).trim();
+
+    const otherId = (
+      body.otherStudentId ||
+      body.other_student_id ||
+      ''
+    ).trim();
 
     if (!studentId || !otherId) {
-      return Response.json({ error: 'studentId and otherStudentId required' }, { status: 400 });
+      return Response.json(
+        { error: 'studentId and otherStudentId required' },
+        { status: 400 }
+      );
     }
 
-    // Update status to accepted
-    const { data: updated, error: updateError } = await supabase
-      .from('connection_requests')
-      .update({ status: 'accepted', updated_at: new Date().toISOString() })
-      .match({ from_student_id: otherId, to_student_id: studentId, status: 'pending' })
-      .select();
+    // Accept request
+    const [result]: any = await query(
+      `
+      UPDATE connection_requests
+      SET
+        status = 'accepted',
+        updated_at = NOW()
+      WHERE
+        from_student_id = ?
+        AND to_student_id = ?
+        AND status = 'pending'
+      `,
+      [otherId, studentId]
+    );
 
-    if (updateError) throw updateError;
-    if (!updated || updated.length === 0) {
-      return Response.json({ error: 'No pending request found to accept' }, { status: 404 });
+    if (result.affectedRows === 0) {
+      return Response.json(
+        { error: 'No pending request found to accept' },
+        { status: 404 }
+      );
     }
 
-    // Update stats for both users
-    // Need to increment 'connections' count for both
+    // Increase connection count for both students
+    await query(
+      `
+      UPDATE student_stats
+      SET connections = connections + 1
+      WHERE student_id = ?
+      `,
+      [studentId]
+    );
 
-    // 1. Student ID
-    const { data: s1 } = await supabase.from('student_stats').select('connections').eq('student_id', studentId).single();
-    await supabase.from('student_stats').upsert({ student_id: studentId, connections: (s1?.connections || 0) + 1 });
+    await query(
+      `
+      UPDATE student_stats
+      SET connections = connections + 1
+      WHERE student_id = ?
+      `,
+      [otherId]
+    );
 
-    // 2. Other ID
-    const { data: s2 } = await supabase.from('student_stats').select('connections').eq('student_id', otherId).single();
-    await supabase.from('student_stats').upsert({ student_id: otherId, connections: (s2?.connections || 0) + 1 });
+    return Response.json({
+      accepted: true,
+    });
 
-    return Response.json({ accepted: true });
-  } catch (e) {
-    console.error('POST /api/connections/accept', e);
+  } catch (error) {
+    console.error(error);
+
     return Response.json(
-      { error: e instanceof Error ? e.message : 'Database error' },
+      { error: 'Database error' },
       { status: 500 }
     );
   }

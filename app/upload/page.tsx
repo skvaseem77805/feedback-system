@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
-import { supabase } from '@/lib/supabase';
 import { apiCreateProject } from '@/lib/api';
 
 interface FormData {
@@ -118,6 +117,8 @@ export default function UploadPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("UPLOAD BUTTON CLICKED");
+
     e.preventDefault();
     setError('');
 
@@ -141,27 +142,25 @@ export default function UploadPage() {
 
       let uploadedThumbnailUrl = '';
 
-      if (thumbnailFile) {
-        const fileExt = thumbnailFile.name.split('.').pop();
-        const fileName = `${studentId}-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
+     if (thumbnailFile) {
+  const formData = new FormData();
+  formData.append("file", thumbnailFile);
 
-        const { error: uploadError } = await supabase.storage
-          .from('project-thumbnails')
-          .upload(filePath, thumbnailFile);
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
 
-        if (uploadError) {
-          console.error('Error uploading thumbnail:', uploadError);
-          setError('Failed to upload project image: ' + uploadError.message);
-          setIsSubmitting(false);
-          return;
-        }
+  const data = await res.json();
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('project-thumbnails')
-          .getPublicUrl(filePath);
-        uploadedThumbnailUrl = publicUrl;
-      }
+  if (!res.ok) {
+    setError(data.error || "Image upload failed");
+    setIsSubmitting(false);
+    return;
+  }
+
+  uploadedThumbnailUrl = data.url;
+}
 
       await apiCreateProject({
         studentId,

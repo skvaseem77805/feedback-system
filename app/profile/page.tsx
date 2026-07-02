@@ -1,5 +1,5 @@
 'use client';
-
+import { apiUpdateStudent } from "@/lib/api";
 import React from "react"
 
 import { useState, useEffect } from 'react';
@@ -58,6 +58,7 @@ export default function ProfilePage() {
 
       const storageKey = `studentProfile_${studentId}`;
       const existing = localStorage.getItem(storageKey);
+      console.log("existing =", existing);
 
       try {
         const { apiStudent, apiStats } = await import('@/lib/api');
@@ -73,6 +74,7 @@ export default function ProfilePage() {
           setStats(getStudentStats(studentId));
         }
         if (dbStudent) {
+          console.log("DB Student:", dbStudent);
           const newStudent: StudentData = {
             name: dbStudent.name,
             studentId: dbStudent.userId,
@@ -83,8 +85,9 @@ export default function ProfilePage() {
             profilePhoto: dbStudent.avatar || undefined,
             skills: dbStudent.skills || [],
           };
+          console.log("DB Student:", dbStudent);
           setStudentData(newStudent);
-          if (!existing) localStorage.setItem(storageKey, JSON.stringify(newStudent));
+         localStorage.setItem(storageKey, JSON.stringify(newStudent));
         } else if (existing) {
           const parsed = JSON.parse(existing);
           setStudentData(parsed);
@@ -197,85 +200,80 @@ export default function ProfilePage() {
   }, [studentData]);
 
   const saveProfile = async () => {
-    if (!studentData) return;
+  if (!studentData) return;
 
-    let avatarUrl = studentData.profilePhoto;
+  let avatarUrl = studentData.profilePhoto;
 
-    // Upload to Supabase Storage if a new file is selected
+  try {
+    // Upload image to Cloudinary
     if (selectedFile) {
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `avatar_${studentData.studentId}_${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
+      const formData = new FormData();
+      formData.append("file", selectedFile);
 
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, selectedFile);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (uploadError) {
-          throw uploadError;
-        }
+      const data = await res.json();
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-        avatarUrl = publicUrl;
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        // Fallback: don't block profile save, just alert or log
-        // alert('Failed to upload image, saving other changes.');
+      if (!res.ok) {
+        throw new Error(data.error || "Image upload failed");
       }
+
+      avatarUrl = data.url;
     }
 
+    // Build payload
+    const payload: any = {};
+
+    if (editData.email) {
+      payload.email = editData.email;
+    }
+
+    if (editData.linkedinUrl) {
+      payload.linkedinUrl = editData.linkedinUrl;
+    }
+
+    if (editData.year && editData.year !== studentData.year) {
+      payload.academicYear = editData.year;
+    }
+
+    if (editData.skills) {
+      payload.skills = editData.skills;
+    }
+
+    if (avatarUrl !== studentData.profilePhoto) {
+      payload.avatar = avatarUrl;
+    }
+
+    // Save locally
     const updated: StudentData = {
       ...studentData,
       ...editData,
-      profilePhoto: avatarUrl, // Use the new URL (or existing)
+      profilePhoto: avatarUrl,
     };
 
-    // Optimistic UI update
-    // If we have a preview (base64) and just uploaded, we might want to keep showing the preview 
-    // until we refresh, but 'updated.profilePhoto' now holds the remote URL. 
-    // The img src will handle it.
+    localStorage.setItem(
+      `studentProfile_${studentData.studentId}`,
+      JSON.stringify(updated)
+    );
 
-    const storageKey = `studentProfile_${studentData.studentId}`;
-    localStorage.setItem(storageKey, JSON.stringify(updated));
     setStudentData(updated);
 
-    // Persist to Backend
-    try {
-      const { apiUpdateStudent } = await import('@/lib/api');
-      // Only send changed fields and allowed fields
-      const payload: any = {};
-      if (editData.email) payload.email = editData.email;
-      if (editData.linkedinUrl) payload.linkedinUrl = editData.linkedinUrl;
-      if (editData.year && editData.year !== studentData.year) payload.academicYear = editData.year;
-      if (editData.skills) payload.skills = editData.skills;
-
-      // Always send the avatarUrl if it changed or if we just uploaded
-      if (avatarUrl !== studentData.profilePhoto) {
-        payload.avatar = avatarUrl; // Note: API expects 'avatar', frontend uses 'profilePhoto'. checking interface... 
-        // editData doesn't track 'avatar', so we must be careful.
-        // Wait, 'apiUpdateStudent' takes Partial<ApiStudent>. ApiStudent has 'avatar'.
-        // Frontend 'StudentData' has 'profilePhoto'.
-        // We need to map correctly.
-      }
-
-      if (Object.keys(payload).length > 0) {
-        await apiUpdateStudent(studentData.studentId, payload);
-      }
-    } catch (e) {
-      console.error('Failed to save profile to server', e);
-      // Optional: show toast error
+    // Save to backend
+    if (Object.keys(payload).length > 0) {
+      console.log("apiUpdateStudent =", apiUpdateStudent);
+      await apiUpdateStudent(studentData.studentId, payload);
     }
 
     setIsEditing(false);
     setEditData({});
     setSelectedFile(null);
-  };
-
+  } catch (e) {
+    console.error("Failed to save profile to server", e);
+  }
+};
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -329,10 +327,10 @@ export default function ProfilePage() {
             <div className="relative group">
               {photoPreview ? (
                 <img
-                  src={photoPreview || "/placeholder.svg"}
-                  alt={studentData.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
-                />
+  src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
+  alt={studentData.name}
+  className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
+/>
               ) : (
                 <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold">
                   {getInitials(studentData.name)}

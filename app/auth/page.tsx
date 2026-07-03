@@ -172,6 +172,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const { apiAuthValidate } = await import('@/lib/api');
+      console.log("Frontend Student ID =", studentId);
 
       // We manually fetch to handle 401 specifically if needed with custom message parsing
       const res = await fetch('/api/auth/validate', {

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { queryOne } from '@/lib/db';
-import { comparePassword } from '@/lib/auth-utils';
+import { comparePassword } from '@/lib/auth-utils';import { NextRequest } from "next/server";
+// import { queryOne } from "@/lib/db";
+// import { comparePassword } from "@/lib/auth-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,36 +28,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const row = await queryOne<{
-      id: string;
-      name: string;
-      registration_no: string;
-      year: number;
-      course: string;
-      email: string;
-      mobile_no: string;
-      department: string;
-      section: string;
-      password_hash: string | null;
-    }>(
-      `
-      SELECT
-        id,
-        name,
-        registration_no,
-        year,
-        course,
-        email,
-        mobile_no,
-        department,
-        section,
-        password_hash
-      FROM students
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [studentId]
-    );
+    console.log("Student ID received:", studentId);
+
+const row = await queryOne<{
+  id: string;
+  name: string;
+  registration_no: string;
+  year: number;
+  course: string;
+  email: string;
+  mobile_no: string;
+  department: string;
+  section: string;
+  password_hash: string | null;
+}>(
+  `
+  SELECT
+    id,
+    name,
+    registration_no,
+    year,
+    course,
+    email,
+    mobile_no,
+    department,
+    section,
+    password_hash
+  FROM students
+  WHERE id = ?
+  LIMIT 1
+  `,
+  [studentId]
+);
+
+console.log("DB Row:", row);
 
     if (!row) {
       return Response.json(

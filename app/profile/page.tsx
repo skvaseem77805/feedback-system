@@ -324,30 +324,31 @@ export default function ProfilePage() {
         <Card className="p-8 mb-8 bg-card/50 backdrop-blur-sm border-primary/20">
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
             {/* Profile Photo */}
-            <div className="relative group">
-              {photoPreview ? (
-                <img
-  src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
-  alt={studentData.name}
-  className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
-/>
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold">
-                  {getInitials(studentData.name)}
-                </div>
-              )}
-              {isEditing && (
-                <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Upload className="w-5 h-5 text-white" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
+           <div className="relative group">
+  {(photoPreview || studentData.profilePhoto) ? (
+    <img
+      src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
+      alt={studentData.name}
+      className="w-24 h-24 rounded-full object-cover border-4 border-primary/30"
+    />
+  ) : (
+    <div className="w-24 h-24 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold">
+      {getInitials(studentData.name)}
+    </div>
+  )}
+
+  {isEditing && (
+    <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+      <Upload className="w-5 h-5 text-white" />
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
+    </label>
+  )}
+</div>
 
             {/* Profile Info */}
             {!isEditing ? (

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
+import { supabase } from '@/lib/supabase';
 import { apiCreateProject } from '@/lib/api';
 
 interface FormData {
@@ -132,35 +133,32 @@ export default function UploadPage() {
     setIsSubmitting(true);
 
     try {
-      const studentId = getCurrentStudentId() || localStorage.getItem('studentId');
-      if (!studentId) {
-        throw new Error("Student ID not found. Please log in again.");
-      }
+      const studentId =
+        getCurrentStudentId() || localStorage.getItem('studentId');
 
-      // Updated description with URL
+      if (!studentId) throw new Error('Student ID not found. Please log in again.');
+
       const enhancedDescription = `${formData.description}\n\nProject URL: ${formData.projectUrl}\n${formData.videoUrl ? `Video URL: ${formData.videoUrl}` : ''}`;
 
       let uploadedThumbnailUrl = '';
 
-     if (thumbnailFile) {
-  const formData = new FormData();
-  formData.append("file", thumbnailFile);
+      if (thumbnailFile) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', thumbnailFile);
 
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  });
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
 
-  const data = await res.json();
+        const data = await res.json();
 
-  if (!res.ok) {
-    setError(data.error || "Image upload failed");
-    setIsSubmitting(false);
-    return;
-  }
+        if (!res.ok) {
+          throw new Error(data.error || 'Image upload failed');
+        }
 
-  uploadedThumbnailUrl = data.url;
-}
+        uploadedThumbnailUrl = data.url;
+      }
 
       await apiCreateProject({
         studentId,
@@ -168,16 +166,16 @@ export default function UploadPage() {
         title: formData.title,
         description: enhancedDescription,
         category: formData.category,
-        thumbnailUrl: uploadedThumbnailUrl
+        thumbnailUrl: uploadedThumbnailUrl,
       });
 
       incrementProjectsUploaded(studentId);
       setSuccess(true);
-      setTimeout(() => {
-        router.push('/projects');
-      }, 500);
 
-      console.error('Upload failed', e);
+      setTimeout(() => router.push('/projects'), 500);
+
+    } catch (e) {
+      console.error('Upload failed:', e);
       setError(e instanceof Error ? e.message : 'Failed to upload project. Please try again.');
     } finally {
       setIsSubmitting(false);

@@ -1,12 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import Image from "next/image";
 import { Button } from '@/components/ui/button';
 import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose } from '@/components/ui/drawer';
 
+  import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 export function Navbar() {
   const router = useRouter();
   const [userType, setUserType] = useState<'student' | 'staff' | 'admin' | null>(null);
@@ -40,12 +48,39 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <span className="text-white font-bold text-xs">CRR</span>
-            </div>
-            <span className="font-bold hidden sm:inline bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">PROJECT HUB</span>
-          </Link>
+          <Dialog>
+  <DialogTrigger asChild>
+    <Image
+      src="/crrprojecthublogo.png"
+      alt="CRR Project Hub Logo"
+      width={42}
+      height={42}
+      priority
+      className="rounded-full cursor-pointer group-hover:scale-110 transition-transform duration-300"
+    />
+  </DialogTrigger>
+
+ <DialogContent className="max-w-4xl border-0 bg-transparent shadow-none p-0 flex items-center justify-center">
+
+  <DialogTitle className="sr-only">
+    CRR Project Hub Logo
+  </DialogTitle>
+
+  <DialogDescription className="sr-only">
+    Full screen preview of CRR Project Hub Logo
+  </DialogDescription>
+
+  <Image
+    src="/crrprojecthublogo.png"
+    alt="CRR Project Hub Logo"
+    width={700}
+    height={700}
+    priority
+    className="rounded-full object-contain"
+  />
+
+</DialogContent>
+</Dialog>
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-1">

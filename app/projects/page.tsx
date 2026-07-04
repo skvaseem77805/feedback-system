@@ -25,6 +25,17 @@ export default function ProjectsPage() {
   const currentStudentId = getCurrentStudentId() ?? '';
 
   useEffect(() => {
+    // Read initial category parameter from URL on client mount
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) {
+        setFilterCategory(cat);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       try {
         const list = await apiProjects({ forUserId: currentStudentId || undefined });
@@ -46,7 +57,33 @@ export default function ProjectsPage() {
       p.description.toLowerCase().includes(q) ||
       p.studentName.toLowerCase().includes(q);
     const matchYear = !filterYear || p.academicYear === filterYear;
-    const matchCategory = !filterCategory || p.category === filterCategory;
+
+    // Fuzzy matching for various category formats
+    const matchCategory = !filterCategory || (() => {
+      const pCat = p.category.toLowerCase().trim();
+      const fCat = filterCategory.toLowerCase().trim();
+      if (pCat === fCat) return true;
+      if (fCat === 'ai / ml' || fCat === 'ai/ml' || fCat === 'machine learning' || fCat === 'ai') {
+        return pCat === 'ai' || pCat === 'machine learning' || pCat === 'ml' || pCat === 'ai / ml';
+      }
+      if (fCat === 'web development' || fCat === 'web') {
+        return pCat === 'web' || pCat === 'web development';
+      }
+      if (fCat === 'mobile app' || fCat === 'mobile') {
+        return pCat === 'mobile' || pCat === 'mobile app';
+      }
+      if (fCat === 'cyber security' || fCat === 'security') {
+        return pCat === 'security' || pCat === 'cyber security' || pCat === 'cybersecurity';
+      }
+      if (fCat === 'data science' || fCat === 'data') {
+        return pCat === 'data' || pCat === 'data science';
+      }
+      if (fCat === 'others' || fCat === 'other') {
+        return pCat === 'other' || pCat === 'others' || pCat === 'general';
+      }
+      return pCat.includes(fCat) || fCat.includes(pCat);
+    })();
+
     return matchSearch && matchYear && matchCategory;
   });
 

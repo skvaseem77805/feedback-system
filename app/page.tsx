@@ -19,13 +19,48 @@ import {
   Send,
   MessageCircle,
   BarChart,
+  FolderOpen,
+  GraduationCap,
+  Heart,
+  Eye,
+  Globe,
+  Smartphone,
+  Brain,
+  Cpu,
+  Shield,
+  Database,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { apiProjects, apiStudents } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const [stats, setStats] = useState({
+    projects: 0,
+    students: 0,
+    departments: 0,
+    feedbacks: 0,
+  });
+
+  const [trendingProjects, setTrendingProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  const [topContributors, setTopContributors] = useState<any[]>([]);
+  const [loadingContributors, setLoadingContributors] = useState(true);
+
+  const getCategoryColor = (category: string) => {
+    const c = (category || '').toLowerCase();
+    if (c.includes('web')) return 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
+    if (c.includes('mobile')) return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+    if (c.includes('ml') || c.includes('ai') || c.includes('learn')) return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+    if (c.includes('iot')) return 'bg-pink-500/10 text-pink-400 border border-pink-500/20';
+    if (c.includes('cyber') || c.includes('security')) return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+    if (c.includes('data')) return 'bg-green-500/10 text-green-400 border border-green-500/20';
+    return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+  };
 
   useEffect(() => {
     // Check if user is logged in
@@ -38,6 +73,67 @@ export default function Home() {
     const isLoggedIn = !!(studentId || staffId || adminId || userType);
     setIsLoggedIn(isLoggedIn);
     setIsLoaded(true);
+
+    // Fetch dynamic home stats
+    const loadStats = async () => {
+      try {
+        const res = await fetch('/api/home-stats');
+        const dbData = await res.json();
+
+        let localFeedbacks = 0;
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('allFeedback');
+          if (stored) {
+            try {
+              const list = JSON.parse(stored);
+              localFeedbacks = Array.isArray(list) ? list.length : 0;
+            } catch { }
+          }
+        }
+
+        setStats({
+          projects: dbData.totalProjects || 0,
+          students: dbData.totalStudents || 0,
+          departments: dbData.totalDepartments || 0,
+          feedbacks: localFeedbacks,
+        });
+      } catch (err) {
+        console.error('Stats load error', err);
+      }
+    };
+
+    // Fetch trending projects
+    const loadProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const list = await apiProjects();
+        setTrendingProjects((list || []).slice(0, 4));
+      } catch (err) {
+        console.error('Projects load error', err);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    // Fetch top contributors
+    const loadContributors = async () => {
+      try {
+        setLoadingContributors(true);
+        const list = await apiStudents();
+        const sorted = (list || [])
+          .filter(s => (s.projectsUploaded ?? 0) > 0)
+          .sort((a, b) => (b.projectsUploaded ?? 0) - (a.projectsUploaded ?? 0));
+        setTopContributors(sorted.slice(0, 5));
+      } catch (err) {
+        console.error('Contributors load error', err);
+      } finally {
+        setLoadingContributors(false);
+      }
+    };
+
+    loadStats();
+    loadProjects();
+    loadContributors();
   }, []);
 
   const handleStartUploading = () => {
@@ -282,68 +378,313 @@ export default function Home() {
         </div>
       </section> */}
 
-      {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16 space-y-3">
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Why Join CRR PROJECT HUB?
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to showcase, discover, and collaborate on
-              amazing projects
-            </p>
+      {/* SECTION 1: PLATFORM STATISTICS */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 relative">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 space-y-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Live Platform Overview</h2>
+            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">CRR Project Hub Statistics</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
-                href: "/",
-                icon: Upload,
-                title: "Easy Upload",
-                desc: "Share your projects with just a link and description. Support for images, videos, and live demos.",
+                id: 'projects',
+                title: 'Total Projects',
+                count: stats.projects,
+                subtitle: 'Innovative ideas and tools shared',
+                icon: FolderOpen,
               },
               {
-                href: "/",
-                icon: Compass,
-                title: "Discover & Explore",
-                desc: "Browse amazing projects from your peers. Filter by year, department, and category.",
+                id: 'students',
+                title: 'Total Students',
+                count: stats.students,
+                subtitle: 'Active students collaborating',
+                icon: Users,
               },
               {
-                href: "/",
+                id: 'departments',
+                title: 'Total Departments',
+                count: stats.departments,
+                subtitle: 'Engineering disciplines active',
+                icon: GraduationCap,
+              },
+              {
+                id: 'feedbacks',
+                title: 'Total Feedbacks',
+                count: stats.feedbacks,
+                subtitle: 'Community building insights',
                 icon: MessageSquare,
-                title: "Faculty Review & Feedback",
-                desc: "Get structured feedback from faculty and mentors. Comments, ratings, and suggestions stored alongside each project.",
               },
-              {
-                href: "/",
-                icon: BarChart,
-                title: "Progress & Submission Tracking",
-                desc: "Track project status from proposal to final submission. Deadlines, version history, and approval stages in one place.",
-              },
-            ].map((item, idx) => {
-              const Icon = item.icon;
+            ].map((card) => {
+              const Icon = card.icon;
               return (
-                <div key={item.title}>
-                  <Card
-                    className={`p-6 smooth-transition cursor-default h-full group backdrop-blur-sm border-primary/20 rounded-xl transform transition duration-300 hover:scale-105 hover:shadow-2xl ${item.href === "/ai-generator" ? "bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30" : "bg-card/50 hover:bg-card/70"}`}
-                    style={{ animationDelay: `${idx * 0.1}s` }}
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4 group-hover:scale-110 smooth-transition">
-                      <Icon className="w-6 h-6 text-primary-foreground" />
+                <div
+                  key={card.id}
+                  className="relative group p-6 rounded-2xl bg-card/45 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(99,102,241,0.15)] flex flex-col justify-between min-h-[170px]"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-3 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 text-primary group-hover:scale-110 transition-transform duration-300">
+                      <Icon className="w-6 h-6" />
                     </div>
-                    <h3 className="font-bold mb-2 group-hover:text-primary smooth-transition">
-                      {item.title}
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-extrabold text-foreground group-hover:text-primary transition-colors duration-300">
+                      {card.count}
                     </h3>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
-                    <div className="mt-4 inline-flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 smooth-transition">
-                      <span className="text-xs font-medium">Learn more</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </div>
-                  </Card>
+                    <p className="text-sm font-semibold text-muted-foreground mt-1">{card.title}</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">{card.subtitle}</p>
+                  </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 2: TRENDING PROJECTS */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-primary/5 to-transparent relative">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-accent">Peer Achievements</h2>
+              <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mt-1">Trending Projects</p>
+            </div>
+            <Link href="/projects">
+              <Button variant="outline" className="smooth-button border-primary/30 hover:bg-primary/10 text-primary gap-2">
+                Explore All Projects <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {loadingProjects ? (
+            <div className="text-center py-10 text-muted-foreground">Loading trending projects...</div>
+          ) : trendingProjects.length === 0 ? (
+            <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
+              <p className="text-muted-foreground">No projects uploaded yet.</p>
+            </Card>
+          ) : (
+            <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 snap-x scrollbar-none">
+              {trendingProjects.map((p) => {
+                const viewCount = Math.floor(p.likes * 3.4) + 12;
+                return (
+                  <div
+                    key={p.id}
+                    className="min-w-[280px] md:min-w-0 snap-align-start flex-1 flex flex-col justify-between p-5 bg-card/40 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl rounded-2xl group"
+                  >
+                    <div className="space-y-4">
+                      {/* Project Thumbnail */}
+                      <div className="w-full h-36 rounded-xl overflow-hidden bg-gradient-to-br from-primary/10 via-accent/10 to-primary/10 border border-primary/10 flex items-center justify-center relative">
+                        {p.thumbnailUrl ? (
+                          <img
+                            src={p.thumbnailUrl}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="text-center p-4">
+                            <Sparkles className="w-8 h-8 text-primary/40 mx-auto mb-1 animate-pulse" />
+                            <span className="text-[10px] text-muted-foreground/80 uppercase tracking-widest font-bold">CRR PROJECT</span>
+                          </div>
+                        )}
+                        <Badge className={`absolute top-2 right-2 px-2.5 py-0.5 text-[10px] ${getCategoryColor(p.category)} shadow-sm`}>
+                          {p.category.charAt(0).toUpperCase() + p.category.slice(1)}
+                        </Badge>
+                      </div>
+
+                      {/* Title & Creator */}
+                      <div>
+                        <h3 className="font-bold text-foreground text-sm line-clamp-1 leading-snug group-hover:text-primary transition-colors">
+                          {p.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1 font-medium">By {p.studentName}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-white/5 space-y-3">
+                      {/* Stats & Date */}
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground/80 font-medium">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-0.5">
+                            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500/20" /> {p.likes}
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <Eye className="w-3.5 h-3.5 text-blue-500" /> {viewCount}
+                          </span>
+                        </div>
+                        <span>
+                          {new Date(p.uploadedAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Action */}
+                      <Link href={`/projects?category=${encodeURIComponent(p.category)}`}>
+                        <Button size="sm" variant="ghost" className="w-full text-xs font-semibold justify-center hover:bg-primary/10 hover:text-primary gap-1 pt-1 mt-1 border border-white/5 group-hover:border-primary/20">
+                          View Project <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* SECTION 3: BROWSE BY CATEGORY */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="mb-10 space-y-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Discover Topics</h2>
+            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Browse By Category</p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { name: 'Web Development', icon: Globe, color: 'text-cyan-400', bg: 'hover:bg-cyan-500/10 hover:border-cyan-500/30' },
+              { name: 'Mobile App', icon: Smartphone, color: 'text-purple-400', bg: 'hover:bg-purple-500/10 hover:border-purple-500/30' },
+              { name: 'AI / ML', icon: Brain, color: 'text-orange-400', bg: 'hover:bg-orange-500/10 hover:border-orange-500/30' },
+              { name: 'IoT', icon: Cpu, color: 'text-pink-400', bg: 'hover:bg-pink-500/10 hover:border-pink-500/30' },
+              { name: 'Cyber Security', icon: Shield, color: 'text-rose-400', bg: 'hover:bg-rose-500/10 hover:border-rose-500/30' },
+              { name: 'Data Science', icon: Database, color: 'text-green-400', bg: 'hover:bg-green-500/10 hover:border-green-500/30' },
+              { name: 'Others', icon: FolderOpen, color: 'text-indigo-400', bg: 'hover:bg-indigo-500/10 hover:border-indigo-500/30' },
+            ].map((cat) => (
+              <Link
+                key={cat.name}
+                href={`/projects?category=${encodeURIComponent(cat.name)}`}
+                className={`flex items-center gap-3 px-5 py-3 rounded-xl bg-card/30 backdrop-blur-sm border border-white/5 transition-all duration-300 hover:scale-105 ${cat.bg} group`}
+              >
+                <cat.icon className={`w-4 h-4 ${cat.color} group-hover:scale-110 transition-transform duration-300`} />
+                <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{cat.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: TOP CONTRIBUTORS */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-accent/5 to-transparent relative">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12 space-y-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-accent">Hall of Fame</h2>
+            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Top Contributors</p>
+          </div>
+
+          {loadingContributors ? (
+            <div className="text-center py-10 text-muted-foreground">Loading top contributors...</div>
+          ) : topContributors.length === 0 ? (
+            <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
+              <p className="text-muted-foreground">No contributors registered yet.</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              {topContributors.map((student, index) => {
+                const ranks = [
+                  { badge: '🥇 Gold', color: 'from-amber-400 to-amber-600 bg-amber-500/10 text-amber-300 border-amber-500/30' },
+                  { badge: '🥈 Silver', color: 'from-slate-300 to-slate-500 bg-slate-500/10 text-slate-300 border-slate-500/30' },
+                  { badge: '🥉 Bronze', color: 'from-orange-400 to-orange-700 bg-orange-600/10 text-orange-400 border-orange-600/30' },
+                  { badge: '✨ Rank 4', color: 'from-blue-400 to-blue-600 bg-blue-500/10 text-blue-300 border-blue-500/30' },
+                  { badge: '✨ Rank 5', color: 'from-indigo-400 to-indigo-600 bg-indigo-500/10 text-indigo-300 border-indigo-500/30' },
+                ];
+                const rankInfo = ranks[index] || { badge: `Rank ${index + 1}`, color: 'bg-card border-white/10' };
+
+                return (
+                  <Card
+                    key={student.id}
+                    className="relative group p-6 bg-card/40 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl flex flex-col items-center text-center rounded-2xl"
+                  >
+                    <Badge className={`absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r ${rankInfo.color} font-bold px-3 py-0.5 rounded-full text-[10px] shadow-md border`}>
+                      {rankInfo.badge}
+                    </Badge>
+
+                    <div className="w-16 h-16 rounded-full mt-4 bg-gradient-to-br from-primary/20 via-accent/20 to-primary/20 border border-primary/20 flex items-center justify-center overflow-hidden mb-4 group-hover:scale-105 transition-transform duration-300 relative shadow-inner">
+                      {student.avatar ? (
+                        <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+                          {student.name.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-extrabold text-foreground text-sm tracking-wide line-clamp-1 group-hover:text-primary transition-colors">
+                      {student.name}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">{student.department} department</p>
+
+                    <div className="mt-4 pt-3 border-t border-white/5 w-full">
+                      <p className="text-xl font-black text-primary">{student.projectsUploaded}</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-bold mt-0.5">Projects Uploaded</p>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* SECTION 5: QUICK ACTIONS */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 space-y-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Get Started</h2>
+            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Quick Actions</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                title: 'Upload Project',
+                desc: 'Share your work with files or live demo links',
+                href: '/upload',
+                icon: Upload,
+                color: 'from-cyan-500 to-blue-600',
+              },
+              {
+                title: 'Explore Projects',
+                desc: 'Discover cutting-edge student projects',
+                href: '/projects',
+                icon: Compass,
+                color: 'from-purple-500 to-indigo-600',
+              },
+              {
+                title: 'Connect Students',
+                desc: 'Connect with peers or invite collaboration',
+                href: '/select-student',
+                icon: Users,
+                color: 'from-pink-500 to-rose-600',
+              },
+              {
+                title: 'Give Feedback',
+                desc: 'Suggest recommendations or report platform issues',
+                href: '/feedback',
+                icon: MessageSquare,
+                color: 'from-orange-500 to-amber-600',
+              },
+            ].map((action) => (
+              <Link href={action.href} key={action.title} className="block group">
+                <Card className="p-6 bg-card/40 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl h-full flex flex-col justify-between relative overflow-hidden rounded-2xl min-h-[180px]">
+                  <div className="space-y-4">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                      <action.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                        {action.title}
+                        <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-primary" />
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{action.desc}</p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

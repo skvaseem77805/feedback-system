@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
-import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X } from 'lucide-react';
+import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose } from '@/components/ui/drawer';
@@ -110,6 +110,14 @@ export function Navbar() {
                 Feedback
               </Button>
             </Link>
+            {userType === 'admin' ? (
+              <Link href="/admin/students">
+                <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition">
+                  <GraduationCap className="w-4 h-4" />
+                  Student Management
+                </Button>
+              </Link>
+            ) : null}
           </div>
 
           <div className="hidden md:flex items-center gap-2">
@@ -181,6 +189,14 @@ export function Navbar() {
                       Feedback
                     </Button>
                   </Link>
+                  {userType === 'admin' ? (
+                    <Link href="/admin/students">
+                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        Student Management
+                      </Button>
+                    </Link>
+                  ) : null}
                   <div className="pt-2 border-t">
                     {isLoggedIn ? (
                       <DrawerClose asChild>

@@ -57,7 +57,7 @@ export async function query<T = unknown>(
 ): Promise<[T[], mysql.FieldPacket[]]> {
   const p = getPool();
   const start = Date.now();
-  const res = (await p.execute(sql, params)) as [T[], mysql.FieldPacket[]];
+  const res = (await p.query(sql, params)) as [T[], mysql.FieldPacket[]];
   const elapsed = Date.now() - start;
   const SLOW_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 200);
   if (elapsed >= SLOW_MS) {

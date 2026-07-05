@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS students (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_students_department (department),
   INDEX idx_students_year (year),
-  INDEX idx_students_section (section)
+  INDEX idx_students_section (section),
+  INDEX idx_students_registration (registration_no),
+  INDEX idx_students_email (email),
+  INDEX idx_students_name (name)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------

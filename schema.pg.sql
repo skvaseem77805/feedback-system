@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS public.students (
 CREATE INDEX IF NOT EXISTS idx_students_department ON public.students (department);
 CREATE INDEX IF NOT EXISTS idx_students_year ON public.students (year);
 CREATE INDEX IF NOT EXISTS idx_students_section ON public.students (section);
+CREATE INDEX IF NOT EXISTS idx_students_registration ON public.students (registration_no);
+CREATE INDEX IF NOT EXISTS idx_students_email ON public.students (email);
+CREATE INDEX IF NOT EXISTS idx_students_name ON public.students (name);
 
 -- -----------------------------------------------------------------------------
 -- Projects

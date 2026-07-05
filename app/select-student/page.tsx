@@ -37,8 +37,8 @@ export default function SelectStudentPage() {
   useEffect(() => {
     const loadStudents = async () => {
       try {
-        const { apiStudents } = await import('@/lib/api');
-        const list = await apiStudents();
+        const { apiAdminStudents } = await import('@/lib/api');
+        const list = await apiAdminStudents();
         const recs = list.map(toRecord);
         setStudents(recs);
         setFilteredStudents(recs);

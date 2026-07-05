@@ -667,6 +667,15 @@ export default function Home() {
                 icon: MessageSquare,
                 color: 'from-orange-500 to-amber-600',
               },
+              ...(typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin'
+                ? [{
+                    title: 'Student Management',
+                    desc: 'Import, review, edit, export and manage student records',
+                    href: '/admin/students',
+                    icon: GraduationCap,
+                    color: 'from-emerald-500 to-teal-600',
+                  }]
+                : []),
             ].map((action) => (
               <Link href={action.href} key={action.title} className="block group">
                 <Card className="p-6 bg-card/40 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl h-full flex flex-col justify-between relative overflow-hidden rounded-2xl min-h-[180px]">

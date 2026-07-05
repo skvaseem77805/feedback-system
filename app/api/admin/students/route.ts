@@ -97,8 +97,8 @@ export async function GET(request: NextRequest) {
       ORDER BY s.${sortField} ${sortDirection}
       LIMIT ? OFFSET ?
     `;
-       
 
+        const params = [...values, pageSize, offset];
         const [rows] = await query<any>(
             selectSql,
             params
@@ -146,17 +146,17 @@ export async function GET(request: NextRequest) {
             totalPages: Math.max(1, Math.ceil(total / pageSize)),
         });
     } catch (error: any) {
-    console.error(error);
+        console.error(error);
 
-    return Response.json(
-        {
-            message: error?.message,
-            code: error?.code,
-            sqlMessage: error?.sqlMessage,
-        },
-        { status: 500 }
-    );
-}
+        return Response.json(
+            {
+                message: error?.message,
+                code: error?.code,
+                sqlMessage: error?.sqlMessage,
+            },
+            { status: 500 }
+        );
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -232,11 +232,11 @@ export async function POST(request: NextRequest) {
             connection.release();
         }
     } catch (error) {
-    console.error(error);
+        console.error(error);
 
-    return Response.json(
-        { error: "Database error" },
-        { status: 500 }
-    );
-}
+        return Response.json(
+            { error: "Database error" },
+            { status: 500 }
+        );
+    }
 }

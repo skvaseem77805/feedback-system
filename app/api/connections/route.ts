@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
 import { query } from '@/lib/db';
+import { parseStudentId } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const studentId = searchParams.get('studentId')?.trim();
+    const studentId = parseStudentId(searchParams.get('studentId'));
 
     if (!studentId) {
       return Response.json(

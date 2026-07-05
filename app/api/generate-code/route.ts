@@ -1,5 +1,4 @@
 import { generateText } from 'ai';
-import anthropic from 'anthropic'; // Declare the anthropic variable
 
 export async function POST(request: Request) {
   try {
@@ -36,7 +35,6 @@ export default function App() {
       system: systemPrompt,
       prompt: `Generate React/JSX code for: ${prompt}`,
       temperature: 0.7,
-      maxTokens: 2000,
     });
 
     return Response.json({

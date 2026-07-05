@@ -1,21 +1,14 @@
 import { NextRequest } from 'next/server';
 import { query } from '@/lib/db';
+import { parseStudentId } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const studentId = (
-      body.studentId ||
-      body.student_id ||
-      ''
-    ).trim();
+    const studentId = parseStudentId(body?.studentId || body?.student_id);
 
-    const otherId = (
-      body.otherStudentId ||
-      body.other_student_id ||
-      ''
-    ).trim();
+    const otherId = parseStudentId(body?.otherStudentId || body?.other_student_id);
 
     if (!studentId || !otherId) {
       return Response.json(

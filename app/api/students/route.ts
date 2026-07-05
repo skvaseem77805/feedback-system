@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { parsePositiveInt, parseString } from '@/lib/security';
+import { getStudents } from '@/lib/services/students';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -13,57 +14,13 @@ function formatYear(year: number): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const [rows] = await query<any>(
-      `
-      SELECT
-        s.*,
-        ss.projects_uploaded,
-        ss.connections,
-        ss.collaborations
-      FROM students s
-      LEFT JOIN student_stats ss
-      ON s.id = ss.student_id
-      ORDER BY s.name
-      `
-    );
-
-    const students = rows.map((s: any) => {
-      let skills: string[] = [];
-
-      if (s.skills) {
-        try {
-          skills =
-            typeof s.skills === 'string'
-              ? JSON.parse(s.skills)
-              : s.skills;
-        } catch {
-          skills = [];
-        }
-      }
-
-      return {
-        id: s.id,
-        userId: s.id,
-        name: s.name,
-        registrationNo: s.registration_no,
-        uniqueId: s.unique_id,
-        year: s.year,
-        course: s.course,
-        email: s.email || '',
-        mobileNo: s.mobile_no || '',
-        department: s.department || 'CSE',
-        section: s.section || 'E',
-        linkedinUrl: s.linkedin_url ?? undefined,
-        bio: s.bio ?? undefined,
-        skills,
-        avatar: s.avatar ?? undefined,
-        academicYear: formatYear(s.year),
-        projectsUploaded: Number(s.projects_uploaded) || 0,
-        connectionsCount: Number(s.connections) || 0,
-        collaborationsCount: Number(s.collaborations) || 0,
-      };
-    });
-
+    const { searchParams } = new URL(request.url);
+    const limit = parsePositiveInt(searchParams.get('limit'), 100, 0);
+    let search = parseString(searchParams.get('search'));
+    if (search.length > 100) {
+      search = search.slice(0, 100);
+    }
+    const students = await getStudents({ limit, search: search || undefined });
     return Response.json(students);
   } catch (error) {
     console.error(error);

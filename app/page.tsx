@@ -106,8 +106,8 @@ export default function Home() {
     const loadProjects = async () => {
       try {
         setLoadingProjects(true);
-        const list = await apiProjects();
-        setTrendingProjects((list || []).slice(0, 4));
+        const list = await apiProjects({ limit: 4 });
+        setTrendingProjects(list);
       } catch (err) {
         console.error('Projects load error', err);
       } finally {
@@ -119,11 +119,11 @@ export default function Home() {
     const loadContributors = async () => {
       try {
         setLoadingContributors(true);
-        const list = await apiStudents();
+        const list = await apiStudents({ limit: 5 });
         const sorted = (list || [])
           .filter(s => (s.projectsUploaded ?? 0) > 0)
           .sort((a, b) => (b.projectsUploaded ?? 0) - (a.projectsUploaded ?? 0));
-        setTopContributors(sorted.slice(0, 5));
+        setTopContributors(sorted);
       } catch (err) {
         console.error('Contributors load error', err);
       } finally {

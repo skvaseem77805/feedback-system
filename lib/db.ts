@@ -5,10 +5,10 @@
 import mysql from 'mysql2/promise';
 
 function getConfig(): mysql.ConnectionOptions {
-  const url = process.env.DATABASE_URL;
-  if (url && url.startsWith('mysql://')) {
+  const rawUrl = process.env.DATABASE_URL?.trim();
+  if (rawUrl && rawUrl.startsWith('mysql://')) {
     try {
-      const u = new URL(url);
+      const u = new URL(rawUrl);
       return {
         host: u.hostname,
         port: parseInt(u.port || '3306', 10),
@@ -20,12 +20,17 @@ function getConfig(): mysql.ConnectionOptions {
       // fall through to MYSQL_*
     }
   }
+
+  const envOrDefault = (value: string | undefined, fallback: string) =>
+    value?.trim() || fallback;
+
+  const port = Number.parseInt(envOrDefault(process.env.MYSQL_PORT, '3306'), 10);
   return {
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: parseInt(process.env.MYSQL_PORT || '3306', 10),
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'feedback_system',
+    host: envOrDefault(process.env.MYSQL_HOST, 'localhost'),
+    port: Number.isNaN(port) ? 3306 : port,
+    user: envOrDefault(process.env.MYSQL_USER, 'root'),
+    password: process.env.MYSQL_PASSWORD?.trim() || '',
+    database: envOrDefault(process.env.MYSQL_DATABASE, 'feedback_system'),
   };
 }
 
@@ -37,8 +42,10 @@ export function getPool(): mysql.Pool {
     pool = mysql.createPool({
       ...config,
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: Number(process.env.MYSQL_CONN_LIMIT ?? 20),
       queueLimit: 0,
+      // increase connect timeout for cloud hosts
+      connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT ?? 10000),
     });
   }
   return pool;
@@ -49,7 +56,17 @@ export async function query<T = unknown>(
   params?: (string | number | null | Date)[]
 ): Promise<[T[], mysql.FieldPacket[]]> {
   const p = getPool();
-  return p.execute(sql, params) as Promise<[T[], mysql.FieldPacket[]]>;
+  const start = Date.now();
+  const res = (await p.execute(sql, params)) as [T[], mysql.FieldPacket[]];
+  const elapsed = Date.now() - start;
+  const SLOW_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 200);
+  if (elapsed >= SLOW_MS) {
+    try {
+      // eslint-disable-next-line no-console
+      console.warn(`Slow query (${elapsed}ms):`, sql, params ?? []);
+    } catch {}
+  }
+  return res;
 }
 
 export async function queryOne<T = unknown>(

@@ -94,6 +94,9 @@ export function ProjectUpload({
       uploadedAt: new Date(),
       fileSize: file.size,
       category: formData.category,
+      likes: 0,
+      savedBy: [],
+      collaborators: [studentId],
     };
 
     onProjectUpload(newProject);

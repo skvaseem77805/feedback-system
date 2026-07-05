@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { queryOne, query } from '@/lib/db';
+import { invalidateStudent } from '@/lib/services/students';
+import { parseStudentId } from '@/lib/security';
 
 /**
  * GET /api/stats/[studentId]
@@ -10,7 +12,7 @@ export async function GET(
 ) {
   try {
     const { studentId } = await params;
-    const sid = (studentId || '').trim();
+    const sid = parseStudentId(studentId);
 
     if (!sid) {
       return Response.json(
@@ -64,7 +66,7 @@ export async function PATCH(
 ) {
   try {
     const { studentId } = await params;
-    const sid = (studentId || '').trim();
+    const sid = parseStudentId(studentId);
 
     if (!sid) {
       return Response.json(
@@ -143,7 +145,8 @@ export async function PATCH(
         collaborations,
       ]
     );
-
+    // Invalidate student cache after stats update
+    invalidateStudent(sid);
     return Response.json({
       projectsUploaded,
       connections,

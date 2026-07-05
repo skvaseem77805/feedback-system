@@ -1,18 +1,31 @@
 import { NextRequest } from 'next/server';
 import { queryOne } from '@/lib/db';
-import { comparePassword } from '@/lib/auth-utils';import { NextRequest } from "next/server";
-// import { queryOne } from "@/lib/db";
-// import { comparePassword } from "@/lib/auth-utils";
+import { comparePassword } from '@/lib/auth-utils';
+import { enforceRateLimit, getRequestIp } from '@/lib/rate-limit';
+import { parseString } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getRequestIp(request);
+    const limitState = enforceRateLimit(`auth-validate:${ip}`);
+    if (!limitState.allowed) {
+      return Response.json(
+        {
+          error: 'Too many login attempts. Try again later.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(limitState.retryAfter ?? 60),
+          },
+        }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
 
-    const studentId = (body?.studentId || body?.student_id || '')
-      .trim()
-      .toUpperCase();
-
-    const password = body?.password || '';
+    const studentId = parseString(body?.studentId || body?.student_id).toUpperCase();
+    const password = parseString(body?.password);
 
     if (!studentId) {
       return Response.json(
@@ -28,9 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Student ID received:", studentId);
-
-const row = await queryOne<{
+    const row = await queryOne<{
   id: string;
   name: string;
   registration_no: string;
@@ -60,8 +71,6 @@ const row = await queryOne<{
   `,
   [studentId]
 );
-
-console.log("DB Row:", row);
 
     if (!row) {
       return Response.json(

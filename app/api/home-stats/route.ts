@@ -3,14 +3,23 @@ import { queryOne } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const projectsRow = await queryOne<{ total: number }>('SELECT COUNT(*) AS total FROM projects');
-    const studentsRow = await queryOne<{ total: number }>('SELECT COUNT(*) AS total FROM students');
-    const deptsRow = await queryOne<{ total: number }>('SELECT COUNT(DISTINCT department) AS total FROM students');
+    const row = await queryOne<{
+      totalProjects: number;
+      totalStudents: number;
+      totalDepartments: number;
+    }>(
+      `
+      SELECT
+        (SELECT COUNT(*) FROM projects) AS totalProjects,
+        (SELECT COUNT(*) FROM students) AS totalStudents,
+        (SELECT COUNT(DISTINCT department) FROM students) AS totalDepartments
+      `
+    );
 
     return NextResponse.json({
-      totalProjects: Number(projectsRow?.total) || 0,
-      totalStudents: Number(studentsRow?.total) || 0,
-      totalDepartments: Number(deptsRow?.total) || 0,
+      totalProjects: Number(row?.totalProjects) || 0,
+      totalStudents: Number(row?.totalStudents) || 0,
+      totalDepartments: Number(row?.totalDepartments) || 0,
     });
   } catch (error) {
     console.error('[home-stats] Error fetching stats:', error);

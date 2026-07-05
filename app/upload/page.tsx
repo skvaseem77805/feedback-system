@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
-import { supabase } from '@/lib/supabase';
 import { apiCreateProject } from '@/lib/api';
 
 interface FormData {

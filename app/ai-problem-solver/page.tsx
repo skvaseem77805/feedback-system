@@ -7,6 +7,9 @@ import { YearSelector } from '@/components/YearSelector';
 import { AIChat } from '@/components/AIChat';
 import { ProjectUpload } from '@/components/ProjectUpload';
 import { StatisticsDashboard } from '@/components/StatisticsDashboard';
+import dynamic from 'next/dynamic';
+
+const RechartsWrapper = dynamic(() => import('@/components/RechartsWrapper'), { ssr: false });
 import { ProjectsList } from '@/components/ProjectsList';
 import { Navbar } from '@/components/Navbar';
 import { type AcademicYear, type Project } from '@/lib/data';
@@ -28,6 +31,9 @@ export default function AIProblemSolverPage() {
       uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       fileSize: 2.5 * 1024 * 1024,
       category: 'web',
+      likes: 0,
+      savedBy: [],
+      collaborators: [],
     },
     {
       id: '2',
@@ -40,6 +46,9 @@ export default function AIProblemSolverPage() {
       uploadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       fileSize: 8.3 * 1024 * 1024,
       category: 'web',
+      likes: 0,
+      savedBy: [],
+      collaborators: [],
     },
     {
       id: '3',
@@ -52,6 +61,9 @@ export default function AIProblemSolverPage() {
       uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
       fileSize: 15.7 * 1024 * 1024,
       category: 'ai',
+      likes: 0,
+      savedBy: [],
+      collaborators: [],
     },
     {
       id: '4',
@@ -64,6 +76,9 @@ export default function AIProblemSolverPage() {
       uploadedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       fileSize: 25.1 * 1024 * 1024,
       category: 'web',
+      likes: 0,
+      savedBy: [],
+      collaborators: [],
     },
     {
       id: '5',
@@ -76,6 +91,9 @@ export default function AIProblemSolverPage() {
       uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
       fileSize: 4.2 * 1024 * 1024,
       category: 'mobile',
+      likes: 0,
+      savedBy: [],
+      collaborators: [],
     },
   ]);
   const [studentId, setStudentId] = useState<string>('');
@@ -197,6 +215,14 @@ export default function AIProblemSolverPage() {
           {/* Statistics */}
           <div className="mt-12 pt-12 border-t">
             <StatisticsDashboard projects={projects} />
+            <RechartsWrapper data={
+              [
+                { year: '1st', projects: projects.filter(p => p.academicYear === '1st').length, students: new Set(projects.filter(p => p.academicYear === '1st').map(p => p.studentId)).size },
+                { year: '2nd', projects: projects.filter(p => p.academicYear === '2nd').length, students: new Set(projects.filter(p => p.academicYear === '2nd').map(p => p.studentId)).size },
+                { year: '3rd', projects: projects.filter(p => p.academicYear === '3rd').length, students: new Set(projects.filter(p => p.academicYear === '3rd').map(p => p.studentId)).size },
+                { year: 'Final', projects: projects.filter(p => p.academicYear === 'final').length, students: new Set(projects.filter(p => p.academicYear === 'final').map(p => p.studentId)).size },
+              ]
+            } />
           </div>
 
           {/* Quick Navigation */}

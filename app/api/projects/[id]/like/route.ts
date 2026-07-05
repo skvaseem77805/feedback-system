@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { parseStudentId } from '@/lib/security';
 
 export async function POST(
   request: NextRequest,
@@ -10,11 +11,7 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}));
 
-    const studentId = (
-      body.studentId ||
-      body.student_id ||
-      ''
-    ).trim();
+    const studentId = parseStudentId(body?.studentId || body?.student_id);
 
     if (!projectId || !studentId) {
       return Response.json(

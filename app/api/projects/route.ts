@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { query } from '@/lib/db';
+import { getProjects, invalidateProjectsCache } from '@/lib/services/projects';
+import { parseString, parseStudentId } from '@/lib/security';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -50,38 +52,32 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const filterStudentId = searchParams.get('studentId')?.trim();
+    const filterStudentId = parseStudentId(searchParams.get('studentId')) || undefined;
     const category = searchParams.get('category')?.trim();
-    const forUserId = searchParams.get('forUserId')?.trim();
+    const forUserId = parseStudentId(searchParams.get('forUserId')) || undefined;
 
     let sql = `
       SELECT
-        p.*,
+        p.id,
+        p.student_id,
+        p.title,
+        p.description,
+        p.category,
+        p.uploaded_at,
+        p.likes,
+        p.thumbnail_url,
+        p.file_name,
+        p.file_size,
         s.name AS student_name,
         s.year AS student_year,
-
-        (
-          SELECT GROUP_CONCAT(student_id)
-          FROM project_saves
-          WHERE project_id = p.id
-        ) AS saved_by,
-
-        (
-          SELECT GROUP_CONCAT(student_id)
-          FROM project_collaborators
-          WHERE project_id = p.id
-        ) AS collaborators,
-
-        (
-          SELECT GROUP_CONCAT(student_id)
-          FROM project_likes
-          WHERE project_id = p.id
-        ) AS liked_by
-
+        GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
+        GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
+        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
       FROM projects p
-      INNER JOIN students s
-      ON s.id = p.student_id
-
+      INNER JOIN students s ON s.id = p.student_id
+      LEFT JOIN project_saves ps ON ps.project_id = p.id
+      LEFT JOIN project_collaborators pc ON pc.project_id = p.id
+      LEFT JOIN project_likes pl ON pl.project_id = p.id
       WHERE 1=1
     `;
 
@@ -97,13 +93,10 @@ export async function GET(request: NextRequest) {
       params.push(category);
     }
 
-    sql += ` ORDER BY p.uploaded_at DESC`;
+    sql += ` GROUP BY p.id ORDER BY p.uploaded_at DESC`;
 
-    const [rows] = await query<any>(sql, params);
-
-    return Response.json(
-      rows.map((row: any) => transformProject(row, forUserId))
-    );
+    const projects = await getProjects({ studentId: filterStudentId || undefined, category: category || undefined, forUserId: forUserId || undefined });
+    return Response.json(projects);
 
   } catch (error) {
     console.error(error);
@@ -123,7 +116,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const studentId = (body.studentId || "").trim();
+    const studentId = parseStudentId(body?.studentId || "");
     const studentName = body.studentName || "Unknown";
     const title = (body.title || "").trim();
 
@@ -183,6 +176,9 @@ export async function POST(request: NextRequest) {
       `,
       [studentId]
     );
+
+    // Invalidate project caches after mutation
+    invalidateProjectsCache();
 
     return Response.json({
       id,

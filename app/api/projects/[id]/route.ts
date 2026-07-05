@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { query, queryOne } from '@/lib/db';
+import { parseStudentId } from '@/lib/security';
+import { invalidateProject, getProjectById } from '@/lib/services/projects';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -30,27 +32,26 @@ export async function GET(
     const row = await queryOne<any>(
       `
       SELECT
-        p.*,
+        p.id,
+        p.student_id,
+        p.title,
+        p.description,
+        p.category,
+        p.uploaded_at,
+        p.likes,
+        p.thumbnail_url,
+        p.file_name,
+        p.file_size,
         s.name AS student_name,
         s.year AS student_year,
-
-        (
-          SELECT GROUP_CONCAT(student_id)
-          FROM project_saves
-          WHERE project_id = p.id
-        ) AS saved_by,
-
-        (
-          SELECT GROUP_CONCAT(student_id)
-          FROM project_collaborators
-          WHERE project_id = p.id
-        ) AS collaborators
-
+        GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
+        GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators
       FROM projects p
-      INNER JOIN students s
-      ON s.id = p.student_id
-
+      INNER JOIN students s ON s.id = p.student_id
+      LEFT JOIN project_saves ps ON ps.project_id = p.id
+      LEFT JOIN project_collaborators pc ON pc.project_id = p.id
       WHERE p.id = ?
+      GROUP BY p.id
       `,
       [pid]
     );
@@ -109,11 +110,7 @@ export async function DELETE(
 
     const body = await request.json().catch(() => ({}));
 
-    const studentId = (
-      body.studentId ||
-      body.student_id ||
-      ''
-    ).trim();
+    const studentId = parseStudentId(body?.studentId || body?.student_id);
 
     if (!studentId) {
       return Response.json(
@@ -174,6 +171,9 @@ export async function DELETE(
       `,
       [studentId]
     );
+
+    // Invalidate caches for project and list
+    invalidateProject(pid);
 
     return Response.json({
       deleted: true,

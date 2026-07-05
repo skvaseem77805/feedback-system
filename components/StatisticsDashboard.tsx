@@ -1,9 +1,9 @@
-'use client';
+ 'use client';
 
+import React from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Users, Upload, TrendingUp, Award } from 'lucide-react';
-import type { Statistics, Project } from '@/lib/data';
+import type { Project } from '@/lib/data';
 
 interface StatisticsDashboardProps {
   projects: Project[];
@@ -35,12 +35,12 @@ export function StatisticsDashboard({ projects }: StatisticsDashboardProps) {
     ).size,
   };
 
-  const chartData = [
+  const chartData = React.useMemo(() => [
     { year: '1st', projects: projectsByYear['1st'], students: studentsByYear['1st'] },
     { year: '2nd', projects: projectsByYear['2nd'], students: studentsByYear['2nd'] },
     { year: '3rd', projects: projectsByYear['3rd'], students: studentsByYear['3rd'] },
     { year: 'Final', projects: projectsByYear.final, students: studentsByYear.final },
-  ];
+  ], [projectsByYear, studentsByYear]);
 
   const stats = [
     {
@@ -106,34 +106,8 @@ export function StatisticsDashboard({ projects }: StatisticsDashboardProps) {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-primary">Projects & Students by Year</h3>
           <div className="w-full h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="year" stroke="var(--color-muted-foreground)" />
-                <YAxis stroke="var(--color-muted-foreground)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--color-card)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius)',
-                  }}
-                  labelStyle={{ color: 'var(--color-foreground)' }}
-                />
-                <Legend />
-                <Bar
-                  dataKey="projects"
-                  fill="var(--color-primary)"
-                  radius={[8, 8, 0, 0]}
-                  name="Projects Uploaded"
-                />
-                <Bar
-                  dataKey="students"
-                  fill="var(--color-accent)"
-                  radius={[8, 8, 0, 0]}
-                  name="Students Contributed"
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Chart is dynamically loaded to keep initial bundle small (see usage in pages) */}
+            <div id="recharts-root" />
           </div>
         </div>
       </Card>

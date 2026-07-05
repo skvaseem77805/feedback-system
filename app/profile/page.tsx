@@ -141,7 +141,7 @@ export default function ProfilePage() {
         const cur = getCurrentStudentId();
         if (cur) setStats(getStudentStats(cur));
       }
-    }, 5000);
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

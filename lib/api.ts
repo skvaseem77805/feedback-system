@@ -11,8 +11,12 @@ async function handleRes<T>(res: Response): Promise<T> {
   return data as T;
 }
 
-export async function apiStudents(): Promise<ApiStudent[]> {
-  const res = await fetch(`${BASE}/api/students`);
+export async function apiStudents(params?: { limit?: number; search?: string }): Promise<ApiStudent[]> {
+  const q = new URLSearchParams();
+  if (typeof params?.limit === 'number') q.set('limit', String(params.limit));
+  if (typeof params?.search === 'string' && params.search.trim()) q.set('search', params.search.trim());
+  const query = q.toString();
+  const res = await fetch(`${BASE}/api/students${query ? `?${query}` : ''}`);
   return handleRes<ApiStudent[]>(res);
 }
 
@@ -71,11 +75,13 @@ export async function apiAuthSetup(studentId: string, password: string): Promise
   return handleRes(res);
 }
 
-export async function apiProjects(params?: { studentId?: string; category?: string; forUserId?: string }): Promise<ApiProject[]> {
+export async function apiProjects(params?: { studentId?: string; category?: string; forUserId?: string; limit?: number; offset?: number }): Promise<ApiProject[]> {
   const q = new URLSearchParams();
   if (params?.studentId) q.set('studentId', params.studentId);
   if (params?.category) q.set('category', params.category);
   if (params?.forUserId) q.set('forUserId', params.forUserId);
+  if (typeof params?.limit === 'number') q.set('limit', String(params.limit));
+  if (typeof params?.offset === 'number') q.set('offset', String(params.offset));
   const query = q.toString();
   const res = await fetch(`${BASE}/api/projects${query ? `?${query}` : ''}`);
   return handleRes<ApiProject[]>(res);

@@ -43,7 +43,15 @@ export async function getProjects(opts: { studentId?: string; category?: string;
 
   sql += ` GROUP BY p.id ORDER BY p.uploaded_at DESC`;
 
-  const [rows] = await query<any>(sql, params);
+  let rows: any[] = [];
+  try {
+    const r = await query<any>(sql, params);
+    rows = Array.isArray(r[0]) ? r[0] : r[0] ?? [];
+  } catch (err) {
+    console.error('getProjects DB error', err);
+    cache.set(key, [], 15 * 1000);
+    return [];
+  }
 
   const transformed = rows.map((p: any) => {
     const savedBy = typeof p.saved_by === 'string' && p.saved_by.length ? p.saved_by.split(',') : [];
@@ -102,7 +110,16 @@ export async function getProjectById(id: string) {
       GROUP BY p.id
     `;
 
-  const row = (await query<any>(sql, [id]))[0][0];
+  let row: any = null;
+  try {
+    const r = await query<any>(sql, [id]);
+    row = Array.isArray(r[0]) ? r[0][0] : r[0]?.[0] ?? null;
+  } catch (err) {
+    console.error('getProjectById DB error', err);
+    cache.set(key, null, 15 * 1000);
+    return null;
+  }
+
   if (!row) return null;
 
   const savedBy = typeof row.saved_by === 'string' && row.saved_by.length ? row.saved_by.split(',') : [];

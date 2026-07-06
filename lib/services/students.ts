@@ -29,7 +29,15 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
   sql += ` ORDER BY s.name`;
   if (limit > 0) sql += ` LIMIT ${Number(limit)}`;
 
-  const [rows] = await query<any>(sql, params);
+  let rows: any[] = [];
+  try {
+    const r = await query<any>(sql, params);
+    rows = Array.isArray(r[0]) ? r[0] : r[0] ?? [];
+  } catch (err) {
+    console.error('getStudents DB error', err);
+    cache.set(key, [], 30 * 1000);
+    return [];
+  }
 
   const students = rows.map((s: any) => {
     let skills: string[] = [];
@@ -98,7 +106,16 @@ export async function getStudentById(id: string) {
     LIMIT 1
   `;
 
-  const row = (await query<any>(rowSql, [id]))[0][0];
+  let row: any = null;
+  try {
+    const r = await query<any>(rowSql, [id]);
+    row = Array.isArray(r[0]) ? r[0][0] : r[0]?.[0] ?? null;
+  } catch (err) {
+    console.error('getStudentById DB error', err);
+    cache.set(key, null, 60 * 1000);
+    return null;
+  }
+
   if (!row) return null;
 
   let skills: string[] = [];

@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
-import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap } from 'lucide-react';
+import { Compass, Upload, Users, LogOut, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose } from '@/components/ui/drawer';
+import { Input } from '@/components/ui/input';
 
 import {
   Dialog,
@@ -19,12 +20,27 @@ export function Navbar() {
   const router = useRouter();
   const [userType, setUserType] = useState<'student' | 'staff' | 'admin' | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setMounted(true);
     const type = localStorage.getItem('userType') as 'student' | 'staff' | 'admin' | null;
     setUserType(type);
   }, []);
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      router.push(`/projects?search=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
+
+  const handleSearchClick = () => {
+    if (searchQuery.trim()) {
+      router.push(`/projects?search=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
 
   const handleLogout = () => {
     // Clear all session/auth data
@@ -120,18 +136,29 @@ export function Navbar() {
             ) : null}
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
-            {isLoggedIn ? (
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1 text-sm font-medium">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
-            ) : (
-              <Link href="/auth">
-                <Button size="sm">Login</Button>
-              </Link>
-            )}
+          <div className="hidden md:flex items-center gap-2 flex-1 max-w-sm">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
+                className="pl-10 pr-4 py-2 text-sm h-9 rounded-lg border border-input bg-background/50 hover:bg-background focus:bg-background"
+              />
+            </div>
           </div>
+
+          {isLoggedIn ? (
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1 text-sm font-medium">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          ) : (
+            <Link href="/auth">
+              <Button size="sm">Login</Button>
+            </Link>
+          )}
 
           <div className="md:hidden flex items-center gap-2">
             <Drawer direction="right">
@@ -159,6 +186,16 @@ export function Navbar() {
                 </DrawerHeader>
 
                 <div className="p-4 space-y-2">
+                  <div className="relative w-full mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search projects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleSearch}
+                      className="pl-10 pr-4 py-2 text-sm h-9 rounded-lg border border-input bg-background/50"
+                    />
+                  </div>
                   <Link href="/">
                     <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
                       <Building2 className="w-4 h-4" />

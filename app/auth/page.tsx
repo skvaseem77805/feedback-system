@@ -254,7 +254,19 @@ export default function AuthPage() {
       if (result.valid && result.admin) {
         localStorage.setItem('userType', 'admin');
         localStorage.setItem('adminEmail', result.admin.email);
-        localStorage.setItem('adminId', result.admin.id || 'admin-' + Date.now());
+        const adminIdValue = result.admin.id || 'admin-' + Date.now();
+        localStorage.setItem('adminId', adminIdValue);
+
+        // Also set cookies as a reliable transport for auth info in production
+        // Some hosting environments or proxies may strip custom client headers.
+        try {
+          const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `adminAuth=true; path=/${secureFlag}; SameSite=Lax`;
+          document.cookie = `adminEmail=${encodeURIComponent(result.admin.email)}; path=/${secureFlag}; SameSite=Lax`;
+          document.cookie = `adminId=${encodeURIComponent(adminIdValue)}; path=/${secureFlag}; SameSite=Lax`;
+        } catch (e) {
+          // ignore cookie errors
+        }
 
         router.push('/admin/feedback');
       } else {

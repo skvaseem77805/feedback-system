@@ -2,9 +2,13 @@ import { NextRequest } from 'next/server';
 import { getAdmins } from '@/lib/admins';
 
 export function isAdminAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('x-admin-auth');
-  const adminEmail = request.headers.get('x-admin-email')?.trim().toLowerCase();
-  const adminId = request.headers.get('x-admin-id')?.trim().toLowerCase();
+  const authHeaderRaw = request.headers.get('x-admin-auth');
+  const adminEmailRaw = request.headers.get('x-admin-email');
+  const adminIdRaw = request.headers.get('x-admin-id');
+
+  const authHeader = (authHeaderRaw ?? '').toString().trim().toLowerCase();
+  const adminEmail = (adminEmailRaw ?? '').toString().trim().toLowerCase();
+  const adminId = (adminIdRaw ?? '').toString().trim().toLowerCase();
 
   if (authHeader !== 'true') {
     return false;

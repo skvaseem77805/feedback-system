@@ -21,7 +21,6 @@ export default function AuthPage() {
   // Student Form State
   const [studentId, setStudentId] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
-  const [selectedYear, setSelectedYear] = useState<'25' | '24' | '23' | '22' | null>(null);
 
   // Setup Form State
   const [setupPassword, setSetupPassword] = useState('');
@@ -34,13 +33,6 @@ export default function AuthPage() {
   // Admin Form State
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-
-  const years = [
-    { prefix: '25', label: '1st Year', color: 'bg-blue-500' },
-    { prefix: '24', label: '2nd Year', color: 'bg-purple-500' },
-    { prefix: '23', label: '3rd Year', color: 'bg-pink-500' },
-    { prefix: '22', label: 'Final Year', color: 'bg-orange-500' }
-  ];
 
   const handleBackClick = () => {
     setError('');
@@ -55,13 +47,6 @@ export default function AuthPage() {
     setStaffPassword('');
     setAdminEmail('');
     setAdminPassword('');
-    setSelectedYear(null);
-  };
-
-  const handleYearClick = (prefix: string) => {
-    setSelectedYear(prefix as '25' | '24' | '23' | '22');
-    setStudentId(prefix);
-    setError('');
   };
 
   const handleSetupPassword = async (e: React.FormEvent) => {
@@ -171,7 +156,6 @@ export default function AuthPage() {
 
     setIsLoading(true);
     try {
-      const { apiAuthValidate } = await import('@/lib/api');
       console.log("Frontend Student ID =", studentId);
 
       // We manually fetch to handle 401 specifically if needed with custom message parsing
@@ -187,7 +171,7 @@ export default function AuthPage() {
         localStorage.setItem('userType', 'student');
         localStorage.setItem('studentId', studentId);
         localStorage.setItem('currentStudentId', studentId);
-        localStorage.setItem('year', selectedYear || '');
+        localStorage.setItem('year', String(student.year));
         localStorage.setItem('studentName', student.name);
         localStorage.setItem('studentDepartment', student.department);
         localStorage.setItem('studentEmail', student.email);
@@ -404,28 +388,6 @@ export default function AuthPage() {
               )}
 
               <form onSubmit={handleStudentLogin} className="space-y-5">
-                <div>
-                  <label className="text-sm font-medium mb-3 block">
-                    Select Your Year
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {years.map((year) => (
-                      <button
-                        key={year.prefix}
-                        type="button"
-                        onClick={() => handleYearClick(year.prefix)}
-                        className={`p-3 rounded-lg text-center transition-all ${selectedYear === year.prefix
-                          ? `${year.color} text-white shadow-lg`
-                          : 'bg-muted hover:bg-muted/80'
-                          }`}
-                      >
-                        <div className="font-semibold text-sm">{year.label}</div>
-                        <div className="text-xs opacity-75">{year.prefix}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <div>
                   <label htmlFor="studentId" className="text-sm font-medium mb-2 block">
                     Student ID

@@ -94,6 +94,42 @@ export const getCurrentStudentId = (): string | null => {
   return localStorage.getItem('currentStudentId');
 };
 
+const VIEWER_TOKEN_KEY = 'viewerToken';
+
+function generateViewerToken(): string {
+  if (typeof window !== 'undefined' && typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+
+  const array = new Uint8Array(24);
+  if (typeof window !== 'undefined' && typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+    crypto.getRandomValues(array);
+  } else {
+    for (let i = 0; i < array.length; i += 1) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(array)
+    .map((b) => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, 32);
+}
+
+export const getViewerToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(VIEWER_TOKEN_KEY);
+};
+
+export const ensureViewerToken = (): string => {
+  if (typeof window === 'undefined') return '';
+  let token = localStorage.getItem(VIEWER_TOKEN_KEY);
+  if (!token) {
+    token = generateViewerToken();
+    localStorage.setItem(VIEWER_TOKEN_KEY, token);
+  }
+  return token;
+};
+
 /**
  * Initialize stats for a new student if they don't exist
  */

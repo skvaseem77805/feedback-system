@@ -1,7 +1,7 @@
 import { cache, cacheKey } from '@/lib/cache';
 import { query } from '@/lib/db';
 
-export async function getProjects(opts: { studentId?: string; category?: string; forUserId?: string } = {}) {
+export async function getProjects(opts: { studentId?: string; category?: string; forUserId?: string; limit?: number; sort?: 'trending' | 'newest' } = {}) {
   const key = cacheKey('projects', opts);
   const cached = cache.get<any[]>(key);
   if (cached) return cached;
@@ -15,6 +15,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
         p.category,
         p.uploaded_at,
         p.likes,
+        p.views,
         p.thumbnail_url,
         p.file_name,
         p.file_size,
@@ -41,7 +42,24 @@ export async function getProjects(opts: { studentId?: string; category?: string;
     params.push(opts.category);
   }
 
-  sql += ` GROUP BY p.id ORDER BY p.uploaded_at DESC`;
+  sql += ` GROUP BY p.id`;
+
+  if (opts.sort === 'trending') {
+    sql += ` ORDER BY (
+      COALESCE(p.views, 0)
+      + COALESCE(p.likes, 0) * 5
+      + COUNT(DISTINCT ps.student_id) * 8
+      + COUNT(DISTINCT pc.student_id) * 3
+      + GREATEST(0, 30 - DATEDIFF(NOW(), p.uploaded_at)) * 4
+    ) DESC, p.uploaded_at DESC`;
+  } else {
+    sql += ` ORDER BY p.uploaded_at DESC`;
+  }
+
+  if (typeof opts.limit === 'number') {
+    sql += ` LIMIT ?`;
+    params.push(Math.max(1, Math.min(100, opts.limit)));
+  }
 
   let rows: any[] = [];
   try {
@@ -68,6 +86,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
       category: p.category || 'General',
       uploadedAt: p.uploaded_at,
       likes: Number(p.likes) || 0,
+      views: Number(p.views) || 0,
       thumbnailUrl: p.thumbnail_url,
       fileName: p.file_name,
       fileSize: p.file_size,
@@ -95,6 +114,7 @@ export async function getProjectById(id: string) {
         p.category,
         p.uploaded_at,
         p.likes,
+        p.views,
         p.thumbnail_url,
         p.file_name,
         p.file_size,
@@ -135,6 +155,7 @@ export async function getProjectById(id: string) {
     category: row.category || 'General',
     uploadedAt: row.uploaded_at,
     likes: Number(row.likes) || 0,
+    views: Number(row.views) || 0,
     thumbnailUrl: row.thumbnail_url,
     fileName: row.file_name,
     fileSize: row.file_size,

@@ -26,6 +26,13 @@ export function parseStudentId(value: unknown): string | null {
   return ok ? s : null;
 }
 
+export function parseViewerToken(value: unknown): string | null {
+  const s = parseString(value);
+  if (!s) return null;
+  const ok = /^[A-Za-z0-9_-]{24,128}$/.test(s);
+  return ok ? s : null;
+}
+
 export const securityHeaders: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',

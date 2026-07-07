@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { query } from '@/lib/db';
 import { getProjects, invalidateProjectsCache } from '@/lib/services/projects';
-import { parseString, parseStudentId } from '@/lib/security';
+import { parseStudentId } from '@/lib/security';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -55,47 +55,16 @@ export async function GET(request: NextRequest) {
     const filterStudentId = parseStudentId(searchParams.get('studentId')) || undefined;
     const category = searchParams.get('category')?.trim();
     const forUserId = parseStudentId(searchParams.get('forUserId')) || undefined;
+    const sort = searchParams.get('sort') === 'trending' ? 'trending' : undefined;
+    const limit = Number.isFinite(Number(searchParams.get('limit'))) ? Math.min(100, Math.max(1, Number(searchParams.get('limit')))) : undefined;
 
-    let sql = `
-      SELECT
-        p.id,
-        p.student_id,
-        p.title,
-        p.description,
-        p.category,
-        p.uploaded_at,
-        p.likes,
-        p.thumbnail_url,
-        p.file_name,
-        p.file_size,
-        s.name AS student_name,
-        s.year AS student_year,
-        GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
-        GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
-        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
-      FROM projects p
-      INNER JOIN students s ON s.id = p.student_id
-      LEFT JOIN project_saves ps ON ps.project_id = p.id
-      LEFT JOIN project_collaborators pc ON pc.project_id = p.id
-      LEFT JOIN project_likes pl ON pl.project_id = p.id
-      WHERE 1=1
-    `;
-
-    const params: any[] = [];
-
-    if (filterStudentId) {
-      sql += ` AND p.student_id = ?`;
-      params.push(filterStudentId);
-    }
-
-    if (category) {
-      sql += ` AND p.category = ?`;
-      params.push(category);
-    }
-
-    sql += ` GROUP BY p.id ORDER BY p.uploaded_at DESC`;
-
-    const projects = await getProjects({ studentId: filterStudentId || undefined, category: category || undefined, forUserId: forUserId || undefined });
+    const projects = await getProjects({
+      studentId: filterStudentId || undefined,
+      category: category || undefined,
+      forUserId: forUserId || undefined,
+      sort,
+      limit,
+    });
     return Response.json(projects);
 
   } catch (error) {

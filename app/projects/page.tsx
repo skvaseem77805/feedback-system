@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -288,12 +289,12 @@ export default function ProjectsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <a href={`#project-${project.id}`} className="block">
+                        <Link href={`/projects/${encodeURIComponent(project.id)}`} className="block">
                           <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
                             <ExternalLink className="w-4 h-4" />
                             View Project
                           </Button>
-                        </a>
+                        </Link>
                         <Button
                           size="sm"
                           className={`w-full smooth-button ${hasJoined ? 'bg-green-500/20 text-green-500' : 'bg-primary text-primary-foreground'}`}

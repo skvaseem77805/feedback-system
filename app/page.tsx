@@ -106,7 +106,7 @@ export default function Home() {
     const loadProjects = async () => {
       try {
         setLoadingProjects(true);
-        const list = await apiProjects({ limit: 4 });
+        const list = await apiProjects({ limit: 4, sort: 'trending' });
         setTrendingProjects(list);
       } catch (err) {
         console.error('Projects load error', err);
@@ -465,8 +465,7 @@ export default function Home() {
             </Card>
           ) : (
             <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 snap-x scrollbar-none">
-              {trendingProjects.map((p) => {
-                const viewCount = Math.floor(p.likes * 3.4) + 12;
+              {trendingProjects.map((p, index) => {
                 return (
                   <div
                     key={p.id}
@@ -493,12 +492,16 @@ export default function Home() {
                         </Badge>
                       </div>
 
-                      {/* Title & Creator */}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
+                          🔥 Trending #{index + 1}
+                        </span>
+                        <p className="text-xs text-muted-foreground font-medium">By {p.studentName}</p>
+                      </div>
                       <div>
                         <h3 className="font-bold text-foreground text-sm line-clamp-1 leading-snug group-hover:text-primary transition-colors">
                           {p.title}
                         </h3>
-                        <p className="text-xs text-muted-foreground mt-1 font-medium">By {p.studentName}</p>
                       </div>
                     </div>
 
@@ -510,7 +513,7 @@ export default function Home() {
                             <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500/20" /> {p.likes}
                           </span>
                           <span className="flex items-center gap-0.5">
-                            <Eye className="w-3.5 h-3.5 text-blue-500" /> {viewCount}
+                            <Eye className="w-3.5 h-3.5 text-blue-500" /> {p.views ?? 0}
                           </span>
                         </div>
                         <span>
@@ -522,7 +525,7 @@ export default function Home() {
                       </div>
 
                       {/* Action */}
-                      <Link href={`/projects?category=${encodeURIComponent(p.category)}`}>
+                      <Link href={`/projects/${encodeURIComponent(p.id)}`}>
                         <Button size="sm" variant="ghost" className="w-full text-xs font-semibold justify-center hover:bg-primary/10 hover:text-primary gap-1 pt-1 mt-1 border border-white/5 group-hover:border-primary/20">
                           View Project <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                         </Button>

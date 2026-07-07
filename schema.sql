@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS projects (
   category VARCHAR(100) DEFAULT 'General',
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   likes INT UNSIGNED DEFAULT 0,
+  views INT UNSIGNED DEFAULT 0,
   thumbnail_url VARCHAR(500) DEFAULT NULL,
   file_name VARCHAR(255) DEFAULT NULL,
   file_size BIGINT UNSIGNED DEFAULT NULL,
@@ -58,6 +59,18 @@ CREATE TABLE IF NOT EXISTS projects (
   INDEX idx_projects_student (student_id),
   INDEX idx_projects_category (category),
   INDEX idx_projects_uploaded (uploaded_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS project_views (
+  project_id VARCHAR(50) NOT NULL,
+  viewer_token VARCHAR(128) NOT NULL DEFAULT '',
+  viewer_student_id VARCHAR(20) NOT NULL DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (project_id, viewer_token, viewer_student_id),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_project_views_project (project_id),
+  INDEX idx_project_views_token (viewer_token),
+  INDEX idx_project_views_student (viewer_student_id)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------

@@ -75,13 +75,14 @@ export async function apiAuthSetup(studentId: string, password: string): Promise
   return handleRes(res);
 }
 
-export async function apiProjects(params?: { studentId?: string; category?: string; forUserId?: string; limit?: number; offset?: number }): Promise<ApiProject[]> {
+export async function apiProjects(params?: { studentId?: string; category?: string; forUserId?: string; limit?: number; offset?: number; sort?: 'trending' | 'newest' }): Promise<ApiProject[]> {
   const q = new URLSearchParams();
   if (params?.studentId) q.set('studentId', params.studentId);
   if (params?.category) q.set('category', params.category);
   if (params?.forUserId) q.set('forUserId', params.forUserId);
   if (typeof params?.limit === 'number') q.set('limit', String(params.limit));
   if (typeof params?.offset === 'number') q.set('offset', String(params.offset));
+  if (params?.sort) q.set('sort', params.sort);
   const query = q.toString();
   const res = await fetch(`${BASE}/api/projects${query ? `?${query}` : ''}`);
   return handleRes<ApiProject[]>(res);
@@ -91,6 +92,15 @@ export async function apiProject(id: string): Promise<ApiProject | null> {
   const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(id)}`);
   if (res.status === 404) return null;
   return handleRes<ApiProject>(res);
+}
+
+export async function apiViewProject(projectId: string, studentId?: string, viewerToken?: string): Promise<{ views: number }> {
+  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(projectId)}/view`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentId, viewerToken }),
+  });
+  return handleRes<{ views: number }>(res);
 }
 
 export interface ApiProject {
@@ -103,6 +113,7 @@ export interface ApiProject {
   category: string;
   uploadedAt: string;
   likes: number;
+  views: number;
   thumbnailUrl?: string;
   fileName?: string;
   fileSize?: number;

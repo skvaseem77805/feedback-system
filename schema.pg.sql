@@ -48,12 +48,25 @@ CREATE TABLE IF NOT EXISTS public.projects (
   category VARCHAR(100) DEFAULT 'General',
   uploaded_at TIMESTAMPTZ DEFAULT NOW(),
   likes INT DEFAULT 0,
+  views INT DEFAULT 0,
   thumbnail_url VARCHAR(500) DEFAULT NULL,
   file_name VARCHAR(255) DEFAULT NULL,
   file_size BIGINT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS public.project_views (
+  project_id VARCHAR(50) NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  viewer_token VARCHAR(128) NOT NULL DEFAULT '',
+  viewer_student_id VARCHAR(20) NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (project_id, viewer_token, viewer_student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_views_project ON public.project_views (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_views_token ON public.project_views (viewer_token);
+CREATE INDEX IF NOT EXISTS idx_project_views_student ON public.project_views (viewer_student_id);
 
 CREATE INDEX IF NOT EXISTS idx_projects_student ON public.projects (student_id);
 CREATE INDEX IF NOT EXISTS idx_projects_category ON public.projects (category);

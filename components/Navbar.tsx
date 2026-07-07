@@ -59,6 +59,54 @@ export function Navbar() {
 
   const isLoggedIn = userType === 'student' || userType === 'staff' || userType === 'admin';
 
+  const adminNavItems = [
+    {
+      href: '/admin/feedback',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      href: '/admin/students',
+      label: 'Student Management',
+      icon: GraduationCap,
+    },
+    {
+      href: '/admin/feedback',
+      label: 'Feedback Management',
+      icon: Send,
+    },
+  ];
+
+  const defaultNavItems = [
+    {
+      href: '/',
+      label: 'Home',
+      icon: Building2,
+    },
+    {
+      href: isLoggedIn ? '/profile' : '/auth',
+      label: 'Profile',
+      icon: User,
+    },
+    {
+      href: isLoggedIn ? '/select-student' : '/auth',
+      label: 'Connect Student',
+      icon: Users,
+    },
+    {
+      href: '/projects',
+      label: 'Projects',
+      icon: Compass,
+    },
+    {
+      href: '/feedback',
+      label: 'Feedback',
+      icon: Send,
+    },
+  ];
+
+  const navItems = userType === 'admin' ? adminNavItems : defaultNavItems;
+
   return (
     <nav className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,44 +144,14 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex flex-1 justify-center items-center gap-1 text-sm">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition">
-                <Building2 className="w-4 h-4" />
-                Home
-              </Button>
-            </Link>
-            <Link href={isLoggedIn ? '/profile' : '/auth'}>
-              <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium">
-                <User className="w-4 h-4" />
-                Profile
-              </Button>
-            </Link>
-            <Link href={isLoggedIn ? '/select-student' : '/auth'}>
-              <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-accent smooth-transition">
-                <Users className="w-4 h-4" />
-                Connect Student
-              </Button>
-            </Link>
-            <Link href="/projects">
-              <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium">
-                <Compass className="w-4 h-4" />
-                Projects
-              </Button>
-            </Link>
-            <Link href="/feedback">
-              <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium">
-                <Send className="w-4 h-4" />
-                Feedback
-              </Button>
-            </Link>
-            {userType === 'admin' ? (
-              <Link href="/admin/students">
+            {navItems.map((item) => (
+              <Link href={item.href} key={item.label}>
                 <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition">
-                  <GraduationCap className="w-4 h-4" />
-                  Student Management
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
                 </Button>
               </Link>
-            ) : null}
+            ))}
           </div>
 
           <div className="hidden md:flex items-center gap-2 flex-1 max-w-sm">
@@ -196,44 +214,61 @@ export function Navbar() {
                       className="pl-10 pr-4 py-2 text-sm h-9 rounded-lg border border-input bg-background/50"
                     />
                   </div>
-                  <Link href="/">
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Home
-                    </Button>
-                  </Link>
-                  <Link href={isLoggedIn ? '/profile' : '/auth'}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                      <User className="w-4 h-4" />
-                      Profile
-                    </Button>
-                  </Link>
-                  <Link href={isLoggedIn ? '/select-student' : '/auth'}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                      <Users className="w-4 h-4" />
-                      Connect Student
-                    </Button>
-                  </Link>
-                  <Link href="/projects">
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                      <Compass className="w-4 h-4" />
-                      Projects
-                    </Button>
-                  </Link>
-                  <Link href="/feedback">
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                      <Send className="w-4 h-4" />
-                      Feedback
-                    </Button>
-                  </Link>
                   {userType === 'admin' ? (
-                    <Link href="/admin/students">
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Student Management
-                      </Button>
-                    </Link>
-                  ) : null}
+                    <> 
+                      <Link href="/admin/feedback">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <LayoutDashboard className="w-4 h-4" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                      <Link href="/admin/students">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Student Management
+                        </Button>
+                      </Link>
+                      <Link href="/admin/feedback">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Send className="w-4 h-4" />
+                          Feedback Management
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Home
+                        </Button>
+                      </Link>
+                      <Link href={isLoggedIn ? '/profile' : '/auth'}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <User className="w-4 h-4" />
+                          Profile
+                        </Button>
+                      </Link>
+                      <Link href={isLoggedIn ? '/select-student' : '/auth'}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Users className="w-4 h-4" />
+                          Connect Student
+                        </Button>
+                      </Link>
+                      <Link href="/projects">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Compass className="w-4 h-4" />
+                          Projects
+                        </Button>
+                      </Link>
+                      <Link href="/feedback">
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Send className="w-4 h-4" />
+                          Feedback
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                   <div className="pt-2 border-t">
                     {isLoggedIn ? (
                       <DrawerClose asChild>

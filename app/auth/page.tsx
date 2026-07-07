@@ -335,7 +335,7 @@ export default function AuthPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleBackClick}
+                  onClick={()=>router.push('/')}
                   className="hover:bg-primary/20"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -433,7 +433,7 @@ export default function AuthPage() {
                   <Input
                     id="studentId"
                     type="text"
-                    placeholder="e.g., 24B81A50Q1"
+                    placeholder="Enter your ID"
                     value={studentId}
                     onChange={(e) => {
                       setStudentId(e.target.value.toUpperCase());

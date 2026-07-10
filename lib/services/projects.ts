@@ -21,6 +21,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
         p.file_size,
         s.name AS student_name,
         s.year AS student_year,
+        s.department AS student_department,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
         GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
@@ -81,6 +82,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
       studentId: p.student_id,
       studentName: p.student_name,
       academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[p.student_year] ?? `${p.student_year}th` })(),
+      studentDepartment: p.student_department || '',
       title: p.title,
       description: p.description || '',
       category: p.category || 'General',

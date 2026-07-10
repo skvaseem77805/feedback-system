@@ -21,17 +21,29 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const currentStudentId = getCurrentStudentId() ?? '';
 
   useEffect(() => {
-    // Read initial category parameter from URL on client mount
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    // Read initial parameters from URL on client mount
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const cat = params.get('category');
       if (cat) {
         setFilterCategory(cat);
+      }
+      const searchParam = params.get('search');
+      if (searchParam) {
+        setSearch(searchParam);
       }
     }
   }, []);
@@ -50,43 +62,90 @@ export default function ProjectsPage() {
     load();
   }, [currentStudentId]);
 
-  const filteredProjects = projects.filter((p) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      p.title.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.studentName.toLowerCase().includes(q);
-    const matchYear = !filterYear || p.academicYear === filterYear;
+  const getRelevanceScore = (project: ApiProject, query: string) => {
+    if (!query) return 0;
+    const q = query.toLowerCase().trim();
+    const title = (project.title || '').toLowerCase().trim();
+    const name = (project.studentName || '').toLowerCase().trim();
+    const sid = (project.studentId || '').toLowerCase().trim();
+    const desc = (project.description || '').toLowerCase().trim();
+    const cat = (project.category || '').toLowerCase().trim();
+    const dept = (project.studentDepartment || '').toLowerCase().trim();
+    const year = (project.academicYear || '').toLowerCase().trim();
 
-    // Fuzzy matching for various category formats
-    const matchCategory = !filterCategory || (() => {
-      const pCat = p.category.toLowerCase().trim();
-      const fCat = filterCategory.toLowerCase().trim();
-      if (pCat === fCat) return true;
-      if (fCat === 'ai / ml' || fCat === 'ai/ml' || fCat === 'machine learning' || fCat === 'ai') {
-        return pCat === 'ai' || pCat === 'machine learning' || pCat === 'ml' || pCat === 'ai / ml';
-      }
-      if (fCat === 'web development' || fCat === 'web') {
-        return pCat === 'web' || pCat === 'web development';
-      }
-      if (fCat === 'mobile app' || fCat === 'mobile') {
-        return pCat === 'mobile' || pCat === 'mobile app';
-      }
-      if (fCat === 'cyber security' || fCat === 'security') {
-        return pCat === 'security' || pCat === 'cyber security' || pCat === 'cybersecurity';
-      }
-      if (fCat === 'data science' || fCat === 'data') {
-        return pCat === 'data' || pCat === 'data science';
-      }
-      if (fCat === 'others' || fCat === 'other') {
-        return pCat === 'other' || pCat === 'others' || pCat === 'general';
-      }
-      return pCat.includes(fCat) || fCat.includes(pCat);
-    })();
+    if (title === q) return 1000;
+    if (title.startsWith(q)) return 500;
+    if (title.includes(q)) return 400;
+    if (name.startsWith(q)) return 300;
+    if (name.includes(q)) return 250;
+    if (sid.startsWith(q)) return 200;
+    if (sid.includes(q)) return 150;
+    if (desc.includes(q)) return 100;
+    if (cat.includes(q)) return 80;
+    if (dept.includes(q)) return 60;
+    if (year.includes(q)) return 40;
+    return 0;
+  };
 
-    return matchSearch && matchYear && matchCategory;
-  });
+  const filteredProjects = projects
+    .filter((p) => {
+      const matchYear = !filterYear || p.academicYear === filterYear;
+      const matchCategory = !filterCategory || (() => {
+        const pCat = p.category.toLowerCase().trim();
+        const fCat = filterCategory.toLowerCase().trim();
+        if (pCat === fCat) return true;
+        if (fCat === 'ai / ml' || fCat === 'ai/ml' || fCat === 'machine learning' || fCat === 'ai') {
+          return pCat === 'ai' || pCat === 'machine learning' || pCat === 'ml' || pCat === 'ai / ml';
+        }
+        if (fCat === 'web development' || fCat === 'web') {
+          return pCat === 'web' || pCat === 'web development';
+        }
+        if (fCat === 'mobile app' || fCat === 'mobile') {
+          return pCat === 'mobile' || pCat === 'mobile app';
+        }
+        if (fCat === 'cyber security' || fCat === 'security') {
+          return pCat === 'security' || pCat === 'cyber security' || pCat === 'cybersecurity';
+        }
+        if (fCat === 'data science' || fCat === 'data') {
+          return pCat === 'data' || pCat === 'data science';
+        }
+        if (fCat === 'others' || fCat === 'other') {
+          return pCat === 'other' || pCat === 'others' || pCat === 'general';
+        }
+        return pCat.includes(fCat) || fCat.includes(pCat);
+      })();
+
+      if (!matchYear || !matchCategory) return false;
+
+      const q = debouncedSearch.toLowerCase().trim();
+      if (!q) return true;
+
+      const title = (p.title || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const name = (p.studentName || '').toLowerCase();
+      const sid = (p.studentId || '').toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      const dept = (p.studentDepartment || '').toLowerCase();
+      const year = (p.academicYear || '').toLowerCase();
+
+      return (
+        title.includes(q) ||
+        desc.includes(q) ||
+        name.includes(q) ||
+        sid.includes(q) ||
+        cat.includes(q) ||
+        dept.includes(q) ||
+        year.includes(q) ||
+        title.startsWith(q) || title.endsWith(q) ||
+        name.startsWith(q) || name.endsWith(q) ||
+        sid.startsWith(q) || sid.endsWith(q)
+      );
+    })
+    .sort((a, b) => {
+      const scoreA = getRelevanceScore(a, debouncedSearch);
+      const scoreB = getRelevanceScore(b, debouncedSearch);
+      return scoreB - scoreA;
+    });
 
   const toggleLike = async (project: ApiProject) => {
     if (!currentStudentId) return;
@@ -257,7 +316,6 @@ export default function ProjectsPage() {
                         <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
 
                         <div className="flex flex-wrap gap-2">
-                          <Badge className="bg-primary/20 text-primary text-xs">{project.category}</Badge>
                           <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
                         </div>
                       </div>
@@ -295,14 +353,6 @@ export default function ProjectsPage() {
                             View Project
                           </Button>
                         </Link>
-                        <Button
-                          size="sm"
-                          className={`w-full smooth-button ${hasJoined ? 'bg-green-500/20 text-green-500' : 'bg-primary text-primary-foreground'}`}
-                          onClick={() => toggleCollaboration(project)}
-                        >
-                          <Users className="w-4 h-4 mr-2" />
-                          {hasJoined ? 'Joined' : 'Join Team'}
-                        </Button>
                       </div>
                     </Card>
                   );
@@ -311,7 +361,8 @@ export default function ProjectsPage() {
             ) : (
               <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
                 <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4 text-lg">No projects found matching your search.</p>
+                <p className="text-muted-foreground mb-2 text-lg font-semibold">No matching projects found.</p>
+                <p className="text-muted-foreground text-sm mb-6">Try searching by project title, student name, student ID, or category.</p>
                 <Button
                   className="smooth-button bg-primary text-primary-foreground"
                   onClick={() => { setSearch(''); setFilterYear(''); setFilterCategory(''); }}

@@ -34,35 +34,45 @@ export async function POST(
       return Response.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    await query(
-      `
-      INSERT IGNORE INTO project_views
-      (project_id, viewer_token, viewer_student_id)
-      VALUES (?, ?, ?)
-      `,
-      [projectId, viewerToken || '', studentId]
-    );
+    try {
+      await query(
+        `
+        INSERT IGNORE INTO project_views
+        (project_id, viewer_token, viewer_student_id)
+        VALUES (?, ?, ?)
+        `,
+        [projectId, viewerToken || '', studentId]
+      );
 
-    await query(
-      `
-      UPDATE projects p
-      SET views = (
-        SELECT COUNT(*) FROM project_views pv WHERE pv.project_id = p.id
-      )
-      WHERE p.id = ?
-      `,
-      [projectId]
-    );
+      await query(
+        `
+        UPDATE projects p
+        SET views = (
+          SELECT COUNT(*) FROM project_views pv WHERE pv.project_id = p.id
+        )
+        WHERE p.id = ?
+        `,
+        [projectId]
+      );
+    } catch (e) {
+      console.warn('Failed to update views count in DB:', e);
+    }
 
     invalidateProject(projectId);
     invalidateProjectsCache();
 
-    const row = await queryOne<any>(
-      `SELECT views FROM projects WHERE id = ?`,
-      [projectId]
-    );
+    let views = 0;
+    try {
+      const row = await queryOne<any>(
+        `SELECT views FROM projects WHERE id = ?`,
+        [projectId]
+      );
+      views = Number(row?.views || 0);
+    } catch (e) {
+      console.warn('Failed to fetch views count from DB:', e);
+    }
 
-    return Response.json({ views: Number(row?.views || 0) });
+    return Response.json({ views });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Database error' }, { status: 500 });

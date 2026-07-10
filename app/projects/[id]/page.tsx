@@ -93,7 +93,46 @@ export default function ProjectDetailsPage() {
                 <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
               </div>
               <h1 className="text-3xl font-bold mb-4">{project.title}</h1>
-              <p className="text-muted-foreground mb-6 whitespace-pre-line">{project.description || 'No description available.'}</p>
+              {(() => {
+                const description = project.description || '';
+                const urlMatch = description.match(/Project URL:\s*([^\s\n\r]+)/i);
+                const rawProjectUrl = urlMatch ? urlMatch[1].trim() : '';
+                const cleanDescription = description
+                  .replace(/Project URL:\s*[^\s\n\r]+/i, '')
+                  .replace(/\n\s*\n\s*\n/g, '\n\n')
+                  .trim();
+
+                const isValidUrl = (url: string) => {
+                  try {
+                    const parsed = new URL(url);
+                    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+                  } catch {
+                    return false;
+                  }
+                };
+
+                return (
+                  <>
+                    <p className="text-muted-foreground mb-6 whitespace-pre-line">{cleanDescription || 'No description available.'}</p>
+                    <div className="mb-6">
+                      <span className="text-sm font-semibold text-muted-foreground block mb-1">Project URL</span>
+                      {isValidUrl(rawProjectUrl) ? (
+                        <a
+                          href={rawProjectUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:text-blue-600 transition-colors duration-150 cursor-pointer break-all no-underline inline-block"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          {rawProjectUrl}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No project URL provided.</span>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 <div className="rounded-xl bg-muted/10 p-4 text-center">
@@ -133,9 +172,6 @@ export default function ProjectDetailsPage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Button variant="outline" className="gap-2" onClick={() => router.push('/projects')}>
               <ArrowLeft className="w-4 h-4" /> Back
-            </Button>
-            <Button variant="secondary" className="gap-2" onClick={() => router.push('/upload')}>
-              <Users className="w-4 h-4" /> Explore More Projects
             </Button>
           </div>
         </Card>

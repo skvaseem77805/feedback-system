@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { AIChat } from "@/components/AIChat";
 import {
   Upload,
@@ -157,6 +158,11 @@ export default function Home() {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
+
+      {/* Centered search bar between Navbar and Hero Section */}
+      <div className="max-w-6xl mx-auto px-4 pt-8 pb-2 relative z-50">
+        <GlobalSearch className="max-w-[700px] mx-auto" />
+      </div>
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -487,9 +493,6 @@ export default function Home() {
                             <span className="text-[10px] text-muted-foreground/80 uppercase tracking-widest font-bold">CRR PROJECT</span>
                           </div>
                         )}
-                        <Badge className={`absolute top-2 right-2 px-2.5 py-0.5 text-[10px] ${getCategoryColor(p.category)} shadow-sm`}>
-                          {p.category.charAt(0).toUpperCase() + p.category.slice(1)}
-                        </Badge>
                       </div>
 
                       <div className="flex items-center justify-between gap-3">

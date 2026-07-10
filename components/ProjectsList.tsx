@@ -92,10 +92,6 @@ function ProjectsListComponent({ projects, filterByYear, onDelete }: ProjectsLis
                   <h3 className="text-lg font-bold text-primary group-hover:text-accent smooth-transition truncate">{project.title}</h3>
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
                 </div>
-                <Badge className={`shrink-0 gap-1 px-3 py-1 ${categoryColors[project.category] || categoryColors.other}`}>
-                  {categoryIcons[project.category] || categoryIcons.other}
-                  <span>{project.category.charAt(0).toUpperCase() + project.category.slice(1)}</span>
-                </Badge>
               </div>
 
               <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

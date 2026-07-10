@@ -307,8 +307,7 @@ export default function PublicStudentProfile() {
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {projects.map((project) => (
                                     <Card key={project.id} className="p-4 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-colors flex flex-col h-full">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <Badge variant="secondary" className="text-xs">{project.category}</Badge>
+                                        <div className="flex justify-end items-start mb-2">
                                             <span className="text-xs text-muted-foreground">{new Date(project.uploadedAt).toLocaleDateString()}</span>
                                         </div>
                                         <h3 className="font-bold text-lg mb-2 line-clamp-1">{project.title}</h3>

@@ -120,6 +120,7 @@ export interface ApiProject {
   savedBy: string[];
   collaborators: string[];
   userHasLiked?: boolean;
+  studentDepartment?: string;
 }
 
 export async function apiCreateProject(body: {

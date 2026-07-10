@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')?.trim();
     const forUserId = parseStudentId(searchParams.get('forUserId')) || undefined;
     const sort = searchParams.get('sort') === 'trending' ? 'trending' : undefined;
-    const limit = Number.isFinite(Number(searchParams.get('limit'))) ? Math.min(100, Math.max(1, Number(searchParams.get('limit')))) : undefined;
+    const limitVal = searchParams.get('limit');
+    const limit = limitVal && Number.isFinite(Number(limitVal)) ? Math.min(100, Math.max(1, Number(limitVal))) : undefined;
 
     const projects = await getProjects({
       studentId: filterStudentId || undefined,

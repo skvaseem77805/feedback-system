@@ -150,10 +150,10 @@ export default function ProjectsPage() {
   const toggleLike = async (project: ApiProject) => {
     if (!currentStudentId) return;
     try {
-      const { likes } = await apiLikeProject(project.id, currentStudentId);
+      const res = await apiLikeProject(project.id, currentStudentId);
       setProjects((prev) =>
         prev.map((q) =>
-          q.id === project.id ? { ...q, likes, userHasLiked: true } : q
+          q.id === project.id ? { ...q, likes: res.likes, userHasLiked: res.liked } : q
         )
       );
     } catch (e) {
@@ -164,13 +164,19 @@ export default function ProjectsPage() {
   const toggleSave = async (project: ApiProject) => {
     if (!currentStudentId) return;
     try {
-      await apiSaveProject(project.id, currentStudentId);
+      const res = await apiSaveProject(project.id, currentStudentId);
       setProjects((prev) =>
-        prev.map((q) =>
-          q.id === project.id
-            ? { ...q, savedBy: q.savedBy.includes(currentStudentId) ? q.savedBy : [...q.savedBy, currentStudentId] }
-            : q
-        )
+        prev.map((q) => {
+          if (q.id !== project.id) return q;
+          const alreadySaved = q.savedBy.includes(currentStudentId);
+          let nextSavedBy = [...q.savedBy];
+          if (alreadySaved && !res.saved) {
+            nextSavedBy = nextSavedBy.filter(id => id !== currentStudentId);
+          } else if (!alreadySaved && res.saved) {
+            nextSavedBy.push(currentStudentId);
+          }
+          return { ...q, savedBy: nextSavedBy };
+        })
       );
     } catch (e) {
       console.error('Save error:', e);
@@ -337,8 +343,8 @@ export default function ProjectsPage() {
                           Likes
                         </div>
                         <div>
-                          <div className="font-bold text-foreground">{project.collaborators?.length ?? 0}</div>
-                          Collaborators
+                          <div className="font-bold text-foreground">{project.views}</div>
+                          Views
                         </div>
                         <div>
                           <div className="font-bold text-foreground">{project.savedBy?.length ?? 0}</div>

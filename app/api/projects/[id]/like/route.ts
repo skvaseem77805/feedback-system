@@ -20,15 +20,25 @@ export async function POST(
       );
     }
 
-    // Ignore duplicate likes
-    await query(
-      `
-      INSERT IGNORE INTO project_likes
-      (project_id, student_id)
-      VALUES (?, ?)
-      `,
+    const exists = await queryOne<any>(
+      `SELECT 1 FROM project_likes WHERE project_id = ? AND student_id = ?`,
       [projectId, studentId]
     );
+
+    let liked = false;
+    if (exists) {
+      await query(
+        `DELETE FROM project_likes WHERE project_id = ? AND student_id = ?`,
+        [projectId, studentId]
+      );
+      liked = false;
+    } else {
+      await query(
+        `INSERT IGNORE INTO project_likes (project_id, student_id) VALUES (?, ?)`,
+        [projectId, studentId]
+      );
+      liked = true;
+    }
 
     // Count total likes
     const row = await queryOne<any>(
@@ -52,8 +62,12 @@ export async function POST(
       [likes, projectId]
     );
 
+    const { invalidateProject, invalidateProjectsCache } = await import('@/lib/services/projects');
+    invalidateProject(projectId);
+    invalidateProjectsCache();
+
     return Response.json({
-      liked: true,
+      liked,
       likes,
     });
 

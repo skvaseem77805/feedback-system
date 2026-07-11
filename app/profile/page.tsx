@@ -3,6 +3,7 @@ import { apiUpdateStudent } from "@/lib/api";
 import React from "react"
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,6 +24,7 @@ import {
   X,
   Linkedin,
   MessageSquare,
+  Bookmark,
 } from 'lucide-react';
 import { getStudentStats, getCurrentStudentId, initializeStudentStats } from '@/lib/statsTracker';
 import type { StudentStats } from '@/lib/statsTracker';
@@ -518,6 +520,12 @@ export default function ProfilePage() {
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit Profile
                   </Button>
+                  <Link href="/saved-projects" className="w-full">
+                    <Button variant="outline" className="w-full smooth-button gap-2">
+                      <Bookmark className="w-4 h-4" />
+                      Saved Projects
+                    </Button>
+                  </Link>
                   {studentData.linkedinUrl && (
                     <Button
                       onClick={handleConnectLinkedIn}

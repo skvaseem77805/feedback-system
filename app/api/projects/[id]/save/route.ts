@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 import { parseStudentId } from '@/lib/security';
 
 export async function POST(
@@ -20,17 +20,32 @@ export async function POST(
       );
     }
 
-    await query(
-      `
-      INSERT IGNORE INTO project_saves
-      (project_id, student_id)
-      VALUES (?, ?)
-      `,
+    const exists = await queryOne<any>(
+      `SELECT 1 FROM project_saves WHERE project_id = ? AND student_id = ?`,
       [projectId, studentId]
     );
 
+    let saved = false;
+    if (exists) {
+      await query(
+        `DELETE FROM project_saves WHERE project_id = ? AND student_id = ?`,
+        [projectId, studentId]
+      );
+      saved = false;
+    } else {
+      await query(
+        `INSERT IGNORE INTO project_saves (project_id, student_id) VALUES (?, ?)`,
+        [projectId, studentId]
+      );
+      saved = true;
+    }
+
+    const { invalidateProject, invalidateProjectsCache } = await import('@/lib/services/projects');
+    invalidateProject(projectId);
+    invalidateProjectsCache();
+
     return Response.json({
-      saved: true,
+      saved,
     });
 
   } catch (error) {

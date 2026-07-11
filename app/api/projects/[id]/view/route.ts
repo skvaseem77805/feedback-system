@@ -34,43 +34,19 @@ export async function POST(
       return Response.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    try {
-      await query(
-        `
-        INSERT IGNORE INTO project_views
-        (project_id, viewer_token, viewer_student_id)
-        VALUES (?, ?, ?)
-        `,
-        [projectId, viewerToken || '', studentId]
-      );
-
-      await query(
-        `
-        UPDATE projects p
-        SET views = (
-          SELECT COUNT(*) FROM project_views pv WHERE pv.project_id = p.id
-        )
-        WHERE p.id = ?
-        `,
-        [projectId]
-      );
-    } catch (e) {
-      console.warn('Failed to update views count in DB:', e);
-    }
+    await query(
+      `UPDATE projects SET views = views + 1 WHERE id = ?`,
+      [projectId]
+    );
 
     invalidateProject(projectId);
     invalidateProjectsCache();
 
-    let views = 0;
-    try {
-      const row = await queryOne<any>(
-        `SELECT views FROM projects WHERE id = ?`,
-        [projectId]
-      );
-      views = Number(row?.views || 0);
-    } catch (e) {
-      console.warn('Failed to fetch views count from DB:', e);
-    }
+    const row = await queryOne<any>(
+      `SELECT views FROM projects WHERE id = ?`,
+      [projectId]
+    );
+    const views = Number(row?.views || 0);
 
     return Response.json({ views });
   } catch (error) {

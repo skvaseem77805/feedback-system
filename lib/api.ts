@@ -88,8 +88,9 @@ export async function apiProjects(params?: { studentId?: string; category?: stri
   return handleRes<ApiProject[]>(res);
 }
 
-export async function apiProject(id: string): Promise<ApiProject | null> {
-  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(id)}`);
+export async function apiProject(id: string, forUserId?: string): Promise<ApiProject | null> {
+  const query = forUserId ? `?forUserId=${encodeURIComponent(forUserId)}` : '';
+  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(id)}${query}`);
   if (res.status === 404) return null;
   return handleRes<ApiProject>(res);
 }

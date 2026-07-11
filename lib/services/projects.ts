@@ -102,12 +102,12 @@ export async function getProjects(opts: { studentId?: string; category?: string;
   return transformed;
 }
 
-export async function getProjectById(id: string) {
+export async function getProjectById(id: string, forUserId?: string) {
   const key = cacheKey('project', id);
-  const cached = cache.get<any>(key);
-  if (cached) return cached;
+  let project = cache.get<any>(key);
 
-  const sql = `
+  if (!project) {
+    const sql = `
       SELECT
         p.id,
         p.student_id,
@@ -123,51 +123,58 @@ export async function getProjectById(id: string) {
         s.name AS student_name,
         s.year AS student_year,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
-        GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators
+        GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
+        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
       FROM projects p
       INNER JOIN students s ON s.id = p.student_id
       LEFT JOIN project_saves ps ON ps.project_id = p.id
       LEFT JOIN project_collaborators pc ON pc.project_id = p.id
+      LEFT JOIN project_likes pl ON pl.project_id = p.id
       WHERE p.id = ?
       GROUP BY p.id
     `;
 
-  let row: any = null;
-  try {
-    const r = await query<any>(sql, [id]);
-    row = Array.isArray(r[0]) ? r[0][0] : r[0]?.[0] ?? null;
-  } catch (err) {
-    console.error('getProjectById DB error', err);
-    cache.set(key, null, 15 * 1000);
-    return null;
+    let row: any = null;
+    try {
+      const r = await query<any>(sql, [id]);
+      row = Array.isArray(r[0]) ? r[0][0] : r[0]?.[0] ?? null;
+    } catch (err) {
+      console.error('getProjectById DB error', err);
+      cache.set(key, null, 15 * 1000);
+      return null;
+    }
+
+    if (!row) return null;
+
+    const savedBy = typeof row.saved_by === 'string' && row.saved_by.length ? row.saved_by.split(',') : [];
+    const collaborators = typeof row.collaborators === 'string' && row.collaborators.length ? row.collaborators.split(',') : [];
+    const likedBy = typeof row.liked_by === 'string' && row.liked_by.length ? row.liked_by.split(',') : [];
+
+    project = {
+      id: row.id,
+      studentId: row.student_id,
+      studentName: row.student_name,
+      academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[row.student_year] ?? `${row.student_year}th` })(),
+      title: row.title,
+      description: row.description || '',
+      category: row.category || 'General',
+      uploadedAt: row.uploaded_at,
+      likes: Number(row.likes) || 0,
+      views: Number(row.views) || 0,
+      thumbnailUrl: row.thumbnail_url,
+      fileName: row.file_name,
+      fileSize: row.file_size,
+      savedBy,
+      collaborators,
+      likedBy,
+    };
+    cache.set(key, project, 15 * 1000);
   }
 
-  if (!row) return null;
-
-  const savedBy = typeof row.saved_by === 'string' && row.saved_by.length ? row.saved_by.split(',') : [];
-  const collaborators = typeof row.collaborators === 'string' && row.collaborators.length ? row.collaborators.split(',') : [];
-
-  const project = {
-    id: row.id,
-    studentId: row.student_id,
-    studentName: row.student_name,
-    academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[row.student_year] ?? `${row.student_year}th` })(),
-    title: row.title,
-    description: row.description || '',
-    category: row.category || 'General',
-    uploadedAt: row.uploaded_at,
-    likes: Number(row.likes) || 0,
-    views: Number(row.views) || 0,
-    thumbnailUrl: row.thumbnail_url,
-    fileName: row.file_name,
-    fileSize: row.file_size,
-    savedBy,
-    collaborators,
-    userHasLiked: false,
+  return {
+    ...project,
+    userHasLiked: !!forUserId && project.likedBy?.includes(forUserId),
   };
-
-  cache.set(key, project, 15 * 1000);
-  return project;
 }
 
 export function invalidateProjectsCache() {

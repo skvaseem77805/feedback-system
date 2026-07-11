@@ -15,7 +15,10 @@ export async function GET(
       return Response.json({ error: 'Project ID required' }, { status: 400 });
     }
 
-    const project = await getProjectById(pid);
+    const { searchParams } = new URL(request.url);
+    const forUserId = parseStudentId(searchParams.get('forUserId')) || undefined;
+
+    const project = await getProjectById(pid, forUserId);
 
     if (!project) {
       return Response.json({ error: 'Project not found' }, { status: 404 });

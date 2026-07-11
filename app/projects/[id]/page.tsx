@@ -6,9 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Eye, Heart, Bookmark, Users } from 'lucide-react';
-import { apiProject, apiViewProject } from '@/lib/api';
+import { ArrowLeft, Heart, Bookmark } from 'lucide-react';
+import { apiProject, apiViewProject, apiLikeProject, apiSaveProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
 
@@ -23,13 +22,17 @@ export default function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const currentStudentId = getCurrentStudentId();
+  const isSaved = project?.savedBy?.includes(currentStudentId || '') ?? false;
+
   useEffect(() => {
     if (!projectId) return;
 
     const loadProject = async () => {
       setIsLoading(true);
       try {
-        const loaded = await apiProject(projectId);
+        const studentId = getCurrentStudentId() || undefined;
+        const loaded = await apiProject(projectId, studentId);
         if (!loaded) {
           setError('Project not found');
           setIsLoading(false);
@@ -38,11 +41,22 @@ export default function ProjectDetailsPage() {
 
         setProject(loaded);
 
-        const viewerToken = ensureViewerToken();
-        const studentId = getCurrentStudentId() || undefined;
+        const storageKey = studentId ? `viewed_proj_${studentId}` : 'viewed_proj_guest';
+        const viewedStr = localStorage.getItem(storageKey) || '[]';
+        let viewedList: string[] = [];
+        try {
+          viewedList = JSON.parse(viewedStr);
+        } catch {}
 
-        const viewResult = await apiViewProject(projectId, studentId, viewerToken);
-        setViews(viewResult.views);
+        if (!viewedList.includes(projectId)) {
+          const viewerToken = ensureViewerToken();
+          const viewResult = await apiViewProject(projectId, studentId, viewerToken);
+          setViews(viewResult.views);
+          viewedList.push(projectId);
+          localStorage.setItem(storageKey, JSON.stringify(viewedList));
+        } else {
+          setViews(loaded.views);
+        }
       } catch (err) {
         console.error('Failed to load project details', err);
         setError('Unable to load project details.');
@@ -53,6 +67,55 @@ export default function ProjectDetailsPage() {
 
     loadProject();
   }, [projectId]);
+
+  const handleLike = async () => {
+    const studentId = getCurrentStudentId();
+    if (!studentId) {
+      router.push('/auth');
+      return;
+    }
+    try {
+      const res = await apiLikeProject(projectId, studentId);
+      setProject(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          likes: res.likes,
+          userHasLiked: res.liked,
+        };
+      });
+    } catch (err) {
+      console.error('Failed to like project', err);
+    }
+  };
+
+  const handleSave = async () => {
+    const studentId = getCurrentStudentId();
+    if (!studentId) {
+      router.push('/auth');
+      return;
+    }
+    try {
+      const res = await apiSaveProject(projectId, studentId);
+      setProject(prev => {
+        if (!prev) return null;
+        const currentSavedBy = prev.savedBy || [];
+        const alreadySaved = currentSavedBy.includes(studentId);
+        let nextSavedBy = [...currentSavedBy];
+        if (alreadySaved && !res.saved) {
+          nextSavedBy = nextSavedBy.filter(id => id !== studentId);
+        } else if (!alreadySaved && res.saved) {
+          nextSavedBy.push(studentId);
+        }
+        return {
+          ...prev,
+          savedBy: nextSavedBy,
+        };
+      });
+    } catch (err) {
+      console.error('Failed to save project', err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -88,10 +151,6 @@ export default function ProjectDetailsPage() {
         <Card className="p-8 bg-card/70 backdrop-blur-sm border-primary/20">
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="flex-1">
-              <div className="flex items-center gap-4 mb-4 flex-wrap">
-                <Badge className="bg-primary/20 text-primary text-xs">{project.category}</Badge>
-                <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
-              </div>
               <h1 className="text-3xl font-bold mb-4">{project.title}</h1>
               {(() => {
                 const description = project.description || '';
@@ -134,28 +193,29 @@ export default function ProjectDetailsPage() {
                 );
               })()}
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="rounded-xl bg-muted/10 p-4 text-center">
                   <div className="text-3xl font-bold">{project.likes}</div>
-                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1">Likes</div>
+                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1 flex items-center justify-center gap-1">
+                    <span>❤️</span> Likes
+                  </div>
                 </div>
                 <div className="rounded-xl bg-muted/10 p-4 text-center">
                   <div className="text-3xl font-bold">{views ?? project.views}</div>
-                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1">Views</div>
-                </div>
-                <div className="rounded-xl bg-muted/10 p-4 text-center">
-                  <div className="text-3xl font-bold">{project.collaborators?.length ?? 0}</div>
-                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1">Collaborators</div>
+                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1 flex items-center justify-center gap-1">
+                    <span>👁</span> Views
+                  </div>
                 </div>
                 <div className="rounded-xl bg-muted/10 p-4 text-center">
                   <div className="text-3xl font-bold">{project.savedBy?.length ?? 0}</div>
-                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1">Saved</div>
+                  <div className="text-xs uppercase text-muted-foreground tracking-[0.2em] mt-1 flex items-center justify-center gap-1">
+                    <span>🔖</span> Saved
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">Uploaded by <span className="font-semibold text-foreground">{project.studentName}</span></p>
-                <p className="text-sm text-muted-foreground">Project ID: <span className="font-mono">{project.id}</span></p>
                 {project.fileName && (
                   <p className="text-sm text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
                 )}
@@ -169,9 +229,33 @@ export default function ProjectDetailsPage() {
             ) : null}
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => router.push('/projects')}>
+          <div className="mt-8 flex flex-row items-center gap-3">
+            <Button variant="outline" className="gap-2 shrink-0 smooth-transition" onClick={() => router.push('/projects')}>
               <ArrowLeft className="w-4 h-4" /> Back
+            </Button>
+            <Button
+              variant={project.userHasLiked ? 'default' : 'outline'}
+              className={`gap-2 smooth-transition ${
+                project.userHasLiked
+                  ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
+                  : 'hover:text-red-500 hover:border-red-500 bg-transparent'
+              }`}
+              onClick={handleLike}
+            >
+              <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
+              {project.userHasLiked ? 'Liked' : 'Like'}
+            </Button>
+            <Button
+              variant={isSaved ? 'default' : 'outline'}
+              className={`gap-2 smooth-transition ${
+                isSaved
+                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
+                  : 'hover:text-yellow-500 hover:border-yellow-500 bg-transparent'
+              }`}
+              onClick={handleSave}
+            >
+              <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
+              {isSaved ? 'Saved' : 'Save'}
             </Button>
           </div>
         </Card>

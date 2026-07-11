@@ -24,7 +24,35 @@ export async function GET(
       return Response.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    return Response.json(project);
+    const responseProject = { ...project } as any;
+
+    // If the requester is the owner, fetch all collaborator states
+    if (forUserId && project.studentId === forUserId) {
+      const [collabRows] = await query(
+        `
+        SELECT 
+          c.student_id, 
+          c.role, 
+          c.status,
+          s.name AS name,
+          s.avatar AS avatar
+        FROM collaborators c
+        INNER JOIN students s ON s.id = c.student_id
+        WHERE c.project_id = ? AND c.role = 'COLLABORATOR'
+        `,
+        [pid]
+      ) as any;
+      const rows = Array.isArray(collabRows) ? collabRows : [];
+      responseProject.allCollaborators = rows.map((r: any) => ({
+        studentId: r.student_id,
+        role: r.role,
+        status: r.status,
+        name: r.name,
+        avatar: r.avatar || null,
+      }));
+    }
+
+    return Response.json(responseProject);
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Database error' }, { status: 500 });

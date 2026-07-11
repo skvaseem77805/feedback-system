@@ -155,11 +155,14 @@ export default function ProfilePage() {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!studentData) return;
+      if (!studentData?.studentId) return;
       try {
         setProjectsLoading(true);
         const { apiProjects } = await import('@/lib/api');
-        const p = await apiProjects({ studentId: studentData.studentId });
+        const p = await apiProjects({
+          studentId: studentData.studentId,
+          forUserId: studentData.studentId,
+        });
 
         // Map ApiProject -> Project, normalize academicYear and uploadedAt types
         const normalizeAcademicYear = (val: any): AcademicYear => {
@@ -187,6 +190,7 @@ export default function ProfilePage() {
           thumbnailUrl: pr.thumbnailUrl,
           fileName: pr.fileName,
           fileSize: pr.fileSize,
+          repostedBy: pr.repostedBy || [],
         }));
 
         if (!mounted) return;

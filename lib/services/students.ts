@@ -21,9 +21,9 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
   const params: any[] = [];
 
   if (opts.search) {
-    sql += ` AND (s.name LIKE ? OR s.department LIKE ? OR s.email LIKE ?)`;
+    sql += ` AND (s.name LIKE ? OR s.department LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.registration_no LIKE ?)`;
     const likeValue = `%${opts.search}%`;
-    params.push(likeValue, likeValue, likeValue);
+    params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
   }
 
   sql += ` ORDER BY s.name`;

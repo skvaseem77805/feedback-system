@@ -6,8 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Heart, Bookmark } from 'lucide-react';
-import { apiProject, apiViewProject, apiLikeProject, apiSaveProject } from '@/lib/api';
+import { ArrowLeft, Heart, Bookmark, User } from 'lucide-react';
+import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
 
@@ -117,6 +117,26 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const handleManageCollaborator = async (studentId: string, action: 'cancel' | 'invite' | 'remove') => {
+    if (!currentStudentId || !project) return;
+    try {
+      await apiManageCollaborator({
+        projectId: project.id,
+        action,
+        studentId,
+        ownerId: currentStudentId,
+      });
+
+      // Reload project details to reflect updated state
+      const updated = await apiProject(project.id, currentStudentId);
+      if (updated) {
+        setProject(updated);
+      }
+    } catch (err) {
+      console.error('Failed to manage collaborator:', err);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen gradient-bg">
@@ -215,7 +235,10 @@ export default function ProjectDetailsPage() {
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Uploaded by <span className="font-semibold text-foreground">{project.studentName}</span></p>
+                <p className="text-sm text-muted-foreground">Owner: <span className="font-semibold text-foreground">{project.studentName}</span></p>
+                {project.collaboratorNames && project.collaboratorNames.length > 0 && (
+                  <p className="text-sm text-muted-foreground">Collaborators: <span className="font-semibold text-foreground">{project.collaboratorNames.join(', ')}</span></p>
+                )}
                 {project.fileName && (
                   <p className="text-sm text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
                 )}
@@ -257,8 +280,87 @@ export default function ProjectDetailsPage() {
               <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
               {isSaved ? 'Saved' : 'Save'}
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2 smooth-transition hover:text-blue-500 hover:border-blue-500 bg-transparent"
+              onClick={() => {
+                const targetPath = project.studentId === currentStudentId
+                  ? '/profile'
+                  : `/student/${project.studentId}`;
+                router.push(targetPath);
+              }}
+            >
+              <User className="w-4 h-4" />
+              Profile
+            </Button>
           </div>
         </Card>
+
+        {/* Manage Collaborators Section - ONLY FOR OWNER */}
+        {project && project.studentId === currentStudentId && project.allCollaborators && project.allCollaborators.length > 0 && (
+          <div className="mt-8 bg-card border rounded-3xl p-8 sm:p-12 shadow-sm backdrop-blur-md text-left">
+            <h2 className="text-xl font-bold mb-6">Manage Collaborators</h2>
+            <div className="space-y-4">
+              {project.allCollaborators.map((collab: any) => (
+                <div key={collab.studentId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/5 gap-4">
+                  <div className="flex items-center gap-3">
+                    {collab.avatar ? (
+                      <img src={collab.avatar} alt={collab.name} className="w-12 h-12 rounded-full object-cover border border-border" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl">👤</div>
+                    )}
+                    <div>
+                      <h4 className="font-semibold text-sm text-foreground">{collab.name}</h4>
+                      <p className="text-xs text-muted-foreground font-mono">{collab.studentId}</p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          collab.status === 'ACCEPTED' ? 'bg-green-500' :
+                          collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}></span>
+                        <span className="text-[11px] font-medium text-muted-foreground capitalize">
+                          {collab.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {collab.status === 'PENDING' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white"
+                        onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
+                      >
+                        Cancel Invitation
+                      </Button>
+                    )}
+                    {collab.status === 'REJECTED' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-primary/30 text-primary hover:bg-primary hover:text-white"
+                        onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
+                      >
+                        Invite Again
+                      </Button>
+                    )}
+                    {collab.status === 'ACCEPTED' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white"
+                        onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
+                      >
+                        Remove Collaborator
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

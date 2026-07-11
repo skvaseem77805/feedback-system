@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
-import { Compass, Upload, Users, LogOut, LogIn, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap, Search, Bookmark } from 'lucide-react';
+import { Compass, Upload, Users, LogOut, LogIn, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap, Search, Bookmark, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
@@ -22,12 +22,38 @@ export function Navbar() {
   const router = useRouter();
   const [userType, setUserType] = useState<'student' | 'staff' | 'admin' | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+
+  const checkUnread = async () => {
+    const studentId = localStorage.getItem('studentId');
+    if (!studentId) {
+      setHasUnread(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/notifications?studentId=${encodeURIComponent(studentId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHasUnread(Array.isArray(data) && data.some((n: any) => !n.isRead));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
     const type = localStorage.getItem('userType') as 'student' | 'staff' | 'admin' | null;
     setUserType(type);
   }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      checkUnread();
+      window.addEventListener('notifications-changed', checkUnread);
+      return () => window.removeEventListener('notifications-changed', checkUnread);
+    }
+  }, [mounted, userType]);
 
   const handleLogout = () => {
     // Clear all session/auth data
@@ -91,6 +117,11 @@ export function Navbar() {
       icon: Bookmark,
     },
     {
+      href: isLoggedIn ? '/notifications' : '/auth',
+      label: 'Notifications',
+      icon: Bell,
+    },
+    {
       href: '/feedback',
       label: 'Feedback',
       icon: Send,
@@ -141,14 +172,23 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex flex-1 justify-center items-center gap-1 text-sm">
-            {navItems.map((item) => (
-              <Link href={item.href} key={item.label}>
-                <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition">
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isNotifications = item.label === 'Notifications';
+              return (
+                <Link href={item.href} key={item.label}>
+                  <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition relative">
+                    <div className="relative flex items-center">
+                      <Icon className="w-4 h-4" />
+                      {isNotifications && hasUnread && (
+                        <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-red-500 rounded-full border-none"></span>
+                      )}
+                    </div>
+                    {item.label}
+                  </Button>
+                </Link>
+              );
+            })}
           </div>
 
           {isLoggedIn ? (
@@ -290,6 +330,17 @@ export function Navbar() {
                       <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
                         <Bookmark className="w-4 h-4" />
                         Saved
+                      </Button>
+                    </Link>
+                    <Link href={isLoggedIn ? '/notifications' : '/auth'}>
+                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 relative">
+                        <div className="relative flex items-center">
+                          <Bell className="w-4 h-4" />
+                          {hasUnread && (
+                            <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-red-500 rounded-full border-none"></span>
+                          )}
+                        </div>
+                        Notifications
                       </Button>
                     </Link>
                     <Link href={isLoggedIn ? '/select-student' : '/auth'}>

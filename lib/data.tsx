@@ -34,6 +34,7 @@ export interface Project {
   thumbnailUrl?: string;
   fileName?: string;
   fileSize?: number;
+  repostedBy?: string[];
 }
 
 export interface ConnectionRequest {

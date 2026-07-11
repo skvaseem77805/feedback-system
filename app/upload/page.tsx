@@ -43,6 +43,37 @@ export default function UploadPage() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [collabSearchQuery, setCollabSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const q = collabSearchQuery.trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await fetch(`/api/students?search=${encodeURIComponent(q)}&limit=10`);
+        if (res.ok) {
+          const list = await res.json();
+          const ownerId = getCurrentStudentId() || localStorage.getItem('studentId') || '';
+          const filteredList = list.filter((s: any) => s.id !== ownerId);
+          setSearchResults(filteredList);
+        }
+      } catch (err) {
+        console.error('Failed to search students', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [collabSearchQuery]);
+
   useEffect(() => {
     // Check if user is logged in
     const studentId = localStorage.getItem('studentId');
@@ -166,6 +197,7 @@ export default function UploadPage() {
         description: enhancedDescription,
         category: formData.category,
         thumbnailUrl: uploadedThumbnailUrl,
+        collaborators: selectedCollaborators.map((c) => c.id),
       });
 
       incrementProjectsUploaded(studentId);
@@ -372,6 +404,119 @@ export default function UploadPage() {
                           alt="Thumbnail preview"
                           className="w-full h-full object-cover"
                         />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Collaborators Section */}
+                <div className="border-t pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Collaborators (Optional)</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Search and add up to 4 classmates who worked with you on this project.
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <label className="text-sm font-medium mb-2 block">
+                      Search Student
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Search by student name, roll number, or ID..."
+                      value={collabSearchQuery}
+                      onChange={(e) => setCollabSearchQuery(e.target.value)}
+                    />
+                    {isSearching && (
+                      <p className="text-xs text-muted-foreground mt-1 animate-pulse">Searching...</p>
+                    )}
+
+                    {searchResults.length > 0 && (
+                      <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto border border-primary/20 bg-card shadow-lg p-2 space-y-1">
+                        {searchResults.map((student) => {
+                          const isAlreadySelected = selectedCollaborators.some(c => c.id === student.id);
+                          return (
+                            <div key={student.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors duration-150">
+                              <div className="flex items-center gap-3">
+                                {student.avatar ? (
+                                  <img
+                                    src={student.avatar}
+                                    alt={student.name}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-lg">
+                                    👤
+                                  </div>
+                                )}
+                                <div className="text-left">
+                                  <div className="font-semibold text-sm text-foreground flex items-center gap-1">
+                                    <span>👤</span> {student.name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground font-mono">{student.id}</div>
+                                  <div className="text-xs text-muted-foreground">{student.department}</div>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isAlreadySelected ? "ghost" : "outline"}
+                                disabled={isAlreadySelected || selectedCollaborators.length >= 4}
+                                onClick={() => {
+                                  setSelectedCollaborators(prev => [...prev, student]);
+                                  setCollabSearchQuery('');
+                                  setSearchResults([]);
+                                }}
+                              >
+                                {isAlreadySelected ? "Added" : "Add"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </Card>
+                    )}
+                  </div>
+
+                  {selectedCollaborators.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium block">
+                        Selected Collaborators ({selectedCollaborators.length}/4)
+                      </label>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {selectedCollaborators.map((student) => (
+                          <div key={student.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
+                            <div className="flex items-center gap-3">
+                              {student.avatar ? (
+                                <img
+                                  src={student.avatar}
+                                  alt={student.name}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm">
+                                  👤
+                                </div>
+                              )}
+                              <div className="text-left">
+                                <div className="font-semibold text-xs text-foreground">{student.name}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono">{student.id}</div>
+                                <div className="text-[10px] text-yellow-500 font-medium">Status: Pending</div>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                              onClick={() => {
+                                setSelectedCollaborators(prev => prev.filter(c => c.id !== student.id));
+                              }}
+                            >
+                              ❌
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

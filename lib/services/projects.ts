@@ -24,19 +24,26 @@ export async function getProjects(opts: { studentId?: string; category?: string;
         s.department AS student_department,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
-        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
+        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by,
+        GROUP_CONCAT(DISTINCT CASE WHEN c.is_reposted = 1 THEN c.student_id END) AS reposted_by
       FROM projects p
       INNER JOIN students s ON s.id = p.student_id
       LEFT JOIN project_saves ps ON ps.project_id = p.id
       LEFT JOIN project_collaborators pc ON pc.project_id = p.id
       LEFT JOIN project_likes pl ON pl.project_id = p.id
+      LEFT JOIN collaborators c ON c.project_id = p.id AND c.role = 'COLLABORATOR'
       WHERE 1=1
     `;
 
   const params: any[] = [];
   if (opts.studentId) {
-    sql += ` AND p.student_id = ?`;
-    params.push(opts.studentId);
+    if (opts.forUserId && opts.forUserId === opts.studentId) {
+      sql += ` AND p.id IN (SELECT project_id FROM collaborators WHERE student_id = ? AND status = 'ACCEPTED')`;
+      params.push(opts.studentId);
+    } else {
+      sql += ` AND (p.student_id = ? OR p.id IN (SELECT project_id FROM collaborators WHERE student_id = ? AND status = 'ACCEPTED' AND is_reposted = 1))`;
+      params.push(opts.studentId, opts.studentId);
+    }
   }
   if (opts.category) {
     sql += ` AND p.category = ?`;
@@ -76,6 +83,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
     const savedBy = typeof p.saved_by === 'string' && p.saved_by.length ? p.saved_by.split(',') : [];
     const collaborators = typeof p.collaborators === 'string' && p.collaborators.length ? p.collaborators.split(',') : [];
     const likedBy = typeof p.liked_by === 'string' && p.liked_by.length ? p.liked_by.split(',') : [];
+    const repostedBy = typeof p.reposted_by === 'string' && p.reposted_by.length ? p.reposted_by.split(',') : [];
 
     return {
       id: p.id,
@@ -94,6 +102,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
       fileSize: p.file_size,
       savedBy,
       collaborators,
+      repostedBy,
       userHasLiked: !!opts.forUserId && likedBy.includes(opts.forUserId),
     };
   });
@@ -124,12 +133,14 @@ export async function getProjectById(id: string, forUserId?: string) {
         s.year AS student_year,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
-        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by
+        GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by,
+        GROUP_CONCAT(DISTINCT CASE WHEN c.is_reposted = 1 THEN c.student_id END) AS reposted_by
       FROM projects p
       INNER JOIN students s ON s.id = p.student_id
       LEFT JOIN project_saves ps ON ps.project_id = p.id
       LEFT JOIN project_collaborators pc ON pc.project_id = p.id
       LEFT JOIN project_likes pl ON pl.project_id = p.id
+      LEFT JOIN collaborators c ON c.project_id = p.id AND c.role = 'COLLABORATOR'
       WHERE p.id = ?
       GROUP BY p.id
     `;
@@ -149,6 +160,22 @@ export async function getProjectById(id: string, forUserId?: string) {
     const savedBy = typeof row.saved_by === 'string' && row.saved_by.length ? row.saved_by.split(',') : [];
     const collaborators = typeof row.collaborators === 'string' && row.collaborators.length ? row.collaborators.split(',') : [];
     const likedBy = typeof row.liked_by === 'string' && row.liked_by.length ? row.liked_by.split(',') : [];
+    const repostedBy = typeof row.reposted_by === 'string' && row.reposted_by.length ? row.reposted_by.split(',') : [];
+
+    // Fetch accepted collaborators for this project
+    const collabRows = await query<any>(
+      `
+      SELECT s.name 
+      FROM collaborators c
+      INNER JOIN students s ON s.id = c.student_id
+      WHERE c.project_id = ? AND c.role = 'COLLABORATOR' AND c.status = 'ACCEPTED'
+      ORDER BY c.created_at ASC
+      `,
+      [id]
+    );
+    const collaboratorNames = Array.isArray(collabRows[0]) 
+      ? collabRows[0].map((c: any) => c.name) 
+      : [];
 
     project = {
       id: row.id,
@@ -167,6 +194,8 @@ export async function getProjectById(id: string, forUserId?: string) {
       savedBy,
       collaborators,
       likedBy,
+      collaboratorNames,
+      repostedBy,
     };
     cache.set(key, project, 15 * 1000);
   }

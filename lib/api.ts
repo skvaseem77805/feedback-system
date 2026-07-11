@@ -122,6 +122,15 @@ export interface ApiProject {
   collaborators: string[];
   userHasLiked?: boolean;
   studentDepartment?: string;
+  collaboratorNames?: string[];
+  allCollaborators?: {
+    studentId: string;
+    role: 'OWNER' | 'COLLABORATOR';
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    name: string;
+    avatar: string | null;
+  }[];
+  repostedBy?: string[];
 }
 
 export async function apiCreateProject(body: {
@@ -133,6 +142,7 @@ export async function apiCreateProject(body: {
   fileName?: string;
   fileSize?: number;
   thumbnailUrl?: string;
+  collaborators?: string[];
 }): Promise<ApiProject> {
   const res = await fetch(`${BASE}/api/projects`, {
     method: 'POST',
@@ -220,4 +230,78 @@ export async function apiStatsIncrement(
     body: JSON.stringify(delta),
   });
   return handleRes(res);
+}
+
+export interface ApiNotification {
+  id: string;
+  receiverId: string;
+  senderId: string;
+  senderName?: string;
+  senderAvatar?: string | null;
+  projectId: string | null;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export async function apiNotifications(studentId: string): Promise<ApiNotification[]> {
+  const res = await fetch(`${BASE}/api/notifications?studentId=${encodeURIComponent(studentId)}`);
+  return handleRes<ApiNotification[]>(res);
+}
+
+export async function apiMarkNotificationRead(notificationId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/notifications/${encodeURIComponent(notificationId)}/read`, {
+    method: 'POST',
+  });
+  return handleRes<{ success: boolean }>(res);
+}
+
+export async function apiAcceptCollaboration(notificationId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/notifications/${encodeURIComponent(notificationId)}/accept`, {
+    method: 'POST',
+  });
+  return handleRes<{ success: boolean }>(res);
+}
+
+export async function apiRejectCollaboration(notificationId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/notifications/${encodeURIComponent(notificationId)}/reject`, {
+    method: 'POST',
+  });
+  return handleRes<{ success: boolean }>(res);
+}
+
+export async function apiManageCollaborator(body: {
+  projectId: string;
+  action: 'cancel' | 'invite' | 'remove';
+  studentId: string;
+  ownerId: string;
+}): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(body.projectId)}/collaborators/manage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: body.action,
+      studentId: body.studentId,
+      ownerId: body.ownerId,
+    }),
+  });
+  return handleRes<{ success: boolean }>(res);
+}
+
+export async function apiClearNotifications(studentId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/notifications?studentId=${encodeURIComponent(studentId)}`, {
+    method: 'DELETE',
+  });
+  return handleRes<{ success: boolean }>(res);
+}
+
+export async function apiRepostProject(projectId: string, studentId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/projects/${encodeURIComponent(projectId)}/collaborators/repost`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentId }),
+  });
+  return handleRes<{ success: boolean }>(res);
 }

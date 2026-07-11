@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { query } from '@/lib/db';
+import { query, queryOne, getPool } from '@/lib/db';
 import { getProjects, invalidateProjectsCache } from '@/lib/services/projects';
 import { parseStudentId } from '@/lib/security';
 
@@ -52,7 +52,48 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const filterStudentId = parseStudentId(searchParams.get('studentId')) || undefined;
+    // Retrieve any possible identifier parameter
+    const rawStudentId = searchParams.get('studentId') ||
+                         searchParams.get('userId') ||
+                         searchParams.get('user.id') ||
+                         searchParams.get('uploaderId') ||
+                         searchParams.get('uploadedBy') ||
+                         searchParams.get('rollNumber') ||
+                         searchParams.get('email');
+
+    let filterStudentId: string | undefined = undefined;
+
+    if (rawStudentId) {
+      const parsedVal = (rawStudentId || '').trim();
+      if (parsedVal) {
+        if (parsedVal.includes('@')) {
+          // If it contains '@', query students table by email
+          const student = await queryOne<any>(
+            `SELECT id FROM students WHERE email = ? LIMIT 1`,
+            [parsedVal]
+          );
+          if (student) {
+            filterStudentId = student.id;
+          }
+        } else {
+          // Verify if it is a student ID, registration no, or student name
+          const student = await queryOne<any>(
+            `SELECT id FROM students WHERE id = ? OR registration_no = ? OR name = ? LIMIT 1`,
+            [parsedVal, parsedVal, parsedVal]
+          );
+          if (student) {
+            filterStudentId = student.id;
+          } else {
+            // Fallback parsing
+            const parsed = parseStudentId(parsedVal);
+            if (parsed) {
+              filterStudentId = parsed;
+            }
+          }
+        }
+      }
+    }
+
     const category = searchParams.get('category')?.trim();
     const forUserId = parseStudentId(searchParams.get('forUserId')) || undefined;
     const sort = searchParams.get('sort') === 'trending' ? 'trending' : undefined;
@@ -83,6 +124,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let conn;
   try {
     const body = await request.json().catch(() => ({}));
 
@@ -97,9 +139,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const collaboratorsList: string[] = Array.isArray(body.collaborators) ? body.collaborators : [];
+    if (collaboratorsList.length > 4) {
+      return Response.json(
+        { error: "Maximum collaborators allowed is 4" },
+        { status: 400 }
+      );
+    }
+
     const id = `proj-${Date.now()}`;
 
-    await query(
+    // Get connection from pool for transaction
+    const pool = getPool();
+    conn = await pool.getConnection();
+
+    await conn.beginTransaction();
+
+    // 1. Insert project record
+    await conn.query(
       `
       INSERT INTO projects
       (
@@ -127,8 +184,8 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    // Owner collaborator
-    await query(
+    // 2. Owner collaborator (legacy table)
+    await conn.query(
       `
       INSERT INTO project_collaborators
       (project_id, student_id)
@@ -137,8 +194,50 @@ export async function POST(request: NextRequest) {
       [id, studentId]
     );
 
-    // Update student stats
-    await query(
+    // 3. Save owner to new collaborators table
+    await conn.query(
+      `
+      INSERT INTO collaborators (id, project_id, student_id, role, status)
+      VALUES (?, ?, ?, 'OWNER', 'ACCEPTED')
+      `,
+      [`collab-owner-${id}`, id, studentId]
+    );
+
+    // 4. Save selected collaborators to collaborators table
+    const seenCollabIds = new Set<string>();
+    for (const collabId of collaboratorsList) {
+      const parsedCollabId = parseStudentId(collabId);
+      if (parsedCollabId && parsedCollabId !== studentId && !seenCollabIds.has(parsedCollabId)) {
+        seenCollabIds.add(parsedCollabId);
+        const collabRecordId = `collab-${parsedCollabId}-${id}-${Date.now()}`;
+        await conn.query(
+          `
+          INSERT INTO collaborators (id, project_id, student_id, role, status)
+          VALUES (?, ?, ?, 'COLLABORATOR', 'PENDING')
+          `,
+          [collabRecordId, id, parsedCollabId]
+        );
+
+        // Create notification for collaborator
+        const notifId = `notif-${Date.now()}-${Math.random().toString().slice(2, 8)}`;
+        await conn.query(
+          `
+          INSERT INTO notifications (id, receiver_id, sender_id, project_id, type, title, message, is_read)
+          VALUES (?, ?, ?, ?, 'COLLAB_REQUEST', 'Collaboration Request', ?, FALSE)
+          `,
+          [
+            notifId,
+            parsedCollabId,
+            studentId,
+            id,
+            `${studentName} invited you to collaborate on "${title}".`
+          ]
+        );
+      }
+    }
+
+    // 5. Update student stats
+    await conn.query(
       `
       UPDATE student_stats
       SET projects_uploaded = projects_uploaded + 1
@@ -146,6 +245,10 @@ export async function POST(request: NextRequest) {
       `,
       [studentId]
     );
+
+    await conn.commit();
+    conn.release();
+    conn = null;
 
     // Invalidate project caches after mutation
     invalidateProjectsCache();
@@ -165,6 +268,14 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch (rbError) {
+        console.error('Rollback failed:', rbError);
+      }
+      conn.release();
+    }
     console.error(error);
 
     return Response.json(

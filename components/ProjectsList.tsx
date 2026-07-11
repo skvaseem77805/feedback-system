@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { type Project, type AcademicYear } from '@/lib/data';
-import { apiDeleteProject } from '@/lib/api';
+import { apiDeleteProject, apiRepostProject } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import {
   FileText,
@@ -56,6 +56,20 @@ function formatFileSize(bytes: number) {
 
 function ProjectsListComponent({ projects, filterByYear, onDelete }: ProjectsListProps) {
   const [deleting, setDeleting] = React.useState<Record<string, boolean>>({});
+  const [repostedMap, setRepostedMap] = React.useState<Record<string, boolean>>({});
+
+  const handleRepost = async (projectId: string) => {
+    const studentId = getCurrentStudentId();
+    if (!studentId) return;
+
+    try {
+      await apiRepostProject(projectId, studentId);
+      setRepostedMap((prev) => ({ ...prev, [projectId]: true }));
+    } catch (e) {
+      console.error('Repost failed:', e);
+      alert('Failed to repost project.');
+    }
+  };
 
   const filteredProjects = React.useMemo(
     () => (filterByYear ? projects.filter((p) => p.academicYear === filterByYear) : projects),
@@ -143,6 +157,20 @@ function ProjectsListComponent({ projects, filterByYear, onDelete }: ProjectsLis
                       }}
                     >
                       Delete
+                    </Button>
+                  </div>
+                )}
+
+                {project.studentId !== getCurrentStudentId() && project.collaborators.includes(getCurrentStudentId() || '') && (
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-primary/30 text-primary hover:bg-primary hover:text-white"
+                      disabled={project.repostedBy?.includes(getCurrentStudentId() || '') || !!repostedMap[project.id]}
+                      onClick={() => handleRepost(project.id)}
+                    >
+                      {project.repostedBy?.includes(getCurrentStudentId() || '') || !!repostedMap[project.id] ? 'Already Added' : 'Repost to My Profile'}
                     </Button>
                   </div>
                 )}

@@ -51,10 +51,69 @@ export function getPool(): mysql.Pool {
   return pool;
 }
 
+let initPromise: Promise<void> | null = null;
+
+async function ensureTables() {
+  const p = getPool();
+  
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS collaborators (
+      id varchar(50) NOT NULL,
+      project_id varchar(50) NOT NULL,
+      student_id varchar(20) NOT NULL,
+      role enum('OWNER','COLLABORATOR') NOT NULL DEFAULT 'COLLABORATOR',
+      status enum('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
+      created_at datetime DEFAULT CURRENT_TIMESTAMP,
+      updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      is_reposted tinyint NOT NULL DEFAULT '0',
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_project_student_collab (project_id, student_id),
+      KEY student_id (student_id),
+      CONSTRAINT collaborators_ibfk_1 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+      CONSTRAINT collaborators_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id varchar(50) NOT NULL,
+      receiver_id varchar(20) NOT NULL,
+      sender_id varchar(20) NOT NULL,
+      project_id varchar(50) DEFAULT NULL,
+      type enum('LIKE','SAVE','COLLAB_REQUEST','COLLAB_ACCEPT','COLLAB_REJECT') NOT NULL,
+      title varchar(255) NOT NULL,
+      message text NOT NULL,
+      is_read tinyint(1) NOT NULL DEFAULT '0',
+      created_at datetime DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY receiver_id (receiver_id),
+      KEY sender_id (sender_id),
+      KEY project_id (project_id),
+      CONSTRAINT notifications_ibfk_1 FOREIGN KEY (receiver_id) REFERENCES students (id) ON DELETE CASCADE,
+      CONSTRAINT notifications_ibfk_2 FOREIGN KEY (sender_id) REFERENCES students (id) ON DELETE CASCADE,
+      CONSTRAINT notifications_ibfk_3 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // Auto-seed owner collaborator records for existing projects
+  await p.query(`
+    INSERT IGNORE INTO collaborators (id, project_id, student_id, role, status)
+    SELECT CONCAT('collab-owner-', id), id, student_id, 'OWNER', 'ACCEPTED'
+    FROM projects
+  `);
+}
+
 export async function query<T = unknown>(
   sql: string,
   params?: (string | number | null | Date)[]
 ): Promise<[T[], mysql.FieldPacket[]]> {
+  if (!initPromise) {
+    initPromise = ensureTables().catch(err => {
+      console.error('Failed to initialize database tables:', err);
+    });
+  }
+  await initPromise;
+
   const p = getPool();
   const start = Date.now();
   const res = (await p.query(sql, params)) as [T[], mysql.FieldPacket[]];

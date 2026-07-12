@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { query, queryOne, getPool } from '@/lib/db';
 import { getProjects, invalidateProjectsCache } from '@/lib/services/projects';
 import { parseStudentId } from '@/lib/security';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -237,14 +238,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Update student stats
-    await conn.query(
-      `
-      UPDATE student_stats
-      SET projects_uploaded = projects_uploaded + 1
-      WHERE student_id = ?
-      `,
-      [studentId]
-    );
+    await recalculateAndSyncStats(studentId, conn);
 
     await conn.commit();
     conn.release();

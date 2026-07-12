@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { queryOne, query } from '@/lib/db';
 import { invalidateStudent } from '@/lib/services/students';
 import { parseStudentId } from '@/lib/security';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 /**
  * GET /api/stats/[studentId]
@@ -21,31 +22,13 @@ export async function GET(
       );
     }
 
-    const row = await queryOne<any>(
-      `
-      SELECT
-        projects_uploaded,
-        connections,
-        collaborations
-      FROM student_stats
-      WHERE student_id = ?
-      LIMIT 1
-      `,
-      [sid]
-    );
-
-    if (!row) {
-      return Response.json({
-        projectsUploaded: 0,
-        connections: 0,
-        collaborations: 0,
-      });
-    }
+    // Recalculate stats dynamically from the actual tables
+    const stats = await recalculateAndSyncStats(sid);
 
     return Response.json({
-      projectsUploaded: Number(row.projects_uploaded) || 0,
-      connections: Number(row.connections) || 0,
-      collaborations: Number(row.collaborations) || 0,
+      projectsUploaded: stats.projectsUploaded,
+      connections: stats.connections,
+      collaborations: stats.collaborations,
     });
   } catch (error) {
     console.error(error);
@@ -145,12 +128,14 @@ export async function PATCH(
         collaborations,
       ]
     );
-    // Invalidate student cache after stats update
-    invalidateStudent(sid);
+
+    // Sync from source-of-truth tables to overwrite any manual offsets with correct dynamic stats
+    const syncedStats = await recalculateAndSyncStats(sid);
+
     return Response.json({
-      projectsUploaded,
-      connections,
-      collaborations,
+      projectsUploaded: syncedStats.projectsUploaded,
+      connections: syncedStats.connections,
+      collaborations: syncedStats.collaborations,
     });
   } catch (error) {
     console.error(error);

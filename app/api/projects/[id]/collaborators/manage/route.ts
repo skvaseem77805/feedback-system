@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getPool } from '@/lib/db';
 import { parseStudentId } from '@/lib/security';
 import { invalidateProjectsCache } from '@/lib/services/projects';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 export async function POST(
   request: NextRequest,
@@ -117,6 +118,10 @@ export async function POST(
         ]
       );
     }
+
+    // Recalculate stats for both owner and target collaborator
+    await recalculateAndSyncStats(targetStudentId, conn);
+    await recalculateAndSyncStats(ownerId, conn);
 
     await conn.commit();
     conn.release();

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getPool } from '@/lib/db';
 import { invalidateProjectsCache } from '@/lib/services/projects';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 export async function POST(
   request: NextRequest,
@@ -77,6 +78,10 @@ export async function POST(
         `${collaboratorName} rejected your collaboration request.`
       ]
     );
+
+    // Recalculate stats for receiver (collaborator) and sender (owner)
+    await recalculateAndSyncStats(receiverId, conn);
+    await recalculateAndSyncStats(senderId, conn);
 
     await conn.commit();
     conn.release();

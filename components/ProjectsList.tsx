@@ -1,6 +1,7 @@
  'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ interface ProjectsListProps {
   projects: Project[];
   filterByYear?: AcademicYear;
   onDelete?: (id: string) => void;
+  from?: string;
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -54,7 +56,7 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function ProjectsListComponent({ projects, filterByYear, onDelete }: ProjectsListProps) {
+function ProjectsListComponent({ projects, filterByYear, onDelete, from }: ProjectsListProps) {
   const [deleting, setDeleting] = React.useState<Record<string, boolean>>({});
   const [repostedMap, setRepostedMap] = React.useState<Record<string, boolean>>({});
 
@@ -131,7 +133,16 @@ function ProjectsListComponent({ projects, filterByYear, onDelete }: ProjectsLis
                 </Badge>
 
                 {project.studentId === getCurrentStudentId() && (
-                  <div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      asChild
+                      size="sm"
+                      className="smooth-button"
+                    >
+                      <Link href={`/projects/${project.id}${from ? `?from=${from}` : ''}`}>
+                        View Project
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       variant="destructive"

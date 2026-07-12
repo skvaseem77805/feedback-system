@@ -5,6 +5,7 @@ import React from "react"
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
+import { CollaborationsModal } from '@/components/CollaborationsModal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,16 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<StudentData>>({});
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [collabModalOpen, setCollabModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'collaborations') {
+        setCollabModalOpen(true);
+      }
+    }
+  }, []);
 
   // Initialize student data from localStorage and CSV
   useEffect(() => {
@@ -601,39 +612,40 @@ export default function ProfilePage() {
         </Card>
 
         {/* Profile Statistics - Auto-updating from real activity */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-4 mb-8">
           {[
             {
               icon: BookOpen,
               label: 'Projects Uploaded',
               value: stats.projectsUploaded,
               color: 'from-blue-500 to-blue-600',
-            },
-            {
-              icon: Network,
-              label: 'Connections',
-              value: stats.connections,
-              color: 'from-green-500 to-green-600',
+              clickable: false,
+              description: 'Projects created by this user.',
             },
             {
               icon: Zap,
               label: 'Collaborations',
               value: stats.collaborations,
               color: 'from-purple-500 to-purple-600',
+              clickable: true,
+              description: 'Projects where this user is a collaborator.',
             },
           ].map((stat, idx) => (
             <Card
               key={idx}
-              className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition relative overflow-hidden"
+              onClick={stat.clickable ? () => setCollabModalOpen(true) : undefined}
+              className={`p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition relative overflow-hidden ${
+                stat.clickable ? 'cursor-pointer hover:border-primary/50 hover:bg-card/75' : ''
+              }`}
             >
               {/* Gradient background */}
               <div
-                className={`absolute inset-0 bg-linear-to-br ${stat.color} opacity-0 hover:opacity-5 smooth-transition pointer-events-none`}
+                className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 hover:opacity-5 smooth-transition pointer-events-none`}
               />
 
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-lg bg-linear-to-br ${stat.color} flex items-center justify-center`}>
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -646,7 +658,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Auto-updated based on your activity
+                  {stat.description}
                 </p>
               </div>
             </Card>
@@ -729,7 +741,23 @@ export default function ProfilePage() {
             {projectsLoading ? (
               <p className="text-muted-foreground">Loading your projects...</p>
             ) : (
-              <ProjectsList projects={userProjects} onDelete={(id) => setUserProjects(prev => prev.filter(p => p.id !== id))} />
+              <ProjectsList
+                projects={userProjects}
+                from="profile"
+                onDelete={async (id) => {
+                  setUserProjects((prev) => prev.filter((p) => p.id !== id));
+                  try {
+                    const studentId = getCurrentStudentId();
+                    if (studentId) {
+                      const { apiStats } = await import('@/lib/api');
+                      const s = await apiStats(studentId);
+                      setStats({ projectsUploaded: s.projectsUploaded, connections: s.connections, collaborations: s.collaborations });
+                    }
+                  } catch (e) {
+                    console.error('Failed to reload stats after deletion:', e);
+                  }
+                }}
+              />
             )}
           </TabsContent>
 
@@ -787,6 +815,12 @@ export default function ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CollaborationsModal
+        studentId={studentData.studentId}
+        isOpen={collabModalOpen}
+        onClose={() => setCollabModalOpen(false)}
+      />
     </div>
   );
 }

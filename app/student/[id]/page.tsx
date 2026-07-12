@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
+import { CollaborationsModal } from '@/components/CollaborationsModal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,10 +24,12 @@ import {
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import type { ApiStudent, ApiProject } from '@/lib/api';
+import { useSafeBack } from '@/hooks/useSafeBack';
 
 export default function PublicStudentProfile() {
     const router = useRouter();
     const params = useParams();
+    const safeBack = useSafeBack();
 
     // Robust ID handling
     const rawId = params?.id as string;
@@ -37,6 +40,7 @@ export default function PublicStudentProfile() {
     const [stats, setStats] = useState({ projectsUploaded: 0, connections: 0, collaborations: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [collabModalOpen, setCollabModalOpen] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -97,7 +101,7 @@ export default function PublicStudentProfile() {
                 <Navbar />
                 <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] space-y-4">
                     <h2 className="text-2xl font-bold text-muted-foreground">{error || 'Student Not Found'}</h2>
-                    <Button onClick={() => router.back()} variant="outline">
+                    <Button onClick={() => safeBack('/select-student')} variant="outline">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Go Back
                     </Button>
@@ -123,7 +127,7 @@ export default function PublicStudentProfile() {
                 <Button
                     variant="ghost"
                     className="mb-6 hover:bg-primary/10"
-                    onClick={() => router.back()}
+                    onClick={() => safeBack('/select-student')}
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Directory
@@ -213,42 +217,48 @@ export default function PublicStudentProfile() {
                 </Card>
 
                 {/* Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-4 mb-8">
                     {[
                         {
                             icon: BookOpen,
-                            label: 'Projects',
+                            label: 'Projects Uploaded',
                             value: stats.projectsUploaded,
                             color: 'from-blue-500 to-blue-600',
-                        },
-                        {
-                            icon: Network,
-                            label: 'Connections',
-                            value: stats.connections,
-                            color: 'from-green-500 to-green-600',
+                            clickable: false,
+                            description: 'Projects created by this user.',
                         },
                         {
                             icon: Zap,
                             label: 'Collaborations',
                             value: stats.collaborations,
                             color: 'from-purple-500 to-purple-600',
+                            clickable: true,
+                            description: 'Projects where this user is a collaborator.',
                         },
                     ].map((stat, idx) => (
                         <Card
                             key={idx}
-                            className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition relative overflow-hidden"
+                            onClick={stat.clickable ? () => setCollabModalOpen(true) : undefined}
+                            className={`p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition relative overflow-hidden ${
+                                stat.clickable ? 'cursor-pointer hover:border-primary/50 hover:bg-card/75' : ''
+                            }`}
                         >
                             <div
                                 className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 hover:opacity-5 smooth-transition pointer-events-none`}
                             />
-                            <div className="relative z-10 flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                                    <stat.icon className="w-6 h-6 text-white" />
+                            <div className="relative z-10 space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
+                                        <stat.icon className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">{stat.label}</p>
+                                        <p className="text-3xl font-bold text-balance">{stat.value}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                                    <p className="text-3xl font-bold text-balance">{stat.value}</p>
-                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {stat.description}
+                                </p>
                             </div>
                         </Card>
                     ))}
@@ -366,6 +376,12 @@ export default function PublicStudentProfile() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            <CollaborationsModal
+                studentId={id}
+                isOpen={collabModalOpen}
+                onClose={() => setCollabModalOpen(false)}
+            />
         </div>
     );
 }

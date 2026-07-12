@@ -103,7 +103,7 @@ export default function SavedProjectsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Link href={`/projects/${encodeURIComponent(project.id)}`} className="flex-1">
+                    <Link href={`/projects/${encodeURIComponent(project.id)}?from=saved`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
                         <ExternalLink className="w-4 h-4" />
                         Open Project

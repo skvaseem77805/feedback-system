@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { query, queryOne } from '@/lib/db';
 import { parseStudentId } from '@/lib/security';
 import { getProjectById, invalidateProject } from '@/lib/services/projects';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 export async function GET(
   request: NextRequest,
@@ -95,19 +96,25 @@ export async function DELETE(
       return Response.json({ error: 'Not authorized' }, { status: 403 });
     }
 
+    // Fetch accepted collaborators before deleting
+    const [collabRows] = await query<any>(
+      `SELECT student_id FROM collaborators WHERE project_id = ? AND role = 'COLLABORATOR' AND status = 'ACCEPTED'`,
+      [pid]
+    );
+    const acceptedCollaborators = (Array.isArray(collabRows) ? collabRows : []).map((r: any) => r.student_id);
+
     await query(`DELETE FROM project_saves WHERE project_id = ?`, [pid]);
     await query(`DELETE FROM project_collaborators WHERE project_id = ?`, [pid]);
     await query(`DELETE FROM project_likes WHERE project_id = ?`, [pid]);
     await query(`DELETE FROM projects WHERE id = ?`, [pid]);
-    await query(
-      `
-      UPDATE student_stats
-      SET projects_uploaded =
-        GREATEST(projects_uploaded - 1, 0)
-      WHERE student_id = ?
-      `,
-      [studentId]
-    );
+
+    // Recalculate stats for the project owner
+    await recalculateAndSyncStats(studentId);
+
+    // Recalculate stats for each collaborator
+    for (const collabId of acceptedCollaborators) {
+      await recalculateAndSyncStats(collabId);
+    }
 
     invalidateProject(pid);
 

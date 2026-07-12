@@ -10,10 +10,12 @@ import { ArrowLeft, Heart, Bookmark, User } from 'lucide-react';
 import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
+import { useSafeBack } from '@/hooks/useSafeBack';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const safeBack = useSafeBack();
   const rawId = params?.id as string;
   const projectId = rawId ? decodeURIComponent(rawId) : '';
 
@@ -154,7 +156,7 @@ export default function ProjectDetailsPage() {
         <Navbar />
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] space-y-4 px-4 text-center">
           <p className="text-2xl font-bold text-muted-foreground">{error || 'Project not found'}</p>
-          <Button variant="outline" onClick={() => router.push('/projects')}>Back to Projects</Button>
+          <Button variant="outline" onClick={() => safeBack('/projects')}>Back to Projects</Button>
         </div>
       </div>
     );
@@ -164,7 +166,7 @@ export default function ProjectDetailsPage() {
     <div className="min-h-screen gradient-bg">
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <Button variant="ghost" className="mb-6" onClick={() => router.push('/projects')}>
+        <Button variant="ghost" className="mb-6" onClick={() => safeBack('/projects')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Projects
         </Button>
 
@@ -253,7 +255,7 @@ export default function ProjectDetailsPage() {
           </div>
 
           <div className="mt-8 flex flex-row items-center gap-3">
-            <Button variant="outline" className="gap-2 shrink-0 smooth-transition" onClick={() => router.push('/projects')}>
+            <Button variant="outline" className="gap-2 shrink-0 smooth-transition" onClick={() => safeBack('/projects')}>
               <ArrowLeft className="w-4 h-4" /> Back
             </Button>
             <Button

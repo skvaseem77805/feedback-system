@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { query, queryOne } from '@/lib/db';
 import { parseStudentId } from '@/lib/security';
+import { recalculateAndSyncStats } from '@/lib/services/stats';
 
 export async function POST(
   request: NextRequest,
@@ -38,7 +39,7 @@ export async function POST(
       });
     }
 
-    // Add collaborator
+    // Add collaborator to legacy table
     await query(
       `
       INSERT INTO project_collaborators
@@ -48,15 +49,19 @@ export async function POST(
       [projectId, studentId]
     );
 
-    // Increment collaboration count
+    // Add collaborator to status-based collaborators table
+    const collabId = `collab-${studentId}-${projectId}-${Date.now()}`;
     await query(
       `
-      UPDATE student_stats
-      SET collaborations = collaborations + 1
-      WHERE student_id = ?
+      INSERT INTO collaborators (id, project_id, student_id, role, status)
+      VALUES (?, ?, ?, 'COLLABORATOR', 'ACCEPTED')
+      ON DUPLICATE KEY UPDATE status = 'ACCEPTED'
       `,
-      [studentId]
+      [collabId, projectId, studentId]
     );
+
+    // Recalculate stats for the student
+    await recalculateAndSyncStats(studentId);
 
     return Response.json({
       joined: true,

@@ -353,7 +353,7 @@ export default function ProjectsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Link href={`/projects/${encodeURIComponent(project.id)}`} className="block">
+                        <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block">
                           <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
                             <ExternalLink className="w-4 h-4" />
                             View Project

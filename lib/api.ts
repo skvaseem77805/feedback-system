@@ -306,3 +306,9 @@ export async function apiRepostProject(projectId: string, studentId: string): Pr
   });
   return handleRes<{ success: boolean }>(res);
 }
+
+export async function apiCollaborations(studentId: string): Promise<any[]> {
+  const res = await fetch(`${BASE}/api/collaborations?studentId=${encodeURIComponent(studentId)}`);
+  return handleRes<any[]>(res);
+}
+

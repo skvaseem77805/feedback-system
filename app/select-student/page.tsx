@@ -23,6 +23,7 @@ function toRecord(s: ApiStudent) {
     department: s.department,
     section: s.section,
     linkedinUrl: s.linkedinUrl,
+    githubUrl: s.githubUrl,
   };
 }
 

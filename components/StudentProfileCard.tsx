@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Linkedin, Mail, ExternalLink } from 'lucide-react';
+import { Linkedin, Github, Mail, ExternalLink } from 'lucide-react';
 import { incrementConnections, incrementCollaborations, getCurrentStudentId } from '@/lib/statsTracker';
 import type { StudentRecord } from '@/lib/students';
 
@@ -101,49 +101,42 @@ export function StudentProfileCard({
 
         {/* Buttons */}
         <div className="pt-2 space-y-2 border-t border-primary/10">
-          <Button
-            onClick={handleConnect}
-            size="sm"
-            className="w-full smooth-button bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Linkedin className="w-3 h-3 mr-1.5" />
-            Connect
-          </Button>
-
-          <div className="relative">
+          {student.linkedinUrl ? (
             <Button
-              onClick={() => setCollaborateOpen(!collaborateOpen)}
+              asChild
               size="sm"
-              variant="outline"
-              className="w-full smooth-button"
+              className="w-full smooth-button bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => inc('connections')}
             >
-              Collaborate
+              <a href={student.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
+                <Linkedin className="w-3 h-3 mr-1.5" />
+                LinkedIn
+              </a>
             </Button>
+          ) : (
+            <Button disabled variant="outline" size="sm" className="w-full smooth-button opacity-50">
+              <Linkedin className="w-3 h-3 mr-1.5" />
+              No LinkedIn
+            </Button>
+          )}
 
-            {collaborateOpen && (
-              <div className="absolute bottom-12 left-0 right-0 z-50 bg-card border border-primary/20 rounded-lg shadow-lg overflow-hidden">
-                <Button
-                  onClick={handleCollaborateLinkedIn}
-                  size="sm"
-                  variant="ghost"
-                  className="w-full justify-start rounded-none hover:bg-primary/10"
-                >
-                  <Linkedin className="w-3 h-3 mr-2" />
-                  via LinkedIn
-                </Button>
-                <Button
-                  onClick={handleCollaborateEmail}
-                  size="sm"
-                  variant="ghost"
-                  className="w-full justify-start rounded-none border-t border-primary/10 hover:bg-primary/10"
-                  disabled={!student.email}
-                >
-                  <Mail className="w-3 h-3 mr-2" />
-                  via Email {!student.email && '(N/A)'}
-                </Button>
-              </div>
-            )}
-          </div>
+          {student.githubUrl ? (
+            <Button
+              asChild
+              size="sm"
+              className="w-full smooth-button bg-gray-800 text-white hover:bg-gray-900"
+            >
+              <a href={student.githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
+                <Github className="w-3 h-3 mr-1.5" />
+                GitHub
+              </a>
+            </Button>
+          ) : (
+            <Button disabled variant="outline" size="sm" className="w-full smooth-button opacity-50">
+              <Github className="w-3 h-3 mr-1.5" />
+              No GitHub
+            </Button>
+          )}
 
           {/* Public View Profile Link */}
           <Button

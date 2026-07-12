@@ -11,6 +11,7 @@ export interface StudentRecord {
   department: string;
   section: string;
   linkedinUrl?: string;
+  githubUrl?: string;
 }
 
 // Parse CSV data into structured format

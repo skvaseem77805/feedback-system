@@ -154,9 +154,9 @@ export default function AdminStudentsPage() {
 
   const downloadTemplate = () => {
     const rows = [
-      ['Roll Number', 'Student Name', 'Year', 'Branch', 'Email', 'Phone'],
-      ['CSE001', 'John Doe', '2', 'CSE', 'john@example.com', '9876543210'],
-      ['CSE002', 'Jane Doe', '3', 'ECE', 'jane@example.com', '9123456780'],
+      ['RollNo', 'Name', 'Department', 'Year', 'Email'],
+      ['24B81A05Q5', 'NALLA NEELIMA', 'CSE', '3rd', 'neelima@example.com'],
+      ['24B81A05Q6', 'SANTHOSH KUMAR', 'CSE', '2nd', 'santhosh@example.com'],
     ];
     const csv = rows.map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -168,19 +168,36 @@ export default function AdminStudentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportStudents = () => {
-    const rows = [
-      ['Roll Number', 'Name', 'Year', 'Branch', 'Email', 'Phone'],
-      ...students.map((student) => [student.id, student.name, student.academicYear, student.department, student.email, student.mobileNo]),
-    ];
-    const csv = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'students-export.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+  const exportStudents = async () => {
+    try {
+      const headers = {
+        'x-admin-auth': 'true',
+        'x-admin-email': localStorage.getItem('adminEmail') || '',
+        'x-admin-id': localStorage.getItem('adminId') || '',
+      };
+      const params = new URLSearchParams({ page: '1', pageSize: '100000', search, sortField, sortDirection });
+      if (yearFilter) params.set('year', yearFilter);
+      if (branchFilter) params.set('branch', branchFilter);
+      const res = await fetch(`/api/admin/students?${params.toString()}`, { headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Export failed');
+      
+      const allStudents = data.students || [];
+      const rows = [
+        ['RollNo', 'Name', 'Department', 'Year', 'Email'],
+        ...allStudents.map((s: any) => [s.id, s.name, s.department, s.academicYear, s.email]),
+      ];
+      const csv = rows.map((row) => row.map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'students-export.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.message || 'Export failed');
+    }
   };
 
   const startEdit = (student: StudentRow) => {

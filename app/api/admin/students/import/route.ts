@@ -29,9 +29,32 @@ function extractRowsFromFile(file: File, contents: string): Record<string, unkno
   const fileType = getFileType(file.name);
   if (fileType === 'excel') {
     const workbook = XLSX.read(contents, { type: 'binary' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+    let rows: Record<string, unknown>[] = [];
+    for (const name of workbook.SheetNames) {
+      const sheet = workbook.Sheets[name];
+      const sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+      if (sheetRows.length > 0) {
+        const firstRowKeys = Object.keys(sheetRows[0]);
+        const hasStudentHeaders = firstRowKeys.some(k => 
+          /roll|reg|id|name|year|branch|dept/i.test(k)
+        );
+        if (hasStudentHeaders) {
+          rows = sheetRows;
+          break;
+        }
+      }
+    }
+    if (rows.length === 0 && workbook.SheetNames.length > 0) {
+      for (const name of workbook.SheetNames) {
+        const sheet = workbook.Sheets[name];
+        const sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+        if (sheetRows.length > 0) {
+          rows = sheetRows;
+          break;
+        }
+      }
+    }
+    return rows;
   }
   if (fileType === 'csv') {
     return parseCsvText(contents);
@@ -79,10 +102,33 @@ export async function POST(request: NextRequest) {
 
     if (fileType === 'pdf') {
       const text = await parsePdfBuffer(bytes);
+      if (!text) {
+        return Response.json({ error: 'Unsupported PDF format. Please upload a structured student list.' }, { status: 400 });
+      }
       rows = extractRowsFromPdfText(text);
+      if (rows.length === 0) {
+        return Response.json({ error: 'Unsupported PDF format. Please upload a structured student list.' }, { status: 400 });
+      }
     } else {
       const contents = bytes.toString('binary');
       rows = extractRowsFromFile(file, contents);
+    }
+
+    // Skip completely empty rows
+    rows = rows.filter(row => Object.values(row).some(val => String(val ?? '').trim() !== ''));
+
+    if (rows.length === 0) {
+      return Response.json({ error: 'Invalid file format.' }, { status: 400 });
+    }
+
+    const firstRow = rows[0];
+    const hasRoll = Object.keys(firstRow).some(k => /roll|reg|id/i.test(k));
+    const hasName = Object.keys(firstRow).some(k => /name/i.test(k));
+    const hasDept = Object.keys(firstRow).some(k => /branch|dept|course/i.test(k));
+    const hasYear = Object.keys(firstRow).some(k => /year/i.test(k));
+    
+    if (!hasRoll || !hasName || !hasDept || !hasYear) {
+      return Response.json({ error: 'Invalid file format.' }, { status: 400 });
     }
 
     const existingRollNumbers = new Set<string>();
@@ -116,42 +162,69 @@ export async function POST(request: NextRequest) {
       let skipped = 0;
       let errors = 0;
 
-      for (const item of preview) {
+      const validItems = preview.filter(item => {
         if (!item.valid) {
           skipped += 1;
-          continue;
+          return false;
         }
-
-        const existing = existingRollNumbers.has(item.rollNumber);
-        if (existing) {
-          await connection.query(
-            `
-            UPDATE students
-            SET name = ?, registration_no = ?, year = ?, course = ?, email = ?, mobile_no = ?, department = ?, section = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            `,
-            [item.name, item.rollNumber, item.year, item.branch, item.email, item.phone, item.branch, 'E', item.rollNumber]
-          );
+        if (existingRollNumbers.has(item.rollNumber)) {
           updated += 1;
         } else {
-          await connection.query(
-            `
-            INSERT INTO students (
-              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, password_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-            [item.rollNumber, item.name, item.rollNumber, item.rollNumber, item.year, item.branch, item.email, item.phone, item.branch, 'E', null]
-          );
           imported += 1;
         }
+        return true;
+      });
+
+      const chunkSize = 1000;
+      for (let i = 0; i < validItems.length; i += chunkSize) {
+        const chunk = validItems.slice(i, i + chunkSize);
+        
+        const studentValues = chunk.map(item => [
+          item.rollNumber,
+          item.name,
+          item.rollNumber,
+          item.rollNumber,
+          item.year,
+          item.branch,
+          item.email || '',
+          item.phone || '',
+          item.branch,
+          'E',
+          null
+        ]);
+
+        await connection.query(
+          `
+          INSERT INTO students (
+            id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, password_hash
+          ) VALUES ?
+          ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            year = VALUES(year),
+            course = VALUES(course),
+            email = VALUES(email),
+            mobile_no = VALUES(mobile_no),
+            department = VALUES(department),
+            section = VALUES(section),
+            updated_at = CURRENT_TIMESTAMP
+          `,
+          [studentValues]
+        );
+
+        const statsValues = chunk.map(item => [
+          item.rollNumber,
+          0,
+          0,
+          0
+        ]);
 
         await connection.query(
           `
           INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
-          VALUES (?, 0, 0, 0)
+          VALUES ?
           ON DUPLICATE KEY UPDATE student_id = student_id
           `,
-          [item.rollNumber]
+          [statsValues]
         );
       }
 

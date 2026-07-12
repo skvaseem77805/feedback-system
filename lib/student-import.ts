@@ -83,7 +83,7 @@ export function buildStudentImportPreviewRows(
   const seenRollNumbers = new Set<string>();
   return rows.map((row, index) => {
     const rollNumber = normalizeRollNumber(
-      row.rollNumber ?? row.roll_no ?? row.roll ?? row.registrationNo ?? row.registration_no ?? row.studentId ?? row.id ?? ''
+      row.rollNumber ?? row.roll_no ?? row.roll ?? row.registrationNo ?? row.registration_no ?? row.studentId ?? row.id ?? row.rollno ?? row.roll_number ?? ''
     );
     const name = normalizeText(
       row.studentName ?? row.name ?? row.fullName ?? row.student_name ?? row.full_name ?? ''
@@ -106,8 +106,6 @@ export function buildStudentImportPreviewRows(
     if (!name) errors.push('Student name is required');
     if (!yearInfo.year) errors.push('Valid year is required');
     if (!branch) errors.push('Branch is required');
-    if (!email) errors.push('Email is required');
-    if (!phone) errors.push('Phone is required');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Email format is invalid');
     if (phone && !/^\+?[0-9\-\s]{7,15}$/.test(phone)) errors.push('Phone format is invalid');
 

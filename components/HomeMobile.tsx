@@ -18,17 +18,6 @@ export function HomeMobile() {
   const [latestProjects, setLatestProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Scroll tracking for Hero Card fade/collapse
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   useEffect(() => {
     // Fetch feed items
     const fetchFeed = async () => {
@@ -53,10 +42,6 @@ export function HomeMobile() {
     const studentId = localStorage.getItem("studentId");
     router.push(studentId ? "/upload" : "/auth");
   };
-
-  const fadeRange = 120;
-  const opacity = Math.max(0, 1 - scrollY / fadeRange);
-  const scale = Math.max(0.85, 1 - (scrollY / fadeRange) * 0.15);
 
   return (
     <div className="min-h-screen bg-background pb-24 select-none antialiased">
@@ -86,27 +71,18 @@ export function HomeMobile() {
           </div>
         ) : (
           <>
-            {/* 🏫 College Hero Card (smooth collapse/fade) */}
+            {/* 🏫 College Hero Card (completely static, zero scrolling/layout animations) */}
             <div 
-              style={{
-                opacity: opacity,
-                transform: `scale(${scale})`,
-                maxHeight: scrollY >= fadeRange ? "0px" : "320px",
-                padding: scrollY >= fadeRange ? "0px" : "1.25rem",
-                marginBottom: scrollY >= fadeRange ? "0px" : "1.5rem",
-                transition: "opacity 160ms ease-out, transform 160ms ease-out, maxHeight 160ms ease-out, padding 160ms ease-out, marginBottom 160ms ease-out",
-                overflow: "hidden"
-              }}
               className="relative rounded-2xl bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-xl backdrop-blur-md text-center p-5 space-y-4"
             >
               <div className="flex justify-center gap-1.5">
-                <Badge className="bg-primary/20 text-primary text-[9px] px-2 py-0.5 rounded-full border-none">
+                <Badge className="bg-primary/20 text-primary text-[9px] px-2 py-0.5 rounded-full border-none shadow-none">
                   JNTUK Affiliated
                 </Badge>
-                <Badge className="bg-accent/20 text-accent text-[9px] px-2 py-0.5 rounded-full border-none">
+                <Badge className="bg-accent/20 text-accent text-[9px] px-2 py-0.5 rounded-full border-none shadow-none">
                   NAAC 'A' Grade
                 </Badge>
-                <Badge className="bg-secondary/20 text-secondary text-[9px] px-2 py-0.5 rounded-full border-none">
+                <Badge className="bg-secondary/20 text-secondary text-[9px] px-2 py-0.5 rounded-full border-none shadow-none">
                   Autonomous
                 </Badge>
               </div>
@@ -174,7 +150,7 @@ export function HomeMobile() {
                               loading="lazy"
                             />
                           ) : (
-                            <Sparkles className="w-6 h-6 text-primary/30 animate-pulse" />
+                            <Sparkles className="w-6 h-6 text-primary/30" />
                           )}
                         </div>
                       </Link>

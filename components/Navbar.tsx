@@ -176,7 +176,21 @@ export function Navbar() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isNotifications = item.label === 'Notifications';
-              const isActive = item.href === '/select-student' && pathname === '/select-student';
+              const isActive = (() => {
+                if (item.href === '/') return pathname === '/';
+                const targetPath = item.href === '/auth' 
+                  ? (item.label === 'Profile' ? '/profile' 
+                     : item.label === 'Connect Student' ? '/select-student' 
+                     : item.label === 'Saved' ? '/saved-projects' 
+                     : item.label === 'Notifications' ? '/notifications' : null)
+                  : item.href;
+                if (!targetPath) return false;
+                
+                if (targetPath === '/projects') {
+                  return pathname === '/projects' || pathname.startsWith('/projects/');
+                }
+                return pathname === targetPath;
+              })();
               return (
                 <Link href={item.href} key={item.label}>
                   <Button 
@@ -251,22 +265,46 @@ export function Navbar() {
 
           {/* Home */}
           <Link href="/">
-            <Button variant="ghost" size="icon">
-              <Building2 className="w-5 h-5" />
+            <Button 
+              variant={pathname === '/' ? 'secondary' : 'ghost'} 
+              size="icon"
+              className={`smooth-transition ${
+                pathname === '/' 
+                  ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full' 
+                  : ''
+              }`}
+            >
+              <Building2 className={`w-5 h-5 ${pathname === '/' ? 'text-blue-600' : ''}`} />
             </Button>
           </Link>
-
+ 
           {/* Profile */}
           <Link href={isLoggedIn ? '/profile' : '/auth'}>
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
+            <Button 
+              variant={pathname === '/profile' ? 'secondary' : 'ghost'} 
+              size="icon"
+              className={`smooth-transition ${
+                pathname === '/profile' 
+                  ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full' 
+                  : ''
+              }`}
+            >
+              <User className={`w-5 h-5 ${pathname === '/profile' ? 'text-blue-600' : ''}`} />
             </Button>
           </Link>
-
+ 
           {/* Projects */}
           <Link href="/projects">
-            <Button variant="ghost" size="icon">
-              <Compass className="w-5 h-5" />
+            <Button 
+              variant={pathname === '/projects' || pathname.startsWith('/projects/') ? 'secondary' : 'ghost'} 
+              size="icon"
+              className={`smooth-transition ${
+                pathname === '/projects' || pathname.startsWith('/projects/') 
+                  ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full' 
+                  : ''
+              }`}
+            >
+              <Compass className={`w-5 h-5 ${pathname === '/projects' || pathname.startsWith('/projects/') ? 'text-blue-600' : ''}`} />
             </Button>
           </Link>
 
@@ -316,20 +354,44 @@ export function Navbar() {
                 {userType === 'admin' ? (
                   <> 
                     <Link href="/admin/feedback">
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <LayoutDashboard className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/admin/feedback' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/admin/feedback' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <LayoutDashboard className={`w-4 h-4 ${pathname === '/admin/feedback' ? 'text-blue-600' : ''}`} />
                         Dashboard
                       </Button>
                     </Link>
                     <Link href="/admin/students">
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <GraduationCap className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/admin/students' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/admin/students' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <GraduationCap className={`w-4 h-4 ${pathname === '/admin/students' ? 'text-blue-600' : ''}`} />
                         Student Management
                       </Button>
                     </Link>
                     <Link href="/admin/feedback">
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <Send className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/admin/feedback' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/admin/feedback' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <Send className={`w-4 h-4 ${pathname === '/admin/feedback' ? 'text-blue-600' : ''}`} />
                         Feedback Management
                       </Button>
                     </Link>
@@ -337,15 +399,31 @@ export function Navbar() {
                 ) : (
                   <>
                     <Link href={isLoggedIn ? '/saved-projects' : '/auth'}>
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <Bookmark className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/saved-projects' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/saved-projects' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <Bookmark className={`w-4 h-4 ${pathname === '/saved-projects' ? 'text-blue-600' : ''}`} />
                         Saved
                       </Button>
                     </Link>
                     <Link href={isLoggedIn ? '/notifications' : '/auth'}>
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 relative">
+                      <Button 
+                        variant={pathname === '/notifications' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/notifications' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
                         <div className="relative flex items-center">
-                          <Bell className="w-4 h-4" />
+                          <Bell className={`w-4 h-4 ${pathname === '/notifications' ? 'text-blue-600' : ''}`} />
                           {hasUnread && (
                             <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-red-500 rounded-full border-none"></span>
                           )}
@@ -368,8 +446,16 @@ export function Navbar() {
                       </Button>
                     </Link>
                     <Link href="/feedback">
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <Send className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/feedback' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/feedback' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <Send className={`w-4 h-4 ${pathname === '/feedback' ? 'text-blue-600' : ''}`} />
                         Feedback
                       </Button>
                     </Link>

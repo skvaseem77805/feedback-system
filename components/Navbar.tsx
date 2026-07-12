@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
 import { Compass, Upload, Users, LogOut, LogIn, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap, Search, Bookmark, Bell } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [userType, setUserType] = useState<'student' | 'staff' | 'admin' | null>(null);
   const [mounted, setMounted] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -175,11 +176,20 @@ export function Navbar() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isNotifications = item.label === 'Notifications';
+              const isActive = item.href === '/select-student' && pathname === '/select-student';
               return (
                 <Link href={item.href} key={item.label}>
-                  <Button variant="ghost" size="sm" className="gap-1 text-sm font-medium hover:text-primary smooth-transition relative">
+                  <Button 
+                    variant={isActive ? "secondary" : "ghost"} 
+                    size="sm" 
+                    className={`gap-1 text-sm font-medium smooth-transition relative ${
+                      isActive 
+                        ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100 hover:text-blue-700' 
+                        : 'hover:text-primary'
+                    }`}
+                  >
                     <div className="relative flex items-center">
-                      <Icon className="w-4 h-4" />
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : ''}`} />
                       {isNotifications && hasUnread && (
                         <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-red-500 rounded-full border-none"></span>
                       )}
@@ -344,8 +354,16 @@ export function Navbar() {
                       </Button>
                     </Link>
                     <Link href={isLoggedIn ? '/select-student' : '/auth'}>
-                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-                        <Users className="w-4 h-4" />
+                      <Button 
+                        variant={pathname === '/select-student' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className={`w-full justify-start gap-2 smooth-transition ${
+                          pathname === '/select-student' 
+                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
+                            : ''
+                        }`}
+                      >
+                        <Users className={`w-4 h-4 ${pathname === '/select-student' ? 'text-blue-600' : ''}`} />
                         Connect Student
                       </Button>
                     </Link>

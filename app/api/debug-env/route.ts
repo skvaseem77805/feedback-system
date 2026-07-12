@@ -23,29 +23,9 @@ export async function GET(request: NextRequest) {
     const [tables] = await pool.query('SHOW TABLES') as any;
     const tableNames = tables.map((t: any) => Object.values(t)[0]);
 
-    // Try executing collaborators DDL and catch error
-    let collabError = 'None';
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS collaborators (
-          id varchar(50) NOT NULL,
-          project_id varchar(50) NOT NULL,
-          student_id varchar(20) NOT NULL,
-          role enum('OWNER','COLLABORATOR') NOT NULL DEFAULT 'COLLABORATOR',
-          status enum('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
-          created_at datetime DEFAULT CURRENT_TIMESTAMP,
-          updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          is_reposted tinyint NOT NULL DEFAULT '0',
-          PRIMARY KEY (id),
-          UNIQUE KEY uq_project_student_collab (project_id, student_id),
-          KEY student_id (student_id),
-          CONSTRAINT collaborators_ibfk_1 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
-          CONSTRAINT collaborators_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
-        ) ENGINE=InnoDB
-      `);
-    } catch (e: any) {
-      collabError = e.message;
-    }
+    // Describe projects table
+    const [projectCols] = await pool.query('DESCRIBE projects') as any;
+    const projectSchema = projectCols.map((c: any) => ({ Field: c.Field, Type: c.Type }));
 
     return Response.json({
       env: {
@@ -55,7 +35,7 @@ export async function GET(request: NextRequest) {
         MYSQL_DATABASE: process.env.MYSQL_DATABASE || 'Not set',
       },
       tableNames,
-      collabError,
+      projectSchema,
     });
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });

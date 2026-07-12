@@ -71,7 +71,7 @@ async function ensureTables() {
       KEY student_id (student_id),
       CONSTRAINT collaborators_ibfk_1 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
       CONSTRAINT collaborators_ibfk_2 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ) ENGINE=InnoDB
   `);
 
   await p.query(`
@@ -92,7 +92,7 @@ async function ensureTables() {
       CONSTRAINT notifications_ibfk_1 FOREIGN KEY (receiver_id) REFERENCES students (id) ON DELETE CASCADE,
       CONSTRAINT notifications_ibfk_2 FOREIGN KEY (sender_id) REFERENCES students (id) ON DELETE CASCADE,
       CONSTRAINT notifications_ibfk_3 FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ) ENGINE=InnoDB
   `);
 
   // Auto-seed owner collaborator records for existing projects

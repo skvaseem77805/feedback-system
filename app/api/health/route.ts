@@ -1,13 +1,12 @@
 import { NextRequest } from 'next/server';
-import { getPool } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const pool = getPool();
-    const [students] = await pool.query('SELECT COUNT(*) AS count FROM students') as any;
-    const [projects] = await pool.query('SELECT COUNT(*) AS count FROM projects') as any;
-    const [collaborators] = await pool.query('SELECT COUNT(*) AS count FROM collaborators') as any;
-    const [student_stats] = await pool.query('SELECT COUNT(*) AS count FROM student_stats') as any;
+    const [students] = await query('SELECT COUNT(*) AS count FROM students') as any;
+    const [projects] = await query('SELECT COUNT(*) AS count FROM projects') as any;
+    const [collaborators] = await query('SELECT COUNT(*) AS count FROM collaborators') as any;
+    const [student_stats] = await query('SELECT COUNT(*) AS count FROM student_stats') as any;
     
     return Response.json({
       status: 'ok',

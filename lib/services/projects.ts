@@ -75,7 +75,8 @@ export async function getProjects(opts: { studentId?: string; category?: string;
     rows = Array.isArray(r[0]) ? r[0] : r[0] ?? [];
   } catch (err) {
     console.error('getProjects DB error', err);
-    throw err;
+    cache.set(key, [], 15 * 1000);
+    return [];
   }
 
   const transformed = rows.map((p: any) => {

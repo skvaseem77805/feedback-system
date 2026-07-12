@@ -136,6 +136,60 @@ CREATE TABLE IF NOT EXISTS public.student_stats (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- -----------------------------------------------------------------------------
+-- Collaborators
+-- -----------------------------------------------------------------------------
+DO $$ BEGIN
+    CREATE TYPE collab_role AS ENUM ('OWNER', 'COLLABORATOR');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE collab_status AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.collaborators (
+  id VARCHAR(50) PRIMARY KEY,
+  project_id VARCHAR(50) NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  student_id VARCHAR(20) NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  role collab_role NOT NULL DEFAULT 'COLLABORATOR',
+  status collab_status NOT NULL DEFAULT 'PENDING',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_reposted SMALLINT NOT NULL DEFAULT 0,
+  CONSTRAINT uq_project_student_collab UNIQUE (project_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collaborators_student ON public.collaborators (student_id);
+
+-- -----------------------------------------------------------------------------
+-- Notifications
+-- -----------------------------------------------------------------------------
+DO $$ BEGIN
+    CREATE TYPE notification_type AS ENUM ('LIKE', 'SAVE', 'COLLAB_REQUEST', 'COLLAB_ACCEPT', 'COLLAB_REJECT');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id VARCHAR(50) PRIMARY KEY,
+  receiver_id VARCHAR(20) NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  sender_id VARCHAR(20) NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  project_id VARCHAR(50) REFERENCES public.projects(id) ON DELETE SET NULL,
+  type notification_type NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_receiver ON public.notifications (receiver_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_sender ON public.notifications (sender_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_project ON public.notifications (project_id);
+
 -- =============================================================================
 -- End of schema
 -- =============================================================================

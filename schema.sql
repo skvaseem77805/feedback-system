@@ -138,6 +138,49 @@ CREATE TABLE IF NOT EXISTS student_stats (
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+
+-- -----------------------------------------------------------------------------
+-- Collaborators (rich/stateful collab mapping)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS collaborators (
+  id VARCHAR(50) NOT NULL,
+  project_id VARCHAR(50) NOT NULL,
+  student_id VARCHAR(20) NOT NULL,
+  role ENUM('OWNER','COLLABORATOR') NOT NULL DEFAULT 'COLLABORATOR',
+  status ENUM('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  is_reposted TINYINT NOT NULL DEFAULT '0',
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_project_student_collab (project_id, student_id),
+  KEY student_id (student_id),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- -----------------------------------------------------------------------------
+-- Notifications
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notifications (
+  id VARCHAR(50) NOT NULL,
+  receiver_id VARCHAR(20) NOT NULL,
+  sender_id VARCHAR(20) NOT NULL,
+  project_id VARCHAR(50) DEFAULT NULL,
+  type ENUM('LIKE','SAVE','COLLAB_REQUEST','COLLAB_ACCEPT','COLLAB_REJECT') NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT '0',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY receiver_id (receiver_id),
+  KEY sender_id (sender_id),
+  KEY project_id (project_id),
+  FOREIGN KEY (receiver_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (sender_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- =============================================================================
 -- End of schema
 -- =============================================================================
+

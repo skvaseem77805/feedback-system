@@ -55,6 +55,13 @@ let initPromise: Promise<void> | null = null;
 
 async function ensureTables() {
   const p = getPool();
+
+  // Check and add missing 'views' column in projects table if not exists
+  const [cols] = await p.query('DESCRIBE projects') as any;
+  const hasViews = cols.some((c: any) => c.Field === 'views');
+  if (!hasViews) {
+    await p.query('ALTER TABLE projects ADD COLUMN views INT UNSIGNED DEFAULT 0 AFTER likes');
+  }
   
   await p.query(`
     CREATE TABLE IF NOT EXISTS collaborators (

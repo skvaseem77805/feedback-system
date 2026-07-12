@@ -46,6 +46,17 @@ INSERT IGNORE INTO project_collaborators (project_id, student_id) VALUES ('proj1
 INSERT IGNORE INTO project_likes (project_id, student_id) VALUES ('proj1', '24B81A05Q6'), ('proj1', '24B81A05Q7'), ('proj2', '24B81A05Q6');
 INSERT IGNORE INTO project_saves (project_id, student_id) VALUES ('proj1', '24B81A05Q6'), ('proj1', '24B81A05Q7'), ('proj2', '24B81A05Q6'), ('proj3', '24B81A05Q5');
 
+-- Seed collaborators table
+INSERT IGNORE INTO collaborators (id, project_id, student_id, role, status) VALUES
+('collab-owner-proj1', 'proj1', '24B81A05Q5', 'OWNER', 'ACCEPTED'),
+('collab-owner-proj2', 'proj2', '24B81A05Q5', 'OWNER', 'ACCEPTED'),
+('collab-owner-proj3', 'proj3', '24B81A05Q6', 'OWNER', 'ACCEPTED'),
+('collab-collab-proj1', 'proj1', '24B81A05Q6', 'COLLABORATOR', 'ACCEPTED');
+
+-- Update stats to reflect uploaded projects
+UPDATE student_stats SET projects_uploaded = 2 WHERE student_id = '24B81A05Q5';
+UPDATE student_stats SET projects_uploaded = 1 WHERE student_id = '24B81A05Q6';
+
 -- Sample connection request (optional)
 INSERT IGNORE INTO connection_requests (id, from_student_id, to_student_id, status) VALUES
 ('conn1', '24B81A05Q5', '24B81A05Q6', 'accepted');

@@ -108,9 +108,7 @@ export async function query<T = unknown>(
   params?: (string | number | null | Date)[]
 ): Promise<[T[], mysql.FieldPacket[]]> {
   if (!initPromise) {
-    initPromise = ensureTables().catch(err => {
-      console.error('Failed to initialize database tables:', err);
-    });
+    initPromise = ensureTables();
   }
   await initPromise;
 

@@ -98,10 +98,10 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?
     `;
 
-        const params = [...values, pageSize, offset];
+        const queryParams = [...values, pageSize, offset];
         const [rows] = await query<any>(
             selectSql,
-            params
+            queryParams
         );
 
         const students = rows.map((row: any) => {

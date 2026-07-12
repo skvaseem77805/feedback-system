@@ -40,6 +40,7 @@ export async function GET(
         department,
         section,
         linkedin_url,
+        github_url,
         bio,
         skills,
         avatar
@@ -83,6 +84,7 @@ export async function GET(
       department: row.department || 'CSE',
       section: row.section || 'E',
       linkedinUrl: row.linkedin_url ?? undefined,
+      githubUrl: row.github_url ?? undefined,
       bio: row.bio ?? undefined,
       skills,
       avatar: row.avatar ?? undefined,
@@ -126,6 +128,11 @@ export async function PATCH(
     if (body.linkedinUrl !== undefined) {
       updates.push('linkedin_url = ?');
       values.push(body.linkedinUrl);
+    }
+
+    if (body.githubUrl !== undefined) {
+      updates.push('github_url = ?');
+      values.push(body.githubUrl);
     }
 
     if (body.bio !== undefined) {

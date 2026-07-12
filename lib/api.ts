@@ -39,6 +39,7 @@ export interface ApiStudent {
   department: string;
   section: string;
   linkedinUrl?: string;
+  githubUrl?: string;
   bio?: string;
   skills?: string[];
   avatar?: string;

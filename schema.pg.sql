@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.students (
   department VARCHAR(50) DEFAULT 'CSE',
   section VARCHAR(10) DEFAULT 'E',
   linkedin_url VARCHAR(500) DEFAULT NULL,
+  github_url VARCHAR(500) DEFAULT NULL,
   bio TEXT DEFAULT NULL,
   skills JSONB DEFAULT NULL, -- Changed from JSON to JSONB
   avatar VARCHAR(500) DEFAULT NULL,

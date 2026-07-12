@@ -37,6 +37,7 @@ interface StudentData {
   email: string;
   profilePhoto?: string;
   linkedinUrl?: string;
+  githubUrl?: string;
   skills?: string[];
 }
 
@@ -84,6 +85,7 @@ export default function ProfilePage() {
             year: dbStudent.academicYear,
             email: dbStudent.email || 'Not provided',
             linkedinUrl: dbStudent.linkedinUrl || '',
+            githubUrl: dbStudent.githubUrl || '',
             profilePhoto: dbStudent.avatar || undefined,
             skills: dbStudent.skills || [],
           };
@@ -102,6 +104,7 @@ export default function ProfilePage() {
             year: '2nd',
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
+            githubUrl: '',
             skills: [],
           };
           setStudentData(fallback);
@@ -123,6 +126,7 @@ export default function ProfilePage() {
             year: '2nd',
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
+            githubUrl: '',
           };
           setStudentData(fallback);
           localStorage.setItem(storageKey, JSON.stringify(fallback));
@@ -208,6 +212,16 @@ export default function ProfilePage() {
   const saveProfile = async () => {
   if (!studentData) return;
 
+  const githubUrl = editData.githubUrl !== undefined ? editData.githubUrl : studentData.githubUrl;
+  if (githubUrl) {
+    const trimmed = githubUrl.trim();
+    const githubRegex = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+(\/)?$/;
+    if (!githubRegex.test(trimmed)) {
+      alert("Please enter a valid GitHub profile URL (e.g., https://github.com/username)");
+      return;
+    }
+  }
+
   let avatarUrl = studentData.profilePhoto;
 
   try {
@@ -239,6 +253,10 @@ export default function ProfilePage() {
 
     if (editData.linkedinUrl) {
       payload.linkedinUrl = editData.linkedinUrl;
+    }
+
+    if (editData.githubUrl !== undefined) {
+      payload.githubUrl = editData.githubUrl;
     }
 
     if (editData.year && editData.year !== studentData.year) {
@@ -456,6 +474,21 @@ export default function ProfilePage() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Used for connection and collaboration features
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">GitHub Profile URL</label>
+                  <Input
+                    type="url"
+                    placeholder="https://github.com/yourusername"
+                    value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
+                    onChange={(e) =>
+                      setEditData({ ...editData, githubUrl: e.target.value })
+                    }
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your GitHub profile link (optional)
                   </p>
                 </div>
 

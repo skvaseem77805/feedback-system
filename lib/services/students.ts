@@ -63,6 +63,7 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
       department: s.department || 'CSE',
       section: s.section || 'E',
       linkedinUrl: s.linkedin_url ?? undefined,
+      githubUrl: s.github_url ?? undefined,
       bio: s.bio ?? undefined,
       skills,
       avatar: s.avatar ?? undefined,
@@ -98,6 +99,7 @@ export async function getStudentById(id: string) {
       department,
       section,
       linkedin_url,
+      github_url,
       bio,
       skills,
       avatar
@@ -136,6 +138,7 @@ export async function getStudentById(id: string) {
     department: row.department || 'CSE',
     section: row.section || 'E',
     linkedinUrl: row.linkedin_url ?? undefined,
+    githubUrl: row.github_url ?? undefined,
     bio: row.bio ?? undefined,
     skills,
     avatar: row.avatar ?? undefined,

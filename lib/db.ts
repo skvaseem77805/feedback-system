@@ -62,6 +62,13 @@ async function ensureTables() {
   if (!hasViews) {
     await p.query('ALTER TABLE projects ADD COLUMN views INT UNSIGNED DEFAULT 0 AFTER likes');
   }
+
+  // Check and add missing 'github_url' column in students table if not exists
+  const [studentCols] = await p.query('DESCRIBE students') as any;
+  const hasGithubUrl = studentCols.some((c: any) => c.Field === 'github_url');
+  if (!hasGithubUrl) {
+    await p.query('ALTER TABLE students ADD COLUMN github_url VARCHAR(500) DEFAULT NULL AFTER linkedin_url');
+  }
   
   await p.query(`
     CREATE TABLE IF NOT EXISTS collaborators (

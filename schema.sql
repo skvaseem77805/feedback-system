@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS students (
   department VARCHAR(50) DEFAULT 'CSE',
   section VARCHAR(10) DEFAULT 'E',
   linkedin_url VARCHAR(500) DEFAULT NULL,
+  github_url VARCHAR(500) DEFAULT NULL,
   bio TEXT DEFAULT NULL,
   skills JSON DEFAULT NULL COMMENT 'Array of skill strings',
   avatar VARCHAR(500) DEFAULT NULL,

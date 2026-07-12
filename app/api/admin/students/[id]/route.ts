@@ -33,6 +33,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.department !== undefined) setField('department', body.department);
     if (body.section !== undefined) setField('section', body.section);
     if (body.linkedinUrl !== undefined) setField('linkedin_url', body.linkedinUrl || null);
+    if (body.githubUrl !== undefined) setField('github_url', body.githubUrl || null);
     if (body.bio !== undefined) setField('bio', body.bio || null);
     if (body.avatar !== undefined) setField('avatar', body.avatar || null);
 

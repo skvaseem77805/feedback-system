@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
         s.department,
         s.section,
         s.linkedin_url,
+        s.github_url,
         s.bio,
         s.skills,
         s.avatar,
@@ -127,6 +128,7 @@ export async function GET(request: NextRequest) {
                 department: row.department || 'CSE',
                 section: row.section || 'E',
                 linkedinUrl: row.linkedin_url ?? undefined,
+                githubUrl: row.github_url ?? undefined,
                 bio: row.bio ?? undefined,
                 skills,
                 avatar: row.avatar ?? undefined,
@@ -176,6 +178,7 @@ export async function POST(request: NextRequest) {
         const department = parseString(body?.department || body?.branch || 'CSE');
         const section = parseString(body?.section || 'E');
         const linkedinUrl = parseString(body?.linkedinUrl);
+        const githubUrl = parseString(body?.githubUrl);
         const bio = parseString(body?.bio);
         const skills = Array.isArray(body?.skills) ? body.skills : [];
         const avatar = parseString(body?.avatar);
@@ -198,19 +201,19 @@ export async function POST(request: NextRequest) {
                 await connection.query(
                     `
             UPDATE students
-            SET name = ?, registration_no = ?, year = ?, course = ?, email = ?, mobile_no = ?, department = ?, section = ?, linkedin_url = ?, bio = ?, skills = ?, avatar = ?
+            SET name = ?, registration_no = ?, year = ?, course = ?, email = ?, mobile_no = ?, department = ?, section = ?, linkedin_url = ?, github_url = ?, bio = ?, skills = ?, avatar = ?
             WHERE id = ?
           `,
-                    [name, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, bio || null, JSON.stringify(skills), avatar || null, studentId]
+                    [name, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null, studentId]
                 );
             } else {
                 await connection.query(
                     `
             INSERT INTO students (
-              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, bio, skills, avatar
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, github_url, bio, skills, avatar
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-                    [studentId, name, registrationNo, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, bio || null, JSON.stringify(skills), avatar || null]
+                    [studentId, name, registrationNo, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null]
                 );
             }
 

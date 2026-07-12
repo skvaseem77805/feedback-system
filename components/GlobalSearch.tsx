@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Compass, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { apiProjects, apiStudents } from '@/lib/api';
 import type { ApiProject, ApiStudent } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
-export function GlobalSearch({ className = '' }: { className?: string }) {
+export const GlobalSearch = forwardRef<HTMLInputElement, { className?: string; inputClassName?: string }>(
+  ({ className = '', inputClassName = '' }, ref) => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -111,13 +113,17 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
     <div className={`relative w-full ${className}`}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
       <Input
+        ref={ref}
         placeholder="Search projects..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={handleSearch}
         onFocus={() => setShowDropdown(true)}
         onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-        className="pl-10 pr-4 py-2 text-sm h-10 rounded-xl border border-border/80 bg-background/50 hover:bg-background focus:bg-background shadow-lg transition-all"
+        className={cn(
+          "pl-10 pr-4 py-2 text-sm h-10 rounded-xl border border-border/80 bg-background/50 hover:bg-background focus:bg-background shadow-lg transition-all",
+          inputClassName
+        )}
       />
       {showDropdown && searchQuery.trim() && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl z-50 overflow-hidden max-h-[360px] overflow-y-auto backdrop-blur-md bg-card/95">
@@ -208,4 +214,6 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
       )}
     </div>
   );
-}
+});
+
+GlobalSearch.displayName = 'GlobalSearch';

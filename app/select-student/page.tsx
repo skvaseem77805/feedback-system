@@ -4,11 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StudentProfileCard } from '@/components/StudentProfileCard';
 import { Search, Users, ArrowRight, ExternalLink } from 'lucide-react';
 import type { ApiStudent } from '@/lib/api';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import Link from 'next/link';
 
 function toRecord(s: ApiStudent) {
   return {
@@ -28,13 +33,30 @@ function toRecord(s: ApiStudent) {
   };
 }
 
+const years = ['1st', '2nd', '3rd', 'Final'];
+
 export default function SelectStudentPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [students, setStudents] = useState<ReturnType<typeof toRecord>[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<ReturnType<typeof toRecord>[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedStudent, setSelectedStudent] = useState<ReturnType<typeof toRecord> | null>(null);
+
+  // Mobile filters state
+  const [filterYear, setFilterYear] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [tempFilterYear, setTempFilterYear] = useState('');
+  const [tempFilterDept, setTempFilterDept] = useState('');
+
+  // Sync temp state when mobile filter opens
+  useEffect(() => {
+    if (isMobileFilterOpen) {
+      setTempFilterYear(filterYear);
+      setTempFilterDept(filterDept);
+    }
+  }, [isMobileFilterOpen]);
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -54,19 +76,34 @@ export default function SelectStudentPage() {
     loadStudents();
   }, []);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    const filtered = students.filter(
-      student =>
-        student.name.toLowerCase().includes(query.toLowerCase()) ||
-        student.userId.toLowerCase().includes(query.toLowerCase()) ||
-        (student.email && student.email.toLowerCase().includes(query.toLowerCase()))
-    );
+  // Filter logic (combining search, year, and department)
+  useEffect(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const filtered = students.filter((student) => {
+      const matchSearch =
+        !q ||
+        student.name.toLowerCase().includes(q) ||
+        student.userId.toLowerCase().includes(q) ||
+        (student.email && student.email.toLowerCase().includes(q));
+
+      const matchYear =
+        !filterYear ||
+        (student.year !== undefined && student.year !== null && (
+          String(student.year).toLowerCase().trim() === filterYear.toLowerCase().trim() ||
+          (filterYear === '1st' && String(student.year) === '1') ||
+          (filterYear === '2nd' && String(student.year) === '2') ||
+          (filterYear === '3rd' && String(student.year) === '3') ||
+          (filterYear === 'Final' && String(student.year) === '4')
+        ));
+
+      const matchDept =
+        !filterDept ||
+        student.department?.toLowerCase().trim() === filterDept.toLowerCase().trim();
+
+      return matchSearch && matchYear && matchDept;
+    });
     setFilteredStudents(filtered);
-  };
-
-  // switchToStudent removed for security
-
+  }, [searchQuery, filterYear, filterDept, students]);
 
   if (isLoading) {
     return (
@@ -79,6 +116,195 @@ export default function SelectStudentPage() {
     );
   }
 
+  // Render Mobile layout
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background pb-20 select-none antialiased">
+        <Navbar />
+
+        <main className="px-4 py-4 space-y-4">
+          {/* Mobile search bar and filter button */}
+          <div className="flex gap-2.5 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search students..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 rounded-xl bg-muted/40 border-border/60 focus:bg-background h-10 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsMobileFilterOpen(true)}
+              className="rounded-xl border-border/60 font-bold text-xs h-10 px-4 flex items-center gap-1.5"
+            >
+              Filter
+              {(filterYear || filterDept) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              )}
+            </Button>
+          </div>
+
+          {/* Student Cards List */}
+          {filteredStudents.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 pt-1">
+              {filteredStudents.map((student) => (
+                <Card
+                  key={student.userId}
+                  className="p-3.5 rounded-2xl bg-card/45 border border-border/40 shadow-sm flex items-center justify-between gap-4 active:scale-[0.99] transition-transform duration-100 text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center flex-shrink-0 border border-border/40">
+                      {student.avatar ? (
+                        <img
+                          src={student.avatar}
+                          alt={student.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-base font-bold text-primary">
+                          {student.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="min-w-0 space-y-0.5">
+                      <h4 className="font-extrabold text-foreground text-sm tracking-tight truncate leading-snug">
+                        {student.name}
+                      </h4>
+                      <p className="text-[10px] font-bold text-muted-foreground">
+                        {String(student.year) === '1' ? '1st' : 
+                         String(student.year) === '2' ? '2nd' :
+                         String(student.year) === '3' ? '3rd' :
+                         String(student.year) === '4' ? 'Final' : 
+                         String(student.year)} Year • {student.department}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground/85 truncate">
+                        Sir C.R. Reddy College of Engineering
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link href={`/student/${student.userId}`} className="flex-shrink-0">
+                    <Button size="sm" className="bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] px-3.5 h-7.5 rounded-xl border-none shadow-none">
+                      View Profile
+                    </Button>
+                  </Link>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center bg-card/45 border-border/40 rounded-2xl">
+              <Users className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-60" />
+              <p className="text-muted-foreground mb-1 text-sm font-bold">No students found</p>
+              <p className="text-xs text-muted-foreground mb-4">Try clearing filters or search query.</p>
+              <Button
+                size="sm"
+                className="smooth-button text-xs font-bold rounded-xl"
+                onClick={() => { setSearchQuery(''); setFilterYear(''); setFilterDept(''); }}
+              >
+                Clear Filters
+              </Button>
+            </Card>
+          )}
+        </main>
+
+        {/* Premium Bottom Sheet Filter */}
+        <Drawer open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+          <DrawerContent className="p-5 space-y-4 rounded-t-[24px] border-t bg-background">
+            <VisuallyHidden>
+              <DrawerTitle>Filters</DrawerTitle>
+              <DrawerDescription>Filter students by year and department</DrawerDescription>
+            </VisuallyHidden>
+            <div className="mx-auto w-12 h-1 bg-muted rounded-full mb-1" />
+            <DrawerTitle className="text-center font-bold text-base text-foreground mb-1">Filters</DrawerTitle>
+            
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Year</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={tempFilterYear === '' ? 'default' : 'outline'}
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => setTempFilterYear('')}
+                  >
+                    All
+                  </Button>
+                  {years.map(year => (
+                    <Button
+                      key={year}
+                      variant={tempFilterYear === year ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-lg text-xs"
+                      onClick={() => setTempFilterYear(year)}
+                    >
+                      {year}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="border-t border-border/40 pt-3.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Department</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={tempFilterDept === '' ? 'default' : 'outline'}
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => setTempFilterDept('')}
+                  >
+                    All
+                  </Button>
+                  {['CSE', 'IT', 'ECE', 'Mechanical', 'Civil'].map(dept => (
+                    <Button
+                      key={dept}
+                      variant={tempFilterDept === dept ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-lg text-xs"
+                      onClick={() => setTempFilterDept(dept)}
+                    >
+                      {dept}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl text-xs font-bold py-5"
+                onClick={() => {
+                  setTempFilterYear('');
+                  setTempFilterDept('');
+                  setFilterYear('');
+                  setFilterDept('');
+                  setIsMobileFilterOpen(false);
+                }}
+              >
+                Reset
+              </Button>
+              <Button
+                className="flex-1 rounded-xl text-xs font-bold py-5 text-white"
+                onClick={() => {
+                  setFilterYear(tempFilterYear);
+                  setFilterDept(tempFilterDept);
+                  setIsMobileFilterOpen(false);
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    );
+  }
+
+  // Render Desktop Layout (100% frozen / unmodified)
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
@@ -105,7 +331,7 @@ export default function SelectStudentPage() {
             <Input
               placeholder="Search by name, ID, or email..."
               value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-12"
             />
           </div>
@@ -121,7 +347,6 @@ export default function SelectStudentPage() {
               <StudentProfileCard
                 key={student.userId}
                 student={student as import('@/lib/students').StudentRecord}
-                /* onSelect removed to prevent impersonation/login switching */
                 onIncrementStats={async (kind) => {
                   const { getCurrentStudentId } = await import('@/lib/statsTracker');
                   const { apiStatsIncrement } = await import('@/lib/api');
@@ -136,7 +361,7 @@ export default function SelectStudentPage() {
             <Users className="w-16 h-16 mx-auto text-muted-foreground opacity-50" />
             <p className="text-lg text-muted-foreground">No students found matching your search</p>
             <Button
-              onClick={() => handleSearch('')}
+              onClick={() => setSearchQuery('')}
               variant="outline"
               className="smooth-button"
             >

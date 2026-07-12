@@ -26,9 +26,11 @@ import {
   Linkedin,
   MessageSquare,
   Bookmark,
+  Github,
 } from 'lucide-react';
 import { getStudentStats, getCurrentStudentId, initializeStudentStats } from '@/lib/statsTracker';
 import type { StudentStats } from '@/lib/statsTracker';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface StudentData {
   name: string;
@@ -43,6 +45,7 @@ interface StudentData {
 }
 
 export default function ProfilePage() {
+  const isMobile = useIsMobile();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [stats, setStats] = useState<StudentStats | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -349,6 +352,350 @@ export default function ProfilePage() {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (isMobile) {
+    if (isEditing) {
+      return (
+        <div className="min-h-screen bg-background pb-20 select-none antialiased">
+          <Navbar />
+          <main className="px-4 py-4 space-y-4">
+            <Card className="p-5 rounded-2xl bg-card border border-border/40 space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-border/20">
+                <h3 className="font-extrabold text-base tracking-tight text-foreground">Edit Profile</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditData({});
+                    setPhotoPreview(studentData.profilePhoto || null);
+                  }}
+                  className="w-8 h-8 rounded-full animate-none"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </div>
+
+              {/* Profile Photo Upload */}
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="relative group">
+                  {(photoPreview || studentData.profilePhoto) ? (
+                    <img
+                      src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
+                      alt={studentData.name}
+                      className="w-20 h-20 rounded-full object-cover border-4 border-primary/30"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
+                      {getInitials(studentData.name)}
+                    </div>
+                  )}
+                  <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Upload className="w-4 h-4 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <span className="text-[10px] text-muted-foreground">Tap photo to upload new avatar</span>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">Name (Read Only)</label>
+                <Input value={studentData.name} disabled className="mt-1 bg-muted/40 rounded-xl" />
+              </div>
+              
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">Email</label>
+                <Input
+                  type="email"
+                  value={editData.email || studentData.email}
+                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">LinkedIn URL</label>
+                <Input
+                  type="url"
+                  value={editData.linkedinUrl || studentData.linkedinUrl || ''}
+                  onChange={(e) => setEditData({ ...editData, linkedinUrl: e.target.value })}
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">GitHub URL</label>
+                <Input
+                  type="url"
+                  value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
+                  onChange={(e) => setEditData({ ...editData, githubUrl: e.target.value })}
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+
+              {/* Skills Editor */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground">Skills</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(editData.skills || studentData.skills || []).map((s) => (
+                    <Badge key={s} variant="secondary" className="flex items-center gap-1 text-[10px] py-1 px-2.5 rounded-lg border-none">
+                      <span>{s}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = (editData.skills || studentData.skills || []).filter(sk => sk !== s);
+                          setEditData({ ...editData, skills: next });
+                        }}
+                        className="text-muted-foreground hover:text-destructive animate-none"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add skill..."
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && skillInput.trim()) {
+                        e.preventDefault();
+                        const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
+                        setEditData({ ...editData, skills: existing });
+                        setSkillInput('');
+                      }
+                    }}
+                    className="h-9 text-xs rounded-xl"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!skillInput.trim()) return;
+                      const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
+                      setEditData({ ...editData, skills: existing });
+                      setSkillInput('');
+                    }}
+                    className="h-9 px-3 rounded-xl font-bold text-xs text-white"
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditData({});
+                    setPhotoPreview(studentData.profilePhoto || null);
+                  }}
+                  variant="outline"
+                  className="flex-1 rounded-xl py-5 font-bold text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={saveProfile} className="flex-1 rounded-xl py-5 font-bold text-xs text-white">
+                  Save
+                </Button>
+              </div>
+            </Card>
+          </main>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-background pb-20 select-none antialiased">
+        <Navbar />
+
+        <main className="px-4 py-4 space-y-5">
+          {/* Main Card */}
+          <Card className="p-5 rounded-2xl bg-card border border-border/40 shadow-sm space-y-4">
+            {/* Image + Info Row */}
+            <div className="flex gap-4 items-center">
+              <div className="relative flex-shrink-0">
+                {(photoPreview || studentData.profilePhoto) ? (
+                  <img
+                    src={photoPreview || studentData.profilePhoto}
+                    alt={studentData.name}
+                    className="w-20 h-20 rounded-full object-cover border border-primary/10"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
+                    {getInitials(studentData.name)}
+                  </div>
+                )}
+                {/* Available for Collaboration Green Dot Indicator */}
+                <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-500 border-2 border-card" />
+              </div>
+
+              <div className="min-w-0 space-y-1 text-left">
+                <h2 className="font-extrabold text-lg text-foreground tracking-tight truncate leading-snug">
+                  {studentData.name}
+                </h2>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {studentData.year} Year • {studentData.department}
+                </p>
+                <p className="text-[10px] text-muted-foreground/80 truncate font-medium">
+                  Sir C.R. Reddy College of Engineering
+                </p>
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-green-500/10 text-green-600 border border-green-500/20 font-bold text-[9px] mt-1.5">
+                  <span className="w-1 h-1 rounded-full bg-green-500" />
+                  Available for Collaboration
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Row */}
+            <div className="grid grid-cols-2 gap-4 py-3 border-t border-b border-border/20 text-center">
+              <div>
+                <div className="font-extrabold text-foreground text-base leading-tight">
+                  {stats.projectsUploaded}
+                </div>
+                <span className="text-[10px] text-muted-foreground font-bold">Projects</span>
+              </div>
+              <div className="border-l border-border/20">
+                <div className="font-extrabold text-foreground text-base leading-tight">
+                  {stats.connections}
+                </div>
+                <span className="text-[10px] text-muted-foreground font-bold">Connections</span>
+              </div>
+            </div>
+
+            {/* Action Buttons Row */}
+            <div className="flex gap-2.5">
+              <Button
+                onClick={() => {
+                  setIsEditing(true);
+                  setEditData({ skills: studentData.skills || [] });
+                }}
+                className="flex-1 bg-primary text-primary-foreground font-bold text-xs h-9.5 rounded-xl border-none shadow-none text-white"
+              >
+                <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+                Edit Profile
+              </Button>
+              <Link href="/saved-projects" className="flex-1">
+                <Button
+                  variant="outline"
+                  className="w-full font-bold text-xs h-9.5 rounded-xl border-border/50 shadow-none text-muted-foreground"
+                >
+                  <Bookmark className="w-3.5 h-3.5 mr-1.5" />
+                  Saved Projects
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
+          {/* Skills Section */}
+          <div className="space-y-2.5 text-left">
+            <h3 className="font-extrabold text-base tracking-tight text-foreground">Skills</h3>
+            {studentData.skills && studentData.skills.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {studentData.skills.map((skill) => (
+                  <Badge key={skill} variant="secondary" className="text-[10px] py-1 px-3 rounded-lg border-none shadow-none font-bold text-foreground">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <Card className="p-4 text-center bg-card/45 border-border/40 rounded-2xl">
+                <p className="text-xs text-muted-foreground">No skills added yet.</p>
+              </Card>
+            )}
+          </div>
+
+          {/* My Projects Scroll List */}
+          <div className="space-y-3 text-left">
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold text-base tracking-tight text-foreground">My Projects</h3>
+              <Badge className="bg-primary/10 text-primary border-none shadow-none font-bold text-[10px] px-2.5 py-0.5 rounded-full">
+                {userProjects.length}
+              </Badge>
+            </div>
+            
+            {userProjects.length > 0 ? (
+              <div className="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 scrollbar-none snap-x snap-mandatory">
+                {userProjects.map((project) => (
+                  <Card
+                    key={project.id}
+                    className="w-[280px] p-4 flex-shrink-0 bg-card/50 border border-border/45 rounded-2xl shadow-sm space-y-3.5 snap-start flex flex-col justify-between"
+                  >
+                    <div className="space-y-1.5">
+                      <h4 className="font-bold text-sm truncate text-foreground leading-snug">{project.title}</h4>
+                      <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
+                        {project.description}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2.5 pt-2 border-t border-border/20">
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold">
+                        <span>{project.category}</span>
+                        <span className="flex items-center gap-0.5">
+                          👍 {project.likes}
+                        </span>
+                      </div>
+
+                      <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="block w-full">
+                        <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
+                          View Project
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="p-6 text-center bg-card/45 border-border/40 rounded-2xl">
+                <p className="text-xs text-muted-foreground">No projects uploaded yet.</p>
+              </Card>
+            )}
+          </div>
+
+          {/* Connect Section */}
+          <div className="space-y-3 pb-6">
+            <h3 className="font-extrabold text-base tracking-tight text-foreground text-center">Connect</h3>
+            <div className="flex gap-4 justify-center items-center pt-1">
+              {studentData.githubUrl && (
+                <a
+                  href={studentData.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full bg-muted/40 hover:bg-muted flex items-center justify-center border border-border/40 active:scale-90 transition-transform"
+                >
+                  <Github className="w-5 h-5 text-foreground" />
+                </a>
+              )}
+              {studentData.linkedinUrl && (
+                <a
+                  href={studentData.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full bg-muted/40 hover:bg-muted flex items-center justify-center border border-border/40 active:scale-90 transition-transform"
+                >
+                  <Linkedin className="w-5 h-5 text-blue-600 fill-blue-600/10" />
+                </a>
+              )}
+              {studentData.email && (
+                <a
+                  href={`mailto:${studentData.email}`}
+                  className="w-12 h-12 rounded-full bg-muted/40 hover:bg-muted flex items-center justify-center border border-border/40 active:scale-90 transition-transform"
+                >
+                  <Mail className="w-5 h-5 text-foreground" />
+                </a>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-bg">

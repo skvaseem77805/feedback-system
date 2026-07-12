@@ -7,17 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, ExternalLink, Heart, Bookmark, Users } from 'lucide-react';
+import { Search, ExternalLink, Heart, Bookmark, Users, Eye } from 'lucide-react';
 import { Suspense } from 'react';
 import { apiProjects, apiLikeProject, apiSaveProject, apiJoinProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import Loading from './loading';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription, DrawerClose } from '@/components/ui/drawer';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 const categories = ['Web Development', 'Mobile App', 'Data Science', 'IoT', 'Machine Learning'];
 const years = ['1st', '2nd', '3rd', 'Final'];
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
+  const isMobile = useIsMobile();
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -25,6 +29,19 @@ export default function ProjectsPage() {
   const [filterYear, setFilterYear] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const currentStudentId = getCurrentStudentId() ?? '';
+
+  // Mobile Filter Bottom Sheet States
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [tempFilterYear, setTempFilterYear] = useState('');
+  const [tempFilterCategory, setTempFilterCategory] = useState('');
+
+  // Sync temp filters when bottom sheet opens
+  useEffect(() => {
+    if (isMobileFilterOpen) {
+      setTempFilterYear(filterYear);
+      setTempFilterCategory(filterCategory);
+    }
+  }, [isMobileFilterOpen]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -183,203 +200,434 @@ export default function ProjectsPage() {
     }
   };
 
-  const toggleCollaboration = async (project: ApiProject) => {
-    if (!currentStudentId) return;
-    try {
-      const res = await apiJoinProject(project.id, currentStudentId);
-      if (res.joined || res.already) {
-        setProjects((prev) =>
-          prev.map((q) =>
-            q.id === project.id
-              ? { ...q, collaborators: q.collaborators.includes(currentStudentId) ? q.collaborators : [...q.collaborators, currentStudentId] }
-              : q
-          )
-        );
-      }
-    } catch (e) {
-      console.error('Join error:', e);
-    }
-  };
-
-  return (
-    <Suspense fallback={<Loading />}>
-      <div className="min-h-screen gradient-bg">
+  // Render Mobile View layout
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background pb-20 select-none antialiased">
         <Navbar />
 
-        <section className="py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-6xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Discover Student Projects
-              </h1>
-              <p className="text-muted-foreground max-w-2xl">
-                Explore amazing projects from students across all years. Like, save, and collaborate on projects that inspire you.
-              </p>
+        <main className="px-4 py-4 space-y-4">
+          {/* Mobile Search and Filter Row */}
+          <div className="flex gap-2.5 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 rounded-xl bg-muted/40 border-border/60 focus:bg-background h-10 text-sm"
+              />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsMobileFilterOpen(true)}
+              className="rounded-xl border-border/60 font-bold text-xs h-10 px-4 flex items-center gap-1.5"
+            >
+              Filter
+              {(filterYear || filterCategory) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              )}
+            </Button>
+          </div>
 
-            {/* Search and Filters */}
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                <Input
-                  placeholder="Search projects by title, description, or student name..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <div>
-                  <p className="text-sm font-medium mb-2">Year</p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={filterYear === '' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterYear('')}
-                    >
-                      All
-                    </Button>
-                    {years.map(year => (
-                      <Button
-                        key={year}
-                        variant={filterYear === year ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setFilterYear(year)}
-                      >
-                        {year}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium mb-2">Category</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={filterCategory === '' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterCategory('')}
-                    >
-                      All
-                    </Button>
-                    {categories.map(cat => (
-                      <Button
-                        key={cat}
-                        variant={filterCategory === cat ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setFilterCategory(cat)}
-                      >
-                        {cat}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+          {/* Project List */}
+          {loading ? (
+            <div className="space-y-4 pt-2">
+              <div className="h-48 w-full bg-muted/40 animate-pulse rounded-2xl" />
+              <div className="h-48 w-full bg-muted/40 animate-pulse rounded-2xl" />
             </div>
+          ) : filteredProjects.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 pt-1">
+              {filteredProjects.map((project) => {
+                const isLiked = !!project.userHasLiked;
+                const isSaved = currentStudentId ? project.savedBy.includes(currentStudentId) : false;
 
-            {/* Projects Grid */}
-            {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading…</div>
-            ) : filteredProjects.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProjects.map((project) => {
-                  const isLiked = !!project.userHasLiked;
-                  const isSaved = currentStudentId ? project.savedBy.includes(currentStudentId) : false;
-                  const hasJoined = currentStudentId ? project.collaborators.includes(currentStudentId) : false;
-
-                  return (
-                    <Card key={project.id} className="p-5 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group flex flex-col">
-                      <div className="flex-1 space-y-3 mb-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-lg group-hover:text-primary smooth-transition line-clamp-2">
-                              {project.title}
-                            </h3>
-                            <p className="text-sm text-muted-foreground mt-1">By {project.studentName}</p>
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleLike(project)}
-                              className={`smooth-transition ${isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'}`}
-                            >
-                              <Heart className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleSave(project)}
-                              className={`smooth-transition ${isSaved ? 'text-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`}
-                            >
-                              <Bookmark className="w-5 h-5" fill={isSaved ? 'currentColor' : 'none'} />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
-                        </div>
+                return (
+                  <Card 
+                    key={project.id} 
+                    className="overflow-hidden rounded-2xl bg-card/45 border border-border/40 shadow-sm flex flex-col active:scale-[0.99] transition-transform duration-100"
+                  >
+                    {project.thumbnailUrl ? (
+                      <div className="w-full aspect-video relative bg-muted/20 border-b border-border/40 flex-shrink-0">
+                        <img
+                          src={project.thumbnailUrl}
+                          alt={project.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        <Badge className="absolute top-3 left-3 bg-black/60 text-white border-none font-bold text-[9px] px-2.5 py-0.5 rounded-full">
+                          {project.category}
+                        </Badge>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleSave(project);
+                          }}
+                          className="absolute top-3 right-3 p-2 bg-black/40 active:bg-black/60 text-white rounded-full backdrop-blur-sm transition-transform active:scale-90"
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-4 pt-4 pb-0 flex justify-between items-start">
+                        <Badge className="bg-primary/10 text-primary border-none font-bold text-[9px] px-2.5 py-0.5 rounded-full shadow-none hover:bg-primary/20">
+                          {project.category}
+                        </Badge>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleSave(project);
+                          }}
+                          className="p-1 text-muted-foreground active:scale-90 transition-transform"
+                        >
+                          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="p-4 space-y-3.5 flex-1 flex flex-col justify-between">
+                      <div className="space-y-1.5">
+                        <h3 className="font-extrabold text-foreground text-sm tracking-tight leading-snug line-clamp-1">
+                          {project.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
+                          {project.description}
+                        </p>
                       </div>
 
-                      {project.thumbnailUrl && (
-                        <div className="w-full h-48 mb-4 rounded-md overflow-hidden bg-muted/20 border border-border/50">
-                          <img
-                            src={project.thumbnailUrl}
-                            alt={project.title}
-                            className="w-full h-full object-cover hover:scale-105 smooth-transition duration-500"
-                            loading="lazy"
-                          />
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium pt-2 border-t border-border/20">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleLike(project);
+                              }}
+                              className="flex items-center gap-0.5 active:scale-90 transition-transform font-bold"
+                            >
+                              <Heart className={`w-3.5 h-3.5 text-red-500 ${isLiked ? 'fill-red-500' : ''}`} />
+                              <span>{project.likes}</span>
+                            </button>
+                            <span className="flex items-center gap-0.5 font-bold">
+                              <Eye className="w-3.5 h-3.5 text-blue-500" />
+                              <span>{project.views ?? 0}</span>
+                            </span>
+                          </div>
+                          
+                          <span className="font-bold text-muted-foreground/80 truncate max-w-[100px]">
+                            By {project.studentName}
+                          </span>
                         </div>
-                      )}
 
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground py-3 border-t border-b border-border/50 mb-4">
-                        <div>
-                          <div className="font-bold text-foreground">{project.likes}</div>
-                          Likes
-                        </div>
-                        <div>
-                          <div className="font-bold text-foreground">{project.views}</div>
-                          Views
-                        </div>
-                        <div>
-                          <div className="font-bold text-foreground">{project.savedBy?.length ?? 0}</div>
-                          Saved
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block">
-                          <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
-                            <ExternalLink className="w-4 h-4" />
+                        <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block w-full">
+                          <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs py-3.5 rounded-xl border-none shadow-none h-9">
                             View Project
                           </Button>
                         </Link>
                       </div>
-                    </Card>
-                  );
-                })}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="p-8 text-center bg-card/45 border-border/40 rounded-2xl">
+              <Search className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-60" />
+              <p className="text-muted-foreground mb-1 text-sm font-bold">No projects found</p>
+              <p className="text-xs text-muted-foreground mb-4">Try clearing filters or search query.</p>
+              <Button
+                size="sm"
+                className="smooth-button text-xs font-bold rounded-xl"
+                onClick={() => { setSearch(''); setFilterYear(''); setFilterCategory(''); }}
+              >
+                Clear Filters
+              </Button>
+            </Card>
+          )}
+        </main>
+
+        {/* Premium Bottom Sheet Filter */}
+        <Drawer open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+          <DrawerContent className="p-5 space-y-4 rounded-t-[24px] border-t bg-background">
+            <VisuallyHidden>
+              <DrawerTitle>Filters</DrawerTitle>
+              <DrawerDescription>Filter projects by year and category</DrawerDescription>
+            </VisuallyHidden>
+            <div className="mx-auto w-12 h-1 bg-muted rounded-full mb-1" />
+            <DrawerTitle className="text-center font-bold text-base text-foreground mb-1">Filters</DrawerTitle>
+            
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Year</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={tempFilterYear === '' ? 'default' : 'outline'}
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => setTempFilterYear('')}
+                  >
+                    All
+                  </Button>
+                  {years.map(year => (
+                    <Button
+                      key={year}
+                      variant={tempFilterYear === year ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-lg text-xs"
+                      onClick={() => setTempFilterYear(year)}
+                    >
+                      {year}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
-                <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-2 text-lg font-semibold">No matching projects found.</p>
-                <p className="text-muted-foreground text-sm mb-6">Try searching by project title, student name, student ID, or category.</p>
-                <Button
-                  className="smooth-button bg-primary text-primary-foreground"
-                  onClick={() => { setSearch(''); setFilterYear(''); setFilterCategory(''); }}
-                >
-                  Clear Filters
-                </Button>
-              </Card>
-            )}
-          </div>
-        </section>
+              
+              <div className="border-t border-border/40 pt-3.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Category</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={tempFilterCategory === '' ? 'default' : 'outline'}
+                    size="sm"
+                    className="rounded-lg text-xs"
+                    onClick={() => setTempFilterCategory('')}
+                  >
+                    All
+                  </Button>
+                  {categories.map(cat => (
+                    <Button
+                      key={cat}
+                      variant={tempFilterCategory === cat ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-lg text-xs"
+                      onClick={() => setTempFilterCategory(cat)}
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl text-xs font-bold py-5"
+                onClick={() => {
+                  setTempFilterYear('');
+                  setTempFilterCategory('');
+                  setFilterYear('');
+                  setFilterCategory('');
+                  setIsMobileFilterOpen(false);
+                }}
+              >
+                Reset
+              </Button>
+              <Button
+                className="flex-1 rounded-xl text-xs font-bold py-5 text-white"
+                onClick={() => {
+                  setFilterYear(tempFilterYear);
+                  setFilterCategory(tempFilterCategory);
+                  setIsMobileFilterOpen(false);
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
+    );
+  }
+
+  // Render Desktop Layout (100% frozen / unmodified)
+  return (
+    <div className="min-h-screen gradient-bg">
+      <Navbar />
+
+      <section className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Discover Student Projects
+            </h1>
+            <p className="text-muted-foreground max-w-2xl">
+              Explore amazing projects from students across all years. Like, save, and collaborate on projects that inspire you.
+            </p>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+              <Input
+                placeholder="Search projects by title, description, or student name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-medium mb-2">Year</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={filterYear === '' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterYear('')}
+                  >
+                    All
+                  </Button>
+                  {years.map(year => (
+                    <Button
+                      key={year}
+                      variant={filterYear === year ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterYear(year)}
+                    >
+                      {year}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Category</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={filterCategory === '' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterCategory('')}
+                  >
+                    All
+                  </Button>
+                  {categories.map(cat => (
+                    <Button
+                      key={cat}
+                      variant={filterCategory === cat ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterCategory(cat)}
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Projects Grid */}
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading…</div>
+          ) : filteredProjects.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project) => {
+                const isLiked = !!project.userHasLiked;
+                const isSaved = currentStudentId ? project.savedBy.includes(currentStudentId) : false;
+
+                return (
+                  <Card key={project.id} className="p-5 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group flex flex-col">
+                    <div className="flex-1 space-y-3 mb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-lg group-hover:text-primary smooth-transition line-clamp-2">
+                            {project.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">By {project.studentName}</p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleLike(project)}
+                            className={`smooth-transition ${isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'}`}
+                          >
+                            <Heart className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleSave(project)}
+                            className={`smooth-transition ${isSaved ? 'text-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`}
+                          >
+                            <Bookmark className="w-5 h-5" fill={isSaved ? 'currentColor' : 'none'} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
+                      </div>
+                    </div>
+
+                    {project.thumbnailUrl && (
+                      <div className="w-full h-48 mb-4 rounded-md overflow-hidden bg-muted/20 border border-border/50">
+                        <img
+                          src={project.thumbnailUrl}
+                          alt={project.title}
+                          className="w-full h-full object-cover hover:scale-105 smooth-transition duration-500"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground py-3 border-t border-b border-border/50 mb-4">
+                      <div>
+                        <div className="font-bold text-foreground">{project.likes}</div>
+                        Likes
+                      </div>
+                      <div>
+                        <div className="font-bold text-foreground">{project.views}</div>
+                        Views
+                      </div>
+                      <div>
+                        <div className="font-bold text-foreground">{project.savedBy?.length ?? 0}</div>
+                        Saved
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block">
+                        <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
+                          <ExternalLink className="w-4 h-4" />
+                          View Project
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20">
+              <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-2 text-lg font-semibold">No matching projects found.</p>
+              <p className="text-muted-foreground text-sm mb-6">Try searching by project title, student name, student ID, or category.</p>
+              <Button
+                className="smooth-button bg-primary text-primary-foreground"
+                onClick={() => { setSearch(''); setFilterYear(''); setFilterCategory(''); }}
+              >
+                Clear Filters
+              </Button>
+            </Card>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ProjectsPageContent />
     </Suspense>
   );
 }

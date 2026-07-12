@@ -1,19 +1,23 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 
 /**
  * Hook for context-aware origin-based Back navigation.
  * Uses query parameter `?from=...` to determine the exact previous page
  * and falls back to browser history or default fallback when not available.
+ * Reads search parameters directly from the browser window object to avoid Next.js build-time de-optimization.
  */
 export function useSafeBack() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const safeBack = useCallback((fallbackRoute: string = '/projects') => {
-    const from = searchParams.get('from');
+    let from: string | null = null;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      from = params.get('from');
+    }
 
     if (from === 'profile') {
       router.push('/profile');
@@ -36,7 +40,7 @@ export function useSafeBack() {
         router.push(fallbackRoute);
       }
     }
-  }, [router, searchParams]);
+  }, [router]);
 
   return safeBack;
 }

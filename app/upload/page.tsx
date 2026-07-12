@@ -1,10 +1,7 @@
 'use client';
 
-import React from "react"
-
-import { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -24,8 +21,9 @@ interface FormData {
   thumbnailUrl?: string;
 }
 
-export default function UploadPage() {
+function UploadPageContent() {
   const router = useRouter();
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
@@ -81,7 +79,6 @@ export default function UploadPage() {
     const adminId = localStorage.getItem('adminId');
     const userType = localStorage.getItem('userType');
 
-    // Check if any user type is logged in
     const authenticated = !!(studentId || staffId || adminId || userType);
     setIsLoggedIn(authenticated);
     setIsLoading(false);
@@ -148,8 +145,6 @@ export default function UploadPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("UPLOAD BUTTON CLICKED");
-
     e.preventDefault();
     setError('');
 
@@ -257,7 +252,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10 pb-20">
       <Navbar />
 
       <section className="py-12 px-4 sm:px-6 lg:px-8">
@@ -543,5 +538,17 @@ export default function UploadPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    }>
+      <UploadPageContent />
+    </React.Suspense>
   );
 }

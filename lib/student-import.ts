@@ -7,7 +7,7 @@ export interface StudentImportPreviewRow {
   branch: string;
   email: string;
   phone: string;
-  status: 'new' | 'update' | 'invalid';
+  status: 'new' | 'update' | 'updated' | 'UPDATED' | 'invalid';
   existing: boolean;
   errors: string[];
   valid: boolean;
@@ -76,62 +76,130 @@ function normalizePhone(value: unknown): string {
   return normalizeText(value);
 }
 
+export function normalizeRowKeys(row: Record<string, unknown>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const cleanKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Roll Number (Explicitly exclude uniqueId and userId)
+    if ([
+      'regno', 'rollno', 'rollnumber', 'registrationno', 'registrationnumber', 
+      'studentid', 'id', 'regdno', 'registration', 'roll'
+    ].includes(cleanKey) && cleanKey !== 'uniqueid' && cleanKey !== 'userid') {
+      normalized.rollNumber = value;
+    }
+    // Name
+    else if (['studentname', 'name', 'fullname'].includes(cleanKey)) {
+      normalized.name = value;
+    }
+    // Department
+    else if (['deptcode', 'department', 'dept', 'branch', 'course'].includes(cleanKey)) {
+      normalized.branch = value;
+    }
+    // Year
+    else if (['year', 'academicyear', 'studyyear', 'yearofstudy'].includes(cleanKey)) {
+      normalized.year = value;
+    }
+    // Email
+    else if (['email', 'emailaddress', 'mail'].includes(cleanKey)) {
+      normalized.email = value;
+    }
+    // Phone / Mobile (Keep but ignore for validation)
+    else if (['phone', 'phonenumber', 'mobile', 'mobileno', 'contactnumber'].includes(cleanKey)) {
+      normalized.phone = value;
+    }
+    
+    // Preserve original key
+    normalized[key] = value;
+  }
+  return normalized;
+}
+
 export function buildStudentImportPreviewRows(
   rows: Record<string, unknown>[],
   existingRollNumbers: Set<string>
 ): StudentImportPreviewRow[] {
   const seenRollNumbers = new Set<string>();
   return rows.map((row, index) => {
-    const rollNumber = normalizeRollNumber(
-      row.rollNumber ?? row.roll_no ?? row.roll ?? row.registrationNo ?? row.registration_no ?? row.studentId ?? row.id ?? row.rollno ?? row.roll_number ?? ''
-    );
-    const name = normalizeText(
-      row.studentName ?? row.name ?? row.fullName ?? row.student_name ?? row.full_name ?? ''
-    );
-    const yearInfo = normalizeYear(
-      row.year ?? row.academicYear ?? row.yearOfStudy ?? row.studyYear ?? ''
-    );
-    const branch = normalizeBranch(
-      row.branch ?? row.department ?? row.course ?? row.branchName ?? ''
-    );
-    const email = normalizeEmail(
-      row.email ?? row.emailId ?? row.studentEmail ?? ''
-    );
-    const phone = normalizePhone(
-      row.phone ?? row.phoneNumber ?? row.mobile ?? row.mobileNo ?? row.contactNumber ?? ''
-    );
+    // 1. Normalize the row keys
+    const normalizedRow = normalizeRowKeys(row);
 
+    // 2. Convert parsed row into normalized student object
+    const student = {
+      rollNumber: normalizeRollNumber(normalizedRow.rollNumber ?? ''),
+      name: normalizeText(normalizedRow.name ?? ''),
+      department: normalizeBranch(normalizedRow.branch ?? ''),
+      yearInfo: normalizeYear(normalizedRow.year ?? ''),
+      email: normalizeEmail(normalizedRow.email ?? '')
+    };
+
+    const phone = normalizePhone(normalizedRow.phone ?? '');
+
+    const department = student.department;
+    const year = student.yearInfo.year;
+    console.log({
+      rawRow: row,
+      rollNumber: student.rollNumber,
+      name: student.name,
+      department,
+      year,
+      email: student.email
+    });
+
+    // 3. Run validation ONLY on this normalized object
     const errors: string[] = [];
-    if (!rollNumber) errors.push('Roll number is required');
-    if (!name) errors.push('Student name is required');
-    if (!yearInfo.year) errors.push('Valid year is required');
-    if (!branch) errors.push('Branch is required');
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Email format is invalid');
-    if (phone && !/^\+?[0-9\-\s]{7,15}$/.test(phone)) errors.push('Phone format is invalid');
+    const isExisting = student.rollNumber && existingRollNumbers.has(student.rollNumber);
 
-    if (rollNumber && seenRollNumbers.has(rollNumber)) {
+    if (!student.rollNumber) errors.push('Roll number is required');
+    if (!student.name) errors.push('Student name is required');
+    if (!student.yearInfo.year) errors.push('Valid year is required');
+    if (!student.department) errors.push('Branch is required');
+    
+    // Validate email format ONLY when a non-empty, non-whitespace email value exists
+    const emailVal = student.email ? student.email.trim() : '';
+    if (emailVal && emailVal !== 'null' && emailVal !== 'undefined') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+        errors.push('Email format is invalid');
+      }
+    }
+
+    if (student.rollNumber && seenRollNumbers.has(student.rollNumber)) {
       errors.push('Duplicate roll number in uploaded file');
-    } else if (rollNumber) {
-      seenRollNumbers.add(rollNumber);
+    } else if (student.rollNumber) {
+      seenRollNumbers.add(student.rollNumber);
     }
 
-    if (rollNumber && existingRollNumbers.has(rollNumber)) {
-      errors.push('Existing student record will be updated');
+    // Determine if row is valid:
+    // It is valid if there are no critical validation errors
+    const isValid = errors.length === 0;
+
+    // If it's valid, but already exists in the database, we add the info message
+    if (isValid && isExisting) {
+      errors.push('Existing student record will be updated.');
     }
 
+    // Determine status
+    let status: 'new' | 'update' | 'updated' | 'UPDATED' | 'invalid' = 'new';
+    if (!isValid) {
+      status = 'invalid';
+    } else if (isExisting) {
+      status = 'UPDATED';
+    }
+
+    // 4. Return formatted StudentImportPreviewRow
     return {
       rowNumber: index + 2,
-      rollNumber,
-      name,
-      year: yearInfo.year,
-      yearLabel: yearInfo.yearLabel,
-      branch,
-      email,
-      phone,
-      status: errors.length > 0 ? 'invalid' : existingRollNumbers.has(rollNumber) ? 'update' : 'new',
-      existing: existingRollNumbers.has(rollNumber),
+      rollNumber: student.rollNumber,
+      name: student.name,
+      year: student.yearInfo.year,
+      yearLabel: student.yearInfo.yearLabel,
+      branch: student.department,
+      email: student.email,
+      phone: phone,
+      status: status,
+      existing: !!isExisting,
       errors,
-      valid: errors.length === 0,
+      valid: isValid,
     };
   });
 }

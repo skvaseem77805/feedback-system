@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ChevronLeft, Upload, Download, Search, Pencil, Trash2, Eye, FileSpreadsheet, FileText, FileUp } from 'lucide-react';
+import { ChevronLeft, Upload, Download, Search, Pencil, Trash2, Eye, FileSpreadsheet, FileText, FileUp, Plus } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 
 interface StudentRow {
   id: string;
@@ -34,7 +36,7 @@ interface PreviewRow {
   branch: string;
   email: string;
   phone: string;
-  status: 'new' | 'update' | 'invalid';
+  status: 'new' | 'update' | 'updated' | 'UPDATED' | 'invalid';
   existing: boolean;
   errors: string[];
   valid: boolean;
@@ -47,6 +49,9 @@ export default function AdminStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ rollNumber: '', name: '', department: '', year: '', email: '' });
+  const [addLoading, setAddLoading] = useState(false);
   const [yearFilter, setYearFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [sortField, setSortField] = useState('name');
@@ -248,11 +253,53 @@ export default function AdminStudentsPage() {
     await loadStudents();
   };
 
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddLoading(true);
+    try {
+      const headers = {
+        'x-admin-auth': 'true',
+        'x-admin-email': localStorage.getItem('adminEmail') || '',
+        'x-admin-id': localStorage.getItem('adminId') || '',
+        'Content-Type': 'application/json',
+      };
+      const res = await fetch('/api/admin/students/import', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          rollNumber: addForm.rollNumber,
+          name: addForm.name,
+          department: addForm.department,
+          year: addForm.year,
+          email: addForm.email || null,
+          confirm: true
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message || data.error || 'Failed to add student');
+        setAddLoading(false);
+        return;
+      }
+
+      toast.success('Student added successfully.');
+      setShowAddModal(false);
+      setAddForm({ rollNumber: '', name: '', department: '', year: '', email: '' });
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   if (!authorized) return null;
 
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
+      <Toaster />
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center gap-4 mb-8">
           <Link href="/">
@@ -272,6 +319,7 @@ export default function AdminStudentsPage() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={downloadTemplate}><Download className="w-4 h-4 mr-2" />Download Template</Button>
                 <Button variant="outline" onClick={exportStudents}><FileSpreadsheet className="w-4 h-4 mr-2" />Export Students</Button>
+                <Button variant="outline" onClick={() => setShowAddModal(true)}><Plus className="w-4 h-4 mr-2" />Add Student</Button>
               </div>
               <input
                 ref={fileInputRef}
@@ -457,6 +505,78 @@ export default function AdminStudentsPage() {
               <Button variant="outline" onClick={() => setShowPreview(false)}>Cancel</Button>
               <Button onClick={confirmImport} disabled={importing}>{importing ? 'Importing...' : 'Confirm Import'}</Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+          <DialogContent className="max-w-md w-full p-6">
+            <DialogHeader>
+              <DialogTitle>Add Student</DialogTitle>
+              <DialogDescription>
+                Fill in the details below to add a new student.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Roll Number *</label>
+                <Input
+                  required
+                  value={addForm.rollNumber}
+                  onChange={(e) => setAddForm({ ...addForm, rollNumber: e.target.value })}
+                  placeholder="e.g. 24B81A05Q5"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Student Name *</label>
+                <Input
+                  required
+                  value={addForm.name}
+                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                  placeholder="e.g. NALLA NEELIMA"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Department *</label>
+                <Input
+                  required
+                  value={addForm.department}
+                  onChange={(e) => setAddForm({ ...addForm, department: e.target.value })}
+                  placeholder="e.g. CSE"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Year *</label>
+                <select
+                  required
+                  value={addForm.year}
+                  onChange={(e) => setAddForm({ ...addForm, year: e.target.value })}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Select Year</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">Final Year</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Email (Optional)</label>
+                <Input
+                  value={addForm.email}
+                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  placeholder="e.g. student@example.com"
+                  type="email"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={addLoading}>
+                  {addLoading ? 'Saving...' : 'Add Student'}
+                </Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
 

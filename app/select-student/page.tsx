@@ -24,6 +24,7 @@ function toRecord(s: ApiStudent) {
     section: s.section,
     linkedinUrl: s.linkedinUrl,
     githubUrl: s.githubUrl,
+    avatar: s.avatar,
   };
 }
 

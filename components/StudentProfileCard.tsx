@@ -61,16 +61,24 @@ export function StudentProfileCard({
   return (
     <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group overflow-hidden">
       <div className="space-y-4">
-        {/* Header with initials */}
+        {/* Header with initials or photo */}
         <div className="flex items-start justify-between">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
-            {student.name
-              .split(' ')
-              .map(n => n[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2)}
-          </div>
+          {student.avatar ? (
+            <img
+              src={student.avatar}
+              alt={student.name}
+              className="w-12 h-12 rounded-full object-cover border border-primary/20"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
+              {student.name
+                .split(' ')
+                .map(n => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2)}
+            </div>
+          )}
           <Badge className="bg-primary/20 text-primary text-xs">
             {student.department}
           </Badge>

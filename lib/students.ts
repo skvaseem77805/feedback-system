@@ -12,6 +12,7 @@ export interface StudentRecord {
   section: string;
   linkedinUrl?: string;
   githubUrl?: string;
+  avatar?: string;
 }
 
 // Parse CSV data into structured format

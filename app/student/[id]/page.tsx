@@ -17,6 +17,7 @@ import {
     ArrowLeft,
     Calendar,
     Linkedin,
+    Github,
     MessageSquare,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -176,7 +177,7 @@ export default function PublicStudentProfile() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             {student.linkedinUrl ? (
                                 <Button
                                     onClick={() => window.open(student.linkedinUrl, '_blank')}
@@ -189,6 +190,22 @@ export default function PublicStudentProfile() {
                                 <Button disabled variant="outline" className="opacity-50">
                                     <Linkedin className="w-4 h-4 mr-2" />
                                     No LinkedIn
+                                </Button>
+                            )}
+                            {student.githubUrl ? (
+                                <Button
+                                    asChild
+                                    className="smooth-button bg-gray-800 text-white hover:bg-gray-900"
+                                >
+                                    <a href={student.githubUrl} target="_blank" rel="noopener noreferrer">
+                                        <Github className="w-4 h-4 mr-2" />
+                                        GitHub
+                                    </a>
+                                </Button>
+                            ) : (
+                                <Button disabled variant="outline" className="opacity-50">
+                                    <Github className="w-4 h-4 mr-2" />
+                                    No GitHub
                                 </Button>
                             )}
                         </div>

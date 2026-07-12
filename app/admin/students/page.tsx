@@ -42,6 +42,7 @@ interface PreviewRow {
 
 export default function AdminStudentsPage() {
   const router = useRouter();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -272,10 +273,32 @@ export default function AdminStudentsPage() {
                 <Button variant="outline" onClick={downloadTemplate}><Download className="w-4 h-4 mr-2" />Download Template</Button>
                 <Button variant="outline" onClick={exportStudents}><FileSpreadsheet className="w-4 h-4 mr-2" />Export Students</Button>
               </div>
-              <label className="cursor-pointer">
-                <input type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] || null)} />
-                <Button variant="default"><Upload className="w-4 h-4 mr-2" />Import Students</Button>
-              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (file) {
+                    console.log("Selected filename:", file.name);
+                    console.log("File type:", file.type);
+                    console.log("File size:", file.size);
+                  }
+                  handleFile(file);
+                }}
+              />
+              <Button
+                variant="default"
+                onClick={() => {
+                  console.log("Import Students clicked");
+                  console.log(fileInputRef.current);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import Students
+              </Button>
             </div>
             <div
               className={`mb-4 rounded-xl border border-dashed p-4 text-sm transition ${dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}`}
@@ -296,10 +319,17 @@ export default function AdminStudentsPage() {
                   <p className="font-medium">Drop student files here or browse manually</p>
                   <p className="text-muted-foreground">Supports CSV, Excel and structured PDF files.</p>
                 </div>
-                <label className="cursor-pointer">
-                  <input type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] || null)} />
-                  <Button variant="outline"><Upload className="w-4 h-4 mr-2" />Browse Files</Button>
-                </label>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log("Browse Files clicked");
+                    console.log(fileInputRef.current);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Browse Files
+                </Button>
               </div>
             </div>
             <div className="relative mb-4">

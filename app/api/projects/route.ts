@@ -109,12 +109,13 @@ export async function GET(request: NextRequest) {
     });
     return Response.json(projects);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
 
     return Response.json(
       {
         error: 'Database error',
+        details: error?.message || String(error),
       },
       {
         status: 500,

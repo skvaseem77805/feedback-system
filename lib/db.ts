@@ -10,11 +10,11 @@ function getConfig(): mysql.ConnectionOptions {
     try {
       const u = new URL(rawUrl);
       return {
-        host: u.hostname,
+        host: decodeURIComponent(u.hostname),
         port: parseInt(u.port || '3306', 10),
-        user: u.username,
-        password: u.password,
-        database: u.pathname?.replace(/^\//, '') || 'feedback_system',
+        user: decodeURIComponent(u.username),
+        password: decodeURIComponent(u.password),
+        database: decodeURIComponent(u.pathname?.replace(/^\//, '') || 'feedback_system'),
       };
     } catch {
       // fall through to MYSQL_*

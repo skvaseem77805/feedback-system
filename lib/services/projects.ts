@@ -38,8 +38,8 @@ export async function getProjects(opts: { studentId?: string; category?: string;
   const params: any[] = [];
   if (opts.studentId) {
     if (opts.forUserId && opts.forUserId === opts.studentId) {
-      sql += ` AND p.id IN (SELECT project_id FROM collaborators WHERE student_id = ? AND status = 'ACCEPTED')`;
-      params.push(opts.studentId);
+      sql += ` AND (p.student_id = ? OR p.id IN (SELECT project_id FROM collaborators WHERE student_id = ? AND status = 'ACCEPTED'))`;
+      params.push(opts.studentId, opts.studentId);
     } else {
       sql += ` AND (p.student_id = ? OR p.id IN (SELECT project_id FROM collaborators WHERE student_id = ? AND status = 'ACCEPTED' AND is_reposted = 1))`;
       params.push(opts.studentId, opts.studentId);
@@ -50,7 +50,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
     params.push(opts.category);
   }
 
-  sql += ` GROUP BY p.id`;
+  sql += ` GROUP BY p.id, s.name, s.year, s.department`;
 
   if (opts.sort === 'trending') {
     sql += ` ORDER BY (
@@ -142,7 +142,7 @@ export async function getProjectById(id: string, forUserId?: string) {
       LEFT JOIN project_likes pl ON pl.project_id = p.id
       LEFT JOIN collaborators c ON c.project_id = p.id AND c.role = 'COLLABORATOR'
       WHERE p.id = ?
-      GROUP BY p.id
+      GROUP BY p.id, s.name, s.year
     `;
 
     let row: any = null;

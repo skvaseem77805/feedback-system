@@ -252,7 +252,7 @@ export default function AuthPage() {
           // ignore cookie errors
         }
 
-        router.push('/admin/feedback');
+        router.push('/admin/students');
       } else {
         if (result.reason === 'not_found') {
           setError('Admin account not found.');

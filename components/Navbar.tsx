@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
-import { Compass, Upload, Users, LogOut, LogIn, Zap, Brain, User, Network, MessageSquare, Send, Building2, LayoutDashboard, Menu, X, GraduationCap, Search, Bookmark, Bell } from 'lucide-react';
+import { Compass, Upload, Users, LogOut, LogIn, Zap, Brain, User, Network, MessageSquare, Send, Building2, Menu, X, GraduationCap, Search, Bookmark, Bell } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerClose, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
@@ -74,11 +74,6 @@ export function Navbar() {
   const isLoggedIn = userType === 'student' || userType === 'staff' || userType === 'admin';
 
   const adminNavItems = [
-    {
-      href: '/admin/feedback',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-    },
     {
       href: '/admin/students',
       label: 'Student Management',
@@ -353,20 +348,7 @@ export function Navbar() {
               <div className="p-4 space-y-2">
                 {userType === 'admin' ? (
                   <> 
-                    <Link href="/admin/feedback">
-                      <Button 
-                        variant={pathname === '/admin/feedback' ? 'secondary' : 'ghost'} 
-                        size="sm" 
-                        className={`w-full justify-start gap-2 smooth-transition ${
-                          pathname === '/admin/feedback' 
-                            ? 'bg-blue-50 text-blue-600 border-2 border-blue-600 rounded-full font-semibold hover:bg-blue-100' 
-                            : ''
-                        }`}
-                      >
-                        <LayoutDashboard className={`w-4 h-4 ${pathname === '/admin/feedback' ? 'text-blue-600' : ''}`} />
-                        Dashboard
-                      </Button>
-                    </Link>
+
                     <Link href="/admin/students">
                       <Button 
                         variant={pathname === '/admin/students' ? 'secondary' : 'ghost'} 

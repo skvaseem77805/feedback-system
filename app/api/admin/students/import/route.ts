@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getPool, query } from '@/lib/db';
 import { isAdminAuthorized } from '@/lib/admin-auth';
-import { buildStudentImportPreviewRows, extractRowsFromPdfText, normalizeRowKeys } from '@/lib/student-import';
+import { buildStudentImportPreviewRows, extractRowsFromPdfText, normalizeRowKeys, toYearLabel } from '@/lib/student-import';
 import * as XLSX from 'xlsx';
 
 function getFileType(fileName: string): 'excel' | 'csv' | 'pdf' | 'unknown' {
@@ -282,15 +282,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const validItems = preview.filter(row => row.valid);
-    if (validItems.length === 0) {
-      return send400(
-        "Validation failed",
-        "No valid rows found to import.",
-        invalidRows.map(r => `Row ${r.rowNumber}: ${r.errors.join(', ')}`)
-      );
-    }
-
     console.log("Database connection status: Connecting...");
     const pool = getPool();
     const connection = await pool.getConnection();
@@ -302,72 +293,316 @@ export async function POST(request: NextRequest) {
       await connection.beginTransaction();
       console.log("Transaction started? YES");
 
-      let imported = 0;
-      let updated = 0;
-      let skipped = invalidRows.length;
-      let errors = invalidRows.length;
+      // Extract unique roll numbers to query
+      const rollNumbersToQuery = Array.from(new Set(rows.map(r => {
+        const normalized = normalizeRowKeys(r);
+        const roll = typeof normalized.rollNumber === 'string' 
+          ? normalized.rollNumber.trim().toUpperCase().replace(/[^A-Z0-9._-]/g, '') 
+          : '';
+        return roll;
+      }).filter(Boolean)));
 
-      validItems.forEach(item => {
-        if (existingRollNumbers.has(item.rollNumber)) {
-          updated += 1;
-        } else {
-          imported += 1;
+      let existingStudents: any[] = [];
+      if (rollNumbersToQuery.length > 0) {
+        const [dbRows] = await connection.query(
+          'SELECT id, name, year, course, email, mobile_no, department, section FROM students WHERE id IN (?)',
+          [rollNumbersToQuery]
+        );
+        existingStudents = dbRows as any[];
+      }
+      const existingMap = new Map<string, any>();
+      existingStudents.forEach(s => {
+        existingMap.set(String(s.id).toUpperCase(), s);
+      });
+
+      // Get all emails from DB to check for duplicate emails
+      const [allEmailsRows] = await connection.query(
+        'SELECT id, email FROM students WHERE email IS NOT NULL AND email != ""'
+      );
+      const dbEmailMap = new Map<string, string>();
+      (allEmailsRows as any[]).forEach(r => {
+        if (r.email) {
+          dbEmailMap.set(String(r.email).trim().toLowerCase(), String(r.id).toUpperCase());
         }
       });
 
-      const chunkSize = 1000;
-      for (let i = 0; i < validItems.length; i += chunkSize) {
-        const chunk = validItems.slice(i, i + chunkSize);
-        
-        const studentValues = chunk.map(item => [
-          item.rollNumber,
-          item.name,
-          item.rollNumber,
-          item.rollNumber,
-          item.year,
-          item.branch,
-          item.email || '',
-          item.phone || '',
-          item.branch,
-          'E',
-          null
-        ]);
+      const importedList: any[] = [];
+      const updatedList: any[] = [];
+      const skippedList: any[] = [];
+      const errorsList: any[] = [];
 
-        console.log("SQL Query: INSERT INTO students... (Bulk insert chunk size: " + chunk.length + ")");
-        console.log("SQL parameters (first item preview):", studentValues[0]);
+      const seenRollNumbers = new Set<string>();
+      const seenEmails = new Set<string>();
+
+      for (const rawRow of rows) {
+        // Check if row is completely empty
+        const isEmpty = !Object.values(rawRow).some(val => String(val ?? '').trim() !== '');
+        if (isEmpty) {
+          skippedList.push({
+            rollNo: '',
+            name: '',
+            email: '',
+            branch: '',
+            year: '',
+            reason: 'Empty Row'
+          });
+          continue;
+        }
+
+        const normalizedRow = normalizeRowKeys(rawRow);
+        const rawRoll = String(normalizedRow.rollNumber ?? '').trim();
+        const rollNo = rawRoll.toUpperCase().replace(/[^A-Z0-9._-]/g, '');
+        const name = String(normalizedRow.name ?? '').trim();
+        const branch = String(normalizedRow.branch ?? '').trim().replace(/\s+/g, ' ');
+
+        // Normalize year
+        const rawYear = String(normalizedRow.year ?? '').trim().toLowerCase().replace(/\s+/g, '');
+        let yearNum: number | null = null;
+        let yearLabel = '';
+        const yearMapping: Record<string, number> = {
+          '1': 1, '1st': 1, 'first': 1,
+          '2': 2, '2nd': 2, 'second': 2,
+          '3': 3, '3rd': 3, 'third': 3,
+          '4': 4, '4th': 4, 'final': 4, 'finalyear': 4
+        };
+        if (yearMapping[rawYear] !== undefined) {
+          yearNum = yearMapping[rawYear];
+          yearLabel = toYearLabel(yearNum);
+        } else {
+          const numeric = Number.parseInt(rawYear, 10);
+          if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 4) {
+            yearNum = numeric;
+            yearLabel = toYearLabel(yearNum);
+          }
+        }
+
+        const email = String(normalizedRow.email ?? '').trim().toLowerCase();
+        const phone = String(normalizedRow.phone ?? '').trim();
+        const section = String(normalizedRow.section ?? 'E').trim();
+
+        // Determine structural/validation errors
+        let errorReason = '';
+        if (!rawRoll || !rollNo) {
+          errorReason = 'Roll Number Missing';
+        } else if (!name) {
+          errorReason = 'Name Missing';
+        } else if (normalizedRow.year === undefined || normalizedRow.year === null || String(normalizedRow.year).trim() === '') {
+          errorReason = 'Required Field Missing';
+        } else if (!yearNum) {
+          errorReason = 'Invalid Year';
+        } else if (normalizedRow.branch === undefined || normalizedRow.branch === null || String(normalizedRow.branch).trim() === '') {
+          errorReason = 'Required Field Missing';
+        } else if (!branch) {
+          errorReason = 'Invalid Branch';
+        } else if (email && email !== 'null' && email !== 'undefined') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errorReason = 'Invalid Email';
+          }
+        }
+
+        if (errorReason) {
+          errorsList.push({
+            rollNo: rollNo || rawRoll || '',
+            name: name || '',
+            email: email || '',
+            branch: branch || '',
+            year: yearLabel || String(normalizedRow.year || ''),
+            reason: errorReason
+          });
+          continue;
+        }
+
+        // Duplicate checks
+        if (seenRollNumbers.has(rollNo)) {
+          skippedList.push({
+            rollNo,
+            name,
+            email,
+            branch,
+            year: yearLabel,
+            reason: 'Duplicate Roll Number'
+          });
+          continue;
+        }
+        seenRollNumbers.add(rollNo);
+
+        if (email && email !== 'null' && email !== 'undefined') {
+          if (seenEmails.has(email)) {
+            skippedList.push({
+              rollNo,
+              name,
+              email,
+              branch,
+              year: yearLabel,
+              reason: 'Duplicate Email'
+            });
+            continue;
+          }
+          seenEmails.add(email);
+
+          if (dbEmailMap.has(email) && dbEmailMap.get(email) !== rollNo) {
+            skippedList.push({
+              rollNo,
+              name,
+              email,
+              branch,
+              year: yearLabel,
+              reason: 'Duplicate Email'
+            });
+            continue;
+          }
+        }
+
+        if (!existingMap.has(rollNo)) {
+          importedList.push({
+            rollNo,
+            name,
+            email,
+            branch,
+            year: yearLabel,
+            importedAt: new Date().toISOString(),
+            rawValues: {
+              rollNumber: rollNo,
+              name,
+              year: yearNum,
+              branch,
+              email,
+              phone,
+              section
+            }
+          });
+        } else {
+          const dbStudent = existingMap.get(rollNo);
+          const changes: any[] = [];
+
+          if (dbStudent.name !== name) {
+            changes.push({ field: 'Student Name', oldValue: dbStudent.name, newValue: name });
+          }
+          if (Number(dbStudent.year) !== yearNum) {
+            changes.push({ field: 'Year', oldValue: toYearLabel(Number(dbStudent.year)), newValue: yearLabel });
+          }
+          if (dbStudent.department !== branch) {
+            changes.push({ field: 'Branch', oldValue: dbStudent.department, newValue: branch });
+          }
+          if ((dbStudent.email || '') !== email) {
+            changes.push({ field: 'Email', oldValue: dbStudent.email || '', newValue: email });
+          }
+          if ((dbStudent.mobile_no || '') !== phone) {
+            changes.push({ field: 'Phone', oldValue: dbStudent.mobile_no || '', newValue: phone });
+          }
+          if (dbStudent.section !== section) {
+            changes.push({ field: 'Section', oldValue: dbStudent.section, newValue: section });
+          }
+
+          if (changes.length === 0) {
+            skippedList.push({
+              rollNo,
+              name,
+              email,
+              branch,
+              year: yearLabel,
+              reason: 'Already Exists'
+            });
+          } else {
+            updatedList.push({
+              rollNo,
+              name,
+              updatedAt: new Date().toISOString(),
+              changes,
+              rawValues: {
+                rollNumber: rollNo,
+                name,
+                year: yearNum,
+                branch,
+                email,
+                phone,
+                section
+              }
+            });
+          }
+        }
+      }
+
+      // Execute SQL operations inside transaction
+      if (importedList.length > 0) {
+        const chunkSize = 1000;
+        for (let i = 0; i < importedList.length; i += chunkSize) {
+          const chunk = importedList.slice(i, i + chunkSize);
+          const studentValues = chunk.map(item => [
+            item.rawValues.rollNumber,
+            item.rawValues.name,
+            item.rawValues.rollNumber,
+            item.rawValues.rollNumber,
+            item.rawValues.year,
+            item.rawValues.branch,
+            item.rawValues.email || '',
+            item.rawValues.phone || '',
+            item.rawValues.branch,
+            item.rawValues.section || 'E',
+            null
+          ]);
+
+          await connection.query(
+            `
+            INSERT INTO students (
+              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, password_hash
+            ) VALUES ?
+            ON DUPLICATE KEY UPDATE
+              name = VALUES(name),
+              year = VALUES(year),
+              course = VALUES(course),
+              email = VALUES(email),
+              mobile_no = VALUES(mobile_no),
+              department = VALUES(department),
+              section = VALUES(section),
+              updated_at = CURRENT_TIMESTAMP
+            `,
+            [studentValues]
+          );
+
+          const statsValues = chunk.map(item => [
+            item.rawValues.rollNumber,
+            0,
+            0,
+            0
+          ]);
+
+          await connection.query(
+            `
+            INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
+            VALUES ?
+            ON DUPLICATE KEY UPDATE student_id = student_id
+            `,
+            [statsValues]
+          );
+        }
+      }
+
+      // Update changed students individually
+      for (const item of updatedList) {
         await connection.query(
           `
-          INSERT INTO students (
-            id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, password_hash
-          ) VALUES ?
-          ON DUPLICATE KEY UPDATE
-            name = VALUES(name),
-            year = VALUES(year),
-            course = VALUES(course),
-            email = VALUES(email),
-            mobile_no = VALUES(mobile_no),
-            department = VALUES(department),
-            section = VALUES(section),
+          UPDATE students SET
+            name = ?,
+            year = ?,
+            course = ?,
+            email = ?,
+            mobile_no = ?,
+            department = ?,
+            section = ?,
             updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
           `,
-          [studentValues]
-        );
-
-        const statsValues = chunk.map(item => [
-          item.rollNumber,
-          0,
-          0,
-          0
-        ]);
-
-        console.log("SQL Query: INSERT INTO student_stats... (Bulk insert chunk size: " + chunk.length + ")");
-        await connection.query(
-          `
-          INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
-          VALUES ?
-          ON DUPLICATE KEY UPDATE student_id = student_id
-          `,
-          [statsValues]
+          [
+            item.rawValues.name,
+            item.rawValues.year,
+            item.rawValues.branch,
+            item.rawValues.email || '',
+            item.rawValues.phone || '',
+            item.rawValues.branch,
+            item.rawValues.section || 'E',
+            item.rawValues.rollNumber
+          ]
         );
       }
 
@@ -375,13 +610,23 @@ export async function POST(request: NextRequest) {
       await connection.commit();
       console.log("Transaction committed? YES");
 
+      // Strip rawValues before returning response
+      const cleanImported = importedList.map(({ rawValues, ...rest }) => rest);
+      const cleanUpdated = updatedList.map(({ rawValues, ...rest }) => rest);
+      const cleanSkipped = skippedList;
+      const cleanErrors = errorsList;
+
       return Response.json({
         success: true,
-        totalRecords: preview.length,
-        imported,
-        updated,
-        skipped,
-        errors,
+        totalRecords: rows.length,
+        importedCount: cleanImported.length,
+        updatedCount: cleanUpdated.length,
+        skippedCount: cleanSkipped.length,
+        errorsCount: cleanErrors.length,
+        imported: cleanImported,
+        updated: cleanUpdated,
+        skipped: cleanSkipped,
+        errors: cleanErrors,
         timeTakenMs: Date.now() - startedAt,
       });
     } catch (error: any) {

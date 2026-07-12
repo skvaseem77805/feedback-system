@@ -65,6 +65,10 @@ export default function AdminStudentsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<any>(null);
+  const [showImportedDetails, setShowImportedDetails] = useState(false);
+  const [showUpdatedDetails, setShowUpdatedDetails] = useState(false);
+  const [showSkippedDetails, setShowSkippedDetails] = useState(false);
+  const [showErrorsDetails, setShowErrorsDetails] = useState(false);
   const [error, setError] = useState('');
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', mobileNo: '', department: '', year: '' });
@@ -204,6 +208,72 @@ export default function AdminStudentsPage() {
     } catch (err: any) {
       setError(err.message || 'Export failed');
     }
+  };
+
+  const downloadCategoryCSV = (category: 'imported' | 'updated' | 'skipped' | 'errors') => {
+    if (!report || !report[category]) return;
+    const data = report[category];
+    let headers: string[] = [];
+    let rows: string[][] = [];
+
+    if (category === 'imported') {
+      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Imported At'];
+      rows = data.map((s: any) => [
+        s.rollNo || '',
+        s.name || '',
+        s.email || '',
+        s.branch || '',
+        s.year || '',
+        s.importedAt ? new Date(s.importedAt).toISOString() : ''
+      ]);
+    } else if (category === 'updated') {
+      headers = ['Roll Number', 'Student Name', 'Updated Field', 'Old Value', 'New Value', 'Updated At'];
+      data.forEach((s: any) => {
+        (s.changes || []).forEach((c: any) => {
+          rows.push([
+            s.rollNo || '',
+            s.name || '',
+            c.field || '',
+            c.oldValue || '',
+            c.newValue || '',
+            s.updatedAt ? new Date(s.updatedAt).toISOString() : ''
+          ]);
+        });
+      });
+    } else if (category === 'skipped') {
+      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Reason'];
+      rows = data.map((s: any) => [
+        s.rollNo || '',
+        s.name || '',
+        s.email || '',
+        s.branch || '',
+        s.year || '',
+        s.reason || ''
+      ]);
+    } else if (category === 'errors') {
+      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Reason'];
+      rows = data.map((s: any) => [
+        s.rollNo || '',
+        s.name || '',
+        s.email || '',
+        s.branch || '',
+        s.year || '',
+        s.reason || ''
+      ]);
+    }
+
+    const csvContent = [
+      headers,
+      ...rows
+    ].map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `student-import-${category}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const startEdit = (student: StudentRow) => {
@@ -445,12 +515,85 @@ export default function AdminStudentsPage() {
           <Card className="p-6 space-y-4">
             <div className="flex items-center gap-2"><FileUp className="w-5 h-5" /> <h2 className="text-xl font-semibold">Import Report</h2></div>
             {report ? (
-              <div className="space-y-2 text-sm">
+              <div className="space-y-4 text-sm">
                 <div>Total Records: <strong>{report.totalRecords}</strong></div>
-                <div>Imported: <strong>{report.imported}</strong></div>
-                <div>Updated: <strong>{report.updated}</strong></div>
-                <div>Skipped: <strong>{report.skipped}</strong></div>
-                <div>Errors: <strong>{report.errors}</strong></div>
+                
+                {(() => {
+                  const count = Array.isArray(report.imported) ? report.imported.length : Number(report.imported || 0);
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-1">Imported : <strong>{count}</strong></div>
+                      {count > 0 && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setShowImportedDetails(true)} className="h-7 text-xs flex items-center gap-1">
+                            <Eye className="w-3.5 h-3.5" /> View Details
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('imported')} className="h-7 text-xs flex items-center gap-1">
+                            <Download className="w-3.5 h-3.5" /> Download CSV
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const count = Array.isArray(report.updated) ? report.updated.length : Number(report.updated || 0);
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-1">Updated : <strong>{count}</strong></div>
+                      {count > 0 && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setShowUpdatedDetails(true)} className="h-7 text-xs flex items-center gap-1">
+                            <Eye className="w-3.5 h-3.5" /> View Details
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('updated')} className="h-7 text-xs flex items-center gap-1">
+                            <Download className="w-3.5 h-3.5" /> Download CSV
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const count = Array.isArray(report.skipped) ? report.skipped.length : Number(report.skipped || 0);
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-1">Skipped : <strong>{count}</strong></div>
+                      {count > 0 && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setShowSkippedDetails(true)} className="h-7 text-xs flex items-center gap-1">
+                            <Eye className="w-3.5 h-3.5" /> View Details
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('skipped')} className="h-7 text-xs flex items-center gap-1">
+                            <Download className="w-3.5 h-3.5" /> Download CSV
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const count = Array.isArray(report.errors) ? report.errors.length : Number(report.errors || 0);
+                  return (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-1">Errors : <strong>{count}</strong></div>
+                      {count > 0 && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setShowErrorsDetails(true)} className="h-7 text-xs flex items-center gap-1">
+                            <Eye className="w-3.5 h-3.5" /> View Details
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('errors')} className="h-7 text-xs flex items-center gap-1">
+                            <Download className="w-3.5 h-3.5" /> Download CSV
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div>Time Taken: <strong>{report.timeTakenMs} ms</strong></div>
               </div>
             ) : <p className="text-sm text-muted-foreground">No import yet. Upload a file to preview and import students.</p>}
@@ -595,6 +738,181 @@ export default function AdminStudentsPage() {
                 <Button variant="outline" onClick={() => setEditStudent(null)}>Cancel</Button>
                 <Button onClick={saveEdit}>Save</Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showImportedDetails} onOpenChange={setShowImportedDetails}>
+          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Imported Students (New)</DialogTitle>
+              <DialogDescription>A list of newly inserted student records.</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto rounded-md border my-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Roll Number</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Branch</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Imported At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report?.imported?.map((s: any, idx: number) => (
+                    <TableRow key={s.rollNo || idx}>
+                      <TableCell className="font-medium">{s.rollNo}</TableCell>
+                      <TableCell>{s.name}</TableCell>
+                      <TableCell>{s.email || '-'}</TableCell>
+                      <TableCell>{s.branch}</TableCell>
+                      <TableCell>{s.year}</TableCell>
+                      <TableCell>{s.importedAt ? new Date(s.importedAt).toLocaleString() : '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowImportedDetails(false)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showUpdatedDetails} onOpenChange={setShowUpdatedDetails}>
+          <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Updated Students</DialogTitle>
+              <DialogDescription>A log of student profiles that were modified with their changes.</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto rounded-md border my-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Roll Number</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Updated Field</TableHead>
+                    <TableHead>Old Value</TableHead>
+                    <TableHead>New Value</TableHead>
+                    <TableHead>Updated At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const rows: any[] = [];
+                    if (report?.updated) {
+                      report.updated.forEach((s: any) => {
+                        (s.changes || []).forEach((change: any, changeIdx: number) => {
+                          rows.push({
+                            key: `${s.rollNo}-${change.field}-${changeIdx}`,
+                            rollNo: s.rollNo,
+                            name: s.name,
+                            field: change.field,
+                            oldValue: change.oldValue,
+                            newValue: change.newValue,
+                            updatedAt: s.updatedAt
+                          });
+                        });
+                      });
+                    }
+                    if (rows.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-4">No changes detected.</TableCell>
+                        </TableRow>
+                      );
+                    }
+                    return rows.map((row) => (
+                      <TableRow key={row.key}>
+                        <TableCell className="font-medium">{row.rollNo}</TableCell>
+                        <TableCell>{row.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{row.field}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground line-through">{row.oldValue || '-'}</TableCell>
+                        <TableCell className="text-green-600 font-medium">{row.newValue || '-'}</TableCell>
+                        <TableCell>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-'}</TableCell>
+                      </TableRow>
+                    ));
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowUpdatedDetails(false)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showSkippedDetails} onOpenChange={setShowSkippedDetails}>
+          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Skipped Records</DialogTitle>
+              <DialogDescription>Records that were bypassed during the import process.</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto rounded-md border my-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Roll Number</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report?.skipped?.map((s: any, idx: number) => (
+                    <TableRow key={s.rollNo || idx}>
+                      <TableCell className="font-medium">{s.rollNo || 'N/A'}</TableCell>
+                      <TableCell>{s.name || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
+                          {s.reason}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowSkippedDetails(false)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showErrorsDetails} onOpenChange={setShowErrorsDetails}>
+          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Failed / Error Records</DialogTitle>
+              <DialogDescription>Records containing errors or validation failures that need correction.</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto rounded-md border my-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Roll Number</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report?.errors?.map((s: any, idx: number) => (
+                    <TableRow key={s.rollNo || idx}>
+                      <TableCell className="font-medium text-destructive">{s.rollNo || 'N/A'}</TableCell>
+                      <TableCell>{s.name || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">
+                          {s.reason}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowErrorsDetails(false)}>Close</Button>
             </div>
           </DialogContent>
         </Dialog>

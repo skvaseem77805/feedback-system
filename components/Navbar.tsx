@@ -154,6 +154,8 @@ export function Navbar() {
     if (!mounted || !isLoggedIn) return;
 
     const handlePopState = (event: PopStateEvent) => {
+      if (pathname !== '/') return;
+
       const nextPath = window.location.pathname;
       const unauthPaths = ['/auth', '/sms-login', '/select-student'];
       
@@ -167,7 +169,7 @@ export function Navbar() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [mounted, isLoggedIn]);
+  }, [mounted, isLoggedIn, pathname]);
 
   // Load user info for mobile drawer
   useEffect(() => {
@@ -342,13 +344,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    if (isLoggedIn) {
-                      setShowLogoutDialog(true);
-                    } else {
-                      safeBack("/");
-                    }
-                  }}
+                  onClick={() => safeBack("/")}
                   className="h-9 w-9 rounded-full active:scale-90 transition-transform"
                 >
                   <ArrowLeft className="w-5 h-5 text-muted-foreground" />

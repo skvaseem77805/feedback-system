@@ -23,6 +23,7 @@ import {
   Upload,
   Edit2,
   X,
+  Code,
   Linkedin,
   MessageSquare,
   Bookmark,
@@ -599,8 +600,12 @@ export default function ProfilePage() {
             {studentData.skills && studentData.skills.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {studentData.skills.map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-[10px] py-1 px-3 rounded-lg border-none shadow-none font-bold text-foreground">
-                    {skill}
+                  <Badge
+                    key={skill}
+                    className="h-9 px-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm border-none select-none active:scale-95 transition-all duration-150"
+                  >
+                    <Code className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>{skill}</span>
                   </Badge>
                 ))}
               </div>
@@ -758,7 +763,13 @@ export default function ProfilePage() {
                       <p className="text-xs font-semibold text-muted-foreground">Skills</p>
                       <div className="flex flex-wrap gap-2">
                         {studentData.skills.map((skill) => (
-                          <Badge key={skill} className="bg-muted/20 text-muted-foreground text-xs">{skill}</Badge>
+                          <Badge
+                            key={skill}
+                            className="h-9 px-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm border-none select-none active:scale-95 transition-all duration-150"
+                          >
+                            <Code className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>{skill}</span>
+                          </Badge>
                         ))}
                       </div>
                     </div>

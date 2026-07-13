@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, Search, X, Loader2 } from 'lucide-react';
 import { incrementProjectsUploaded, getCurrentStudentId } from '@/lib/statsTracker';
 import { apiCreateProject } from '@/lib/api';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface FormData {
   title: string;
@@ -23,6 +24,21 @@ interface FormData {
 
 function UploadPageContent() {
   const router = useRouter();
+
+  const isMobile = useIsMobile();
+  const [mobileYear, setMobileYear] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const y = localStorage.getItem('year');
+      if (y === '1') setMobileYear('1st Year');
+      else if (y === '2') setMobileYear('2nd Year');
+      else if (y === '3') setMobileYear('3rd Year');
+      else if (y === '4') setMobileYear('Final Year');
+    }
+  }, []);
+
+  const yearOptions = ['1st Year', '2nd Year', '3rd Year', 'Final Year'];
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -247,6 +263,349 @@ function UploadPageContent() {
             </Button>
           </div>
         </section>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] dark:bg-background pb-36 select-none antialiased">
+        <Navbar />
+
+        <main className="px-4 py-6 space-y-6 max-w-md mx-auto">
+          {success ? (
+            <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-6 text-center space-y-4 py-12">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+              <h2 className="text-xl font-extrabold text-foreground">Project Uploaded Successfully!</h2>
+              <p className="text-xs text-muted-foreground">
+                Your project is now live and visible to all students.
+              </p>
+              <p className="text-[11px] text-muted-foreground animate-pulse">
+                Redirecting to projects page...
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <Alert variant="destructive" className="rounded-2xl border-red-500/20 bg-red-500/5">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs font-semibold">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Top Hero Section */}
+              <div className="flex items-center gap-4 bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0 animate-pulse">
+                  <Upload className="w-6 h-6 stroke-[2]" />
+                </div>
+                <div className="text-left">
+                  <h1 className="text-base font-extrabold text-foreground leading-tight">Upload Your Project</h1>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Share your amazing work with the campus community.
+                  </p>
+                </div>
+              </div>
+
+              {/* CARD 1: Project Information */}
+              <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-5 space-y-4 text-left">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-3 mb-1">
+                  <span className="text-sm">📋</span>
+                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Project Details</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                      Project Title *
+                    </label>
+                    <Input
+                      placeholder="e.g., AI-Powered Study Assistant"
+                      value={formData.title}
+                      onChange={(e) => handleChange('title', e.target.value)}
+                      className="rounded-xl bg-muted/30 border-border/60 focus:bg-background h-10 text-xs px-3"
+                      required
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                      Project URL *
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="https://your-project-url.com"
+                      value={formData.projectUrl}
+                      onChange={(e) => handleChange('projectUrl', e.target.value)}
+                      className="rounded-xl bg-muted/30 border-border/60 focus:bg-background h-10 text-xs px-3"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                      Category *
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => handleChange('category', e.target.value)}
+                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
+                      required
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                      Department *
+                    </label>
+                    <select
+                      value={formData.department}
+                      onChange={(e) => handleChange('department', e.target.value)}
+                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
+                      required
+                    >
+                      <option value="">Select department</option>
+                      {departments.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                      Year *
+                    </label>
+                    <select
+                      value={mobileYear}
+                      onChange={(e) => setMobileYear(e.target.value)}
+                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
+                      required
+                    >
+                      <option value="">Select year</option>
+                      {yearOptions.map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 2: Project Description */}
+              <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-5 space-y-3 text-left">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">📝</span>
+                    <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Project Description</h3>
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {formData.description.length} / 500
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    placeholder="Describe your project in detail. Explain the problem, technologies used and features."
+                    value={formData.description}
+                    onChange={(e) => {
+                      if (e.target.value.length <= 500) {
+                        handleChange('description', e.target.value);
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 border border-border/60 rounded-2xl bg-muted/30 text-foreground text-xs resize-none h-32 focus:bg-background focus:ring-2 focus:ring-primary/20 leading-relaxed"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* CARD 3: Cover Image */}
+              <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-5 space-y-3 text-left">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-3 mb-1">
+                  <span className="text-sm">🖼️</span>
+                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Cover Image</h3>
+                </div>
+
+                <input
+                  type="file"
+                  id="mobile-thumbnail-upload"
+                  accept="image/*"
+                  onChange={handleThumbnailChange}
+                  className="hidden"
+                />
+
+                {thumbnailPreview ? (
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-border/40 group animate-in fade-in zoom-in-95 duration-200">
+                    <img
+                      src={thumbnailPreview}
+                      alt="Thumbnail preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setThumbnailFile(null);
+                        setThumbnailPreview(null);
+                      }}
+                      className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white active:scale-90 transition-transform shadow-md"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="mobile-thumbnail-upload"
+                    className="flex flex-col items-center justify-center w-full aspect-video rounded-2xl border-2 border-dashed border-border/60 bg-muted/20 active:bg-muted/30 cursor-pointer transition-colors p-4 text-center"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2.5">
+                      <Upload className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <span className="text-xs font-bold text-foreground">Upload Cover Image</span>
+                    <span className="text-[10px] text-muted-foreground mt-1">JPG, PNG (Max 5MB)</span>
+                    <span className="text-[9px] text-muted-foreground/80 mt-0.5">Recommended: 16:9 aspect ratio</span>
+                  </label>
+                )}
+              </div>
+
+              {/* CARD 4: Collaborators */}
+              <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-5 space-y-4 text-left">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">👥</span>
+                    <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Collaborators (Optional)</h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {selectedCollaborators.length} / 4
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-[10px] text-muted-foreground leading-normal mb-3">
+                    Search and add classmates who worked on this project.
+                  </p>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search student by Name or Registration Number"
+                      value={collabSearchQuery}
+                      onChange={(e) => setCollabSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 w-full rounded-full bg-muted/40 border-border/60 focus:bg-background focus:ring-2 focus:ring-primary/20 text-xs h-10"
+                    />
+                    {isSearching && (
+                      <p className="text-[10px] text-muted-foreground mt-1 animate-pulse pl-1">Searching...</p>
+                    )}
+
+                    {searchResults.length > 0 && (
+                      <Card className="absolute z-10 w-full mt-1.5 max-h-52 overflow-y-auto border border-border/40 bg-background shadow-xl rounded-2xl p-2 space-y-1">
+                        {searchResults.map((student) => {
+                          const isAlreadySelected = selectedCollaborators.some(c => c.id === student.id);
+                          return (
+                            <div key={student.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/40 transition-colors">
+                              <div className="flex items-center gap-3">
+                                {student.avatar ? (
+                                  <img
+                                    src={student.avatar}
+                                    alt={student.name}
+                                    className="w-9 h-9 rounded-full object-cover border border-border/40"
+                                  />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
+                                    {student.name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="text-left">
+                                  <div className="font-bold text-xs text-foreground">{student.name}</div>
+                                  <div className="text-[9px] text-muted-foreground font-mono">{student.registrationNo || student.id}</div>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isAlreadySelected ? "ghost" : "outline"}
+                                disabled={isAlreadySelected || selectedCollaborators.length >= 4}
+                                onClick={() => {
+                                  setSelectedCollaborators(prev => [...prev, student]);
+                                  setCollabSearchQuery('');
+                                  setSearchResults([]);
+                                }}
+                                className="h-7 text-[10px] font-bold rounded-lg px-3"
+                              >
+                                {isAlreadySelected ? "Added" : "Add"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </Card>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selected collaborators list */}
+                {selectedCollaborators.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedCollaborators.map((student) => (
+                        <div key={student.id} className="flex items-center justify-between p-2.5 rounded-xl border border-border/40 bg-muted/10">
+                          <div className="flex items-center gap-2.5">
+                            {student.avatar ? (
+                              <img
+                                src={student.avatar}
+                                alt={student.name}
+                                className="w-8 h-8 rounded-full object-cover border border-border/40"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold">
+                                {student.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="text-left">
+                              <div className="font-bold text-xs text-foreground">{student.name}</div>
+                              <div className="text-[9px] text-muted-foreground font-mono">{student.registrationNo || student.id}</div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-destructive h-7 w-7 p-0 rounded-full"
+                            onClick={() => {
+                              setSelectedCollaborators(prev => prev.filter(c => c.id !== student.id));
+                            }}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sticky bottom button */}
+              <div className="fixed bottom-16 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-border/40 z-40">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-95 text-white font-bold py-5 rounded-full shadow-lg text-xs h-12"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-1.5 animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin animate-pulse" /> Uploading...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Upload className="w-4 h-4" /> Upload Project
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </main>
       </div>
     );
   }

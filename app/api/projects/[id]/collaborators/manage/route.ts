@@ -88,10 +88,13 @@ export async function POST(
         [projectId, targetStudentId]
       );
     } else if (action === 'invite') {
-      // Status changes back to PENDING
+      // Create or update status back to PENDING
+      const collabId = `collab-${targetStudentId}-${projectId}-${Date.now()}`;
       await conn.query(
-        `UPDATE collaborators SET status = 'PENDING' WHERE project_id = ? AND student_id = ?`,
-        [projectId, targetStudentId]
+        `INSERT INTO collaborators (id, project_id, student_id, role, status)
+         VALUES (?, ?, ?, 'COLLABORATOR', 'PENDING')
+         ON DUPLICATE KEY UPDATE status = 'PENDING'`,
+        [collabId, projectId, targetStudentId]
       );
 
       // Fetch owner name

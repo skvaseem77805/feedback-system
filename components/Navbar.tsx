@@ -76,6 +76,7 @@ export function Navbar() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Logo hold interaction refs
   const pressTimer = useRef<any>(null);
@@ -149,6 +150,25 @@ export function Navbar() {
 
   const isLoggedIn = userType === 'student' || userType === 'staff' || userType === 'admin';
 
+  useEffect(() => {
+    if (!mounted || !isLoggedIn) return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      const nextPath = window.location.pathname;
+      const unauthPaths = ['/auth', '/sms-login', '/select-student'];
+      
+      if (unauthPaths.includes(nextPath)) {
+        window.history.forward();
+        setShowLogoutDialog(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [mounted, isLoggedIn]);
+
   // Load user info for mobile drawer
   useEffect(() => {
     if (mounted && isLoggedIn) {
@@ -198,7 +218,7 @@ export function Navbar() {
       title: "Logged Out",
       description: "You have been successfully logged out.",
     });
-    router.push('/');
+    router.push('/auth');
   };
 
   if (!mounted) return null;
@@ -281,7 +301,7 @@ export function Navbar() {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
                   return (
-                    <Link key={item.href} href={item.href}>
+                    <Link key={`${item.href}-${item.label}`} href={item.href}>
                       <Button
                         variant={isActive ? 'secondary' : 'ghost'}
                         size="sm"
@@ -301,7 +321,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleLogout}
+                  onClick={() => setShowLogoutDialog(true)}
                   className="gap-2 text-muted-foreground hover:text-destructive smooth-transition rounded-full"
                 >
                   <LogOut className="w-4 h-4" />
@@ -322,7 +342,13 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => safeBack("/")}
+                  onClick={() => {
+                    if (isLoggedIn) {
+                      setShowLogoutDialog(true);
+                    } else {
+                      safeBack("/");
+                    }
+                  }}
                   className="h-9 w-9 rounded-full active:scale-90 transition-transform"
                 >
                   <ArrowLeft className="w-5 h-5 text-muted-foreground" />
@@ -349,12 +375,6 @@ export function Navbar() {
             </div>
 
             <div className="flex items-center gap-1">
-              {pathname === '/' && (
-                <Button variant="ghost" size="icon" onClick={focusHomeSearch} className="h-9 w-9 rounded-full">
-                  <Search className="w-5 h-5 text-muted-foreground" />
-                </Button>
-              )}
-
               {/* Menu Drawer */}
               <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
                 <SheetTrigger asChild>
@@ -420,7 +440,7 @@ export function Navbar() {
                               router.push("/auth");
                             }}
                           >
-                            Sign In / Register
+                            Login
                           </Button>
                         </div>
                       )}
@@ -472,7 +492,10 @@ export function Navbar() {
                     <div className="p-4 border-t border-border/40">
                       <Button
                         variant="ghost"
-                        onClick={handleLogout}
+                        onClick={() => {
+                          setIsDrawerOpen(false);
+                          setShowLogoutDialog(true);
+                        }}
                         className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50/50 active:bg-red-50 rounded-xl"
                       >
                         <LogOut className="w-4 h-4" />
@@ -582,24 +605,6 @@ export function Navbar() {
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
-
-            <button
-              onClick={() => {
-                setIsUploadSheetOpen(false);
-                toast({
-                  title: "Draft Projects",
-                  description: "Draft projects feature is coming soon!",
-                  duration: 2000,
-                });
-              }}
-              className="w-full flex items-center justify-between p-4 bg-muted/30 active:bg-muted/70 rounded-xl transition-colors text-left"
-            >
-              <span className="font-semibold text-foreground text-sm flex items-center gap-2.5">
-                <Bookmark className="w-5 h-5 text-primary stroke-[2.5]" />
-                <span>Draft Projects</span>
-              </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
           </div>
 
           <DrawerClose asChild>
@@ -658,6 +663,39 @@ export function Navbar() {
           <p className="text-xs text-muted-foreground mt-1">
             Autonomous Institution
           </p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <DialogContent className="max-w-[340px] sm:max-w-[380px] rounded-[24px] p-6 border border-border/40 bg-background/95 backdrop-blur-md shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <DialogHeader className="text-center space-y-2">
+            <DialogTitle className="text-lg font-bold text-foreground">Confirm Logout</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-normal">
+              Are you sure you want to logout from Project Hub?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-end gap-2.5 mt-5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLogoutDialog(false)}
+              className="flex-1 sm:flex-initial rounded-xl text-xs font-semibold h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                setShowLogoutDialog(false);
+                handleLogout();
+              }}
+              className="flex-1 sm:flex-initial bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold h-9 border-none"
+            >
+              Logout
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

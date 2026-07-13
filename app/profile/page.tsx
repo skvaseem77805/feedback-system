@@ -97,7 +97,7 @@ export default function ProfilePage() {
             studentId: dbStudent.userId,
             department: dbStudent.department,
             year: dbStudent.academicYear,
-            email: dbStudent.email || 'Not provided',
+            email: dbStudent.email || '',
             linkedinUrl: dbStudent.linkedinUrl || '',
             githubUrl: dbStudent.githubUrl || '',
             profilePhoto: dbStudent.avatar || undefined,
@@ -261,11 +261,11 @@ export default function ProfilePage() {
     // Build payload
     const payload: any = {};
 
-    if (editData.email) {
+    if (editData.email !== undefined) {
       payload.email = editData.email;
     }
 
-    if (editData.linkedinUrl) {
+    if (editData.linkedinUrl !== undefined) {
       payload.linkedinUrl = editData.linkedinUrl;
     }
 
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                 <label className="text-xs font-semibold text-muted-foreground">Email</label>
                 <Input
                   type="email"
-                  value={editData.email || studentData.email}
+                  value={editData.email !== undefined ? editData.email : (studentData.email && studentData.email !== 'Not provided' ? studentData.email : '')}
                   onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                   className="mt-1 rounded-xl"
                 />
@@ -422,7 +422,7 @@ export default function ProfilePage() {
                 <label className="text-xs font-semibold text-muted-foreground">LinkedIn URL</label>
                 <Input
                   type="url"
-                  value={editData.linkedinUrl || studentData.linkedinUrl || ''}
+                  value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
                   onChange={(e) => setEditData({ ...editData, linkedinUrl: e.target.value })}
                   className="mt-1 rounded-xl"
                 />
@@ -812,7 +812,7 @@ export default function ProfilePage() {
                   <label className="text-sm font-medium">Email</label>
                   <Input
                     type="email"
-                    value={editData.email || studentData.email}
+                    value={editData.email !== undefined ? editData.email : (studentData.email && studentData.email !== 'Not provided' ? studentData.email : '')}
                     onChange={(e) =>
                       setEditData({ ...editData, email: e.target.value })
                     }
@@ -824,7 +824,7 @@ export default function ProfilePage() {
                   <Input
                     type="url"
                     placeholder="https://linkedin.com/in/yourprofile"
-                    value={editData.linkedinUrl || studentData.linkedinUrl || ''}
+                    value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
                     onChange={(e) =>
                       setEditData({ ...editData, linkedinUrl: e.target.value })
                     }
@@ -1067,10 +1067,12 @@ export default function ProfilePage() {
                       {studentData.studentId}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Email</p>
-                    <p className="break-all">{studentData.email}</p>
-                  </div>
+                  {studentData.email && studentData.email !== 'Not provided' && (
+                    <div>
+                      <p className="text-muted-foreground">Email</p>
+                      <p className="break-all">{studentData.email}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-muted-foreground">Department & Year</p>
                     <p>

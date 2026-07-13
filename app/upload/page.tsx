@@ -108,6 +108,17 @@ function UploadPageContent() {
 
   const categories = ['Web Development', 'Mobile App', 'Data Science', 'IoT', 'Machine Learning', 'Other'];
   const departments = ['CSE', 'IT', 'ECE', 'Mechanical', 'Civil', 'Other'];
+  const mobileDepartments = [
+    'CSE',
+    'CSM (Cyber Security)',
+    'AI & ML',
+    'AI & DS',
+    'IT',
+    'ECE',
+    'Mechanical',
+    'Civil',
+    'Other'
+  ];
 
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -368,8 +379,8 @@ function UploadPageContent() {
                       className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
                       required
                     >
-                      <option value="">Select department</option>
-                      {departments.map(dept => (
+                      <option value="">Select your department</option>
+                      {mobileDepartments.map(dept => (
                         <option key={dept} value={dept}>{dept}</option>
                       ))}
                     </select>

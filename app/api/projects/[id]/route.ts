@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { query, queryOne } from '@/lib/db';
+import { query, queryOne, getPool } from '@/lib/db';
 import { parseStudentId } from '@/lib/security';
 import { getProjectById, invalidateProject } from '@/lib/services/projects';
 import { recalculateAndSyncStats } from '@/lib/services/stats';
@@ -120,6 +120,174 @@ export async function DELETE(
 
     return Response.json({ deleted: true });
   } catch (error) {
+    console.error(error);
+    return Response.json({ error: 'Database error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let conn;
+  try {
+    const { id } = await params;
+    const pid = (id || '').trim();
+
+    if (!pid) {
+      return Response.json({ error: 'Project ID required' }, { status: 400 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const studentId = parseStudentId(body?.studentId || body?.student_id);
+
+    if (!studentId) {
+      return Response.json({ error: 'studentId required' }, { status: 400 });
+    }
+
+    const owner = await queryOne<any>(
+      `
+      SELECT student_id
+      FROM projects
+      WHERE id = ?
+      `,
+      [pid]
+    );
+
+    if (!owner) {
+      return Response.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    if (owner.student_id !== studentId) {
+      return Response.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
+    const { title, description, category, thumbnailUrl, department, collaborators } = body;
+
+    const pool = getPool();
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    // 1. Update project record
+    await conn.query(
+      `
+      UPDATE projects
+      SET title = ?, description = ?, category = ?, thumbnail_url = ?
+      WHERE id = ?
+      `,
+      [title || "", description || "", category || "General", thumbnailUrl || null, pid]
+    );
+
+    // 2. Update owner's department in students table
+    if (department) {
+      await conn.query(
+        `
+        UPDATE students
+        SET department = ?
+        WHERE id = ?
+        `,
+        [department, studentId]
+      );
+    }
+
+    // 3. Update collaborators if sent
+    if (Array.isArray(collaborators)) {
+      const cleanedCollabIds = collaborators
+        .map((c: string) => parseStudentId(c))
+        .filter((c): c is string => !!c && c !== studentId);
+
+      const uniqueCollabIds = Array.from(new Set(cleanedCollabIds)).slice(0, 4);
+
+      // Fetch current collaborators
+      const [existingCollabs] = await conn.query(
+        `
+        SELECT student_id, role, status
+        FROM collaborators
+        WHERE project_id = ?
+        `,
+        [pid]
+      ) as any;
+
+      const currentDbCollabs = Array.isArray(existingCollabs) ? existingCollabs : [];
+      const currentDbCollabIds = currentDbCollabs
+        .filter((c: any) => c.role === 'COLLABORATOR')
+        .map((c: any) => c.student_id);
+
+      const collabsToRemove = currentDbCollabIds.filter(
+        (cid: string) => !uniqueCollabIds.includes(cid)
+      );
+
+      const collabsToAdd = uniqueCollabIds.filter(
+        (cid: string) => !currentDbCollabIds.includes(cid)
+      );
+
+      // Delete removed
+      if (collabsToRemove.length > 0) {
+        await conn.query(
+          `
+          DELETE FROM collaborators
+          WHERE project_id = ? AND role = 'COLLABORATOR' AND student_id IN (?)
+          `,
+          [pid, collabsToRemove]
+        );
+        await conn.query(
+          `
+          DELETE FROM project_collaborators
+          WHERE project_id = ? AND student_id IN (?)
+          `,
+          [pid, collabsToRemove]
+        );
+      }
+
+      // Add new
+      for (const collabId of collabsToAdd) {
+        const collabRecordId = `collab-${collabId}-${pid}-${Date.now()}`;
+        await conn.query(
+          `
+          INSERT INTO collaborators (id, project_id, student_id, role, status)
+          VALUES (?, ?, ?, 'COLLABORATOR', 'PENDING')
+          `,
+          [collabRecordId, pid, collabId]
+        );
+
+        // Notify
+        const notifId = `notif-${Date.now()}-${Math.random().toString().slice(2, 8)}`;
+        const studentName = body.studentName || 'Co-author';
+        await conn.query(
+          `
+          INSERT INTO notifications (id, receiver_id, sender_id, project_id, type, title, message, is_read)
+          VALUES (?, ?, ?, ?, 'COLLAB_REQUEST', 'Collaboration Request', ?, FALSE)
+          `,
+          [
+            notifId,
+            collabId,
+            studentId,
+            pid,
+            `${studentName} invited you to collaborate on "${title}".`
+          ]
+        );
+      }
+    }
+
+    // Sync stats
+    await recalculateAndSyncStats(studentId, conn);
+
+    await conn.commit();
+    conn.release();
+    conn = null;
+
+    invalidateProject(pid);
+
+    return Response.json({ success: true });
+  } catch (error) {
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch (rbError) {
+        console.error('Rollback failed:', rbError);
+      }
+      conn.release();
+    }
     console.error(error);
     return Response.json({ error: 'Database error' }, { status: 500 });
   }

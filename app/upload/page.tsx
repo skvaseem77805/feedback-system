@@ -107,7 +107,17 @@ function UploadPageContent() {
   }, [router]);
 
   const categories = ['Web Development', 'Mobile App', 'Data Science', 'IoT', 'Machine Learning', 'Other'];
-  const departments = ['CSE', 'IT', 'ECE', 'Mechanical', 'Civil', 'Other'];
+  const departments = [
+    'CSE',
+    'CSM (Cyber Security)',
+    'AI & ML',
+    'AI & DS',
+    'IT',
+    'ECE',
+    'Mechanical',
+    'Civil',
+    'Other'
+  ];
   const mobileDepartments = [
     'CSE',
     'CSM (Cyber Security)',

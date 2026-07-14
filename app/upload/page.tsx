@@ -16,9 +16,6 @@ interface FormData {
   title: string;
   description: string;
   projectUrl: string;
-  category: string;
-  department: string;
-  videoUrl?: string;
   thumbnailUrl?: string;
 }
 
@@ -26,33 +23,16 @@ function UploadPageContent() {
   const router = useRouter();
 
   const isMobile = useIsMobile();
-  const [mobileYear, setMobileYear] = useState('');
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const y = localStorage.getItem('year');
-      if (y === '1') setMobileYear('1st Year');
-      else if (y === '2') setMobileYear('2nd Year');
-      else if (y === '3') setMobileYear('3rd Year');
-      else if (y === '4') setMobileYear('Final Year');
-    }
-  }, []);
-
-  const yearOptions = ['1st Year', '2nd Year', '3rd Year', 'Final Year'];
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     projectUrl: '',
-    category: '',
-    department: '',
-    videoUrl: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [galleryImages, setGalleryImages] = useState<{ file: File; preview: string }[]>([]);
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,7 +86,6 @@ function UploadPageContent() {
     }
   }, [router]);
 
-  const categories = ['Web Development', 'Mobile App', 'Data Science', 'IoT', 'Machine Learning', 'Other'];
   const departments = [
     'CSE',
     'CSM (Cyber Security)',
@@ -135,17 +114,44 @@ function UploadPageContent() {
     setError('');
   };
 
-  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Image size should be less than 5MB');
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (galleryImages.length + files.length > 10) {
+      setError('You can upload up to 10 project images.');
+      return;
+    }
+
+    const validFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const newImages: { file: File; preview: string }[] = [];
+
+    for (const file of files) {
+      if (!validFormats.includes(file.type)) {
+        setError('Supported formats: JPG, JPEG, PNG, WEBP');
         return;
       }
-      setThumbnailFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setThumbnailPreview(previewUrl);
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Each image size should be less than 5MB');
+        return;
+      }
+      newImages.push({
+        file,
+        preview: URL.createObjectURL(file)
+      });
     }
+
+    setGalleryImages(prev => [...prev, ...newImages]);
+  };
+
+  const handleRemoveGalleryImage = (index: number) => {
+    setGalleryImages(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   const validateForm = (): boolean => {
@@ -157,25 +163,16 @@ function UploadPageContent() {
       setError('Project description is required');
       return false;
     }
-    if (!formData.projectUrl.trim()) {
-      setError('Project URL is required');
-      return false;
-    }
-    if (!formData.category) {
-      setError('Please select a category');
-      return false;
-    }
-    if (!formData.department) {
-      setError('Please select your department');
-      return false;
-    }
 
-    // Basic URL validation
-    try {
-      new URL(formData.projectUrl);
-    } catch {
-      setError('Please enter a valid URL');
-      return false;
+
+    // Basic URL validation if provided
+    if (formData.projectUrl.trim()) {
+      try {
+        new URL(formData.projectUrl.trim());
+      } catch {
+        setError('Please enter a valid URL');
+        return false;
+      }
     }
 
     return true;
@@ -200,13 +197,14 @@ function UploadPageContent() {
 
       if (!studentId) throw new Error('Student ID not found. Please log in again.');
 
-      const enhancedDescription = `${formData.description}\n\nProject URL: ${formData.projectUrl}\n${formData.videoUrl ? `Video URL: ${formData.videoUrl}` : ''}`;
+      const enhancedDescription = formData.projectUrl.trim()
+        ? `${formData.description}\n\nProject URL: ${formData.projectUrl.trim()}`
+        : formData.description;
 
-      let uploadedThumbnailUrl = '';
-
-      if (thumbnailFile) {
+      const uploadedUrls: string[] = [];
+      for (const img of galleryImages) {
         const uploadFormData = new FormData();
-        uploadFormData.append('file', thumbnailFile);
+        uploadFormData.append('file', img.file);
 
         const res = await fetch('/api/upload', {
           method: 'POST',
@@ -219,7 +217,7 @@ function UploadPageContent() {
           throw new Error(data.error || 'Image upload failed');
         }
 
-        uploadedThumbnailUrl = data.url;
+        uploadedUrls.push(data.url);
       }
 
       await apiCreateProject({
@@ -227,8 +225,8 @@ function UploadPageContent() {
         studentName: localStorage.getItem('studentName') || 'Student',
         title: formData.title,
         description: enhancedDescription,
-        category: formData.category,
-        thumbnailUrl: uploadedThumbnailUrl,
+        thumbnailUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : '',
+        imageUrls: uploadedUrls,
         collaborators: selectedCollaborators.map((c) => c.id),
       });
 
@@ -237,7 +235,7 @@ function UploadPageContent() {
 
       setTimeout(() => router.push('/projects'), 500);
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('Upload failed:', e);
       setError(e instanceof Error ? e.message : 'Failed to upload project. Please try again.');
     } finally {
@@ -350,7 +348,7 @@ function UploadPageContent() {
 
                   <div className="col-span-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                      Project URL *
+                      Project URL (Optional)
                     </label>
                     <Input
                       type="url"
@@ -358,59 +356,7 @@ function UploadPageContent() {
                       value={formData.projectUrl}
                       onChange={(e) => handleChange('projectUrl', e.target.value)}
                       className="rounded-xl bg-muted/30 border-border/60 focus:bg-background h-10 text-xs px-3"
-                      required
                     />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleChange('category', e.target.value)}
-                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                      Department *
-                    </label>
-                    <select
-                      value={formData.department}
-                      onChange={(e) => handleChange('department', e.target.value)}
-                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
-                      required
-                    >
-                      <option value="">Select your department</option>
-                      {mobileDepartments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                      Year *
-                    </label>
-                    <select
-                      value={mobileYear}
-                      onChange={(e) => setMobileYear(e.target.value)}
-                      className="w-full px-3 py-2 border border-border/60 rounded-xl bg-muted/30 text-foreground text-xs h-10 focus:bg-background focus:ring-2 focus:ring-primary/20"
-                      required
-                    >
-                      <option value="">Select year</option>
-                      {yearOptions.map(yr => (
-                        <option key={yr} value={yr}>{yr}</option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               </div>
@@ -442,52 +388,52 @@ function UploadPageContent() {
                 </div>
               </div>
 
-              {/* CARD 3: Cover Image */}
+              {/* CARD 3: Project Gallery */}
               <div className="bg-white dark:bg-card border-none shadow-[0_8px_30px_rgb(0,0,0,0.03)] rounded-[24px] p-5 space-y-3 text-left">
                 <div className="flex items-center gap-2 border-b border-border/40 pb-3 mb-1">
                   <span className="text-sm">🖼️</span>
-                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Cover Image</h3>
+                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-muted-foreground">Project Gallery (Optional)</h3>
                 </div>
+                <p className="text-[10px] text-muted-foreground leading-normal">
+                  You can upload up to 10 project images.
+                </p>
 
-                <input
-                  type="file"
-                  id="mobile-thumbnail-upload"
-                  accept="image/*"
-                  onChange={handleThumbnailChange}
-                  className="hidden"
-                />
-
-                {thumbnailPreview ? (
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-border/40 group animate-in fade-in zoom-in-95 duration-200">
-                    <img
-                      src={thumbnailPreview}
-                      alt="Thumbnail preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setThumbnailFile(null);
-                        setThumbnailPreview(null);
-                      }}
-                      className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white active:scale-90 transition-transform shadow-md"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="mobile-thumbnail-upload"
-                    className="flex flex-col items-center justify-center w-full aspect-video rounded-2xl border-2 border-dashed border-border/60 bg-muted/20 active:bg-muted/30 cursor-pointer transition-colors p-4 text-center"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2.5">
-                      <Upload className="w-5 h-5 stroke-[2.5]" />
+                <div className="grid grid-cols-2 gap-3">
+                  {galleryImages.map((img, idx) => (
+                    <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-border/40 bg-muted/10 group">
+                      <img src={img.preview} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                      
+                      {/* Order Indicator */}
+                      <span className="absolute top-1.5 left-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        {idx + 1}
+                      </span>
+                      
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGalleryImage(idx)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white active:scale-95 transition-transform"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <span className="text-xs font-bold text-foreground">Upload Cover Image</span>
-                    <span className="text-[10px] text-muted-foreground mt-1">JPG, PNG (Max 5MB)</span>
-                    <span className="text-[9px] text-muted-foreground/80 mt-0.5">Recommended: 16:9 aspect ratio</span>
-                  </label>
-                )}
+                  ))}
+
+                  {galleryImages.length < 10 && (
+                    <label className="flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed border-border/60 bg-muted/20 active:bg-muted/30 cursor-pointer transition-colors p-2 text-center">
+                      <Upload className="w-4 h-4 text-muted-foreground mb-1" />
+                      <span className="text-[10px] font-bold text-muted-foreground">Add Image</span>
+                      <span className="text-[8px] text-muted-foreground">JPG, PNG, WEBP (Max 5MB)</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleGalleryChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
 
               {/* CARD 4: Collaborators */}
@@ -690,52 +636,15 @@ function UploadPageContent() {
                   />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleChange('category', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Department *
-                    </label>
-                    <select
-                      value={formData.department}
-                      onChange={(e) => handleChange('department', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
-                      required
-                    >
-                      <option value="">Select your department</option>
-                      {departments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
+                 <div>
                   <label className="text-sm font-medium mb-2 block">
-                    Project URL *
+                    Project URL (Optional)
                   </label>
                   <Input
                     type="url"
                     placeholder="https://your-project-url.com"
                     value={formData.projectUrl}
                     onChange={(e) => handleChange('projectUrl', e.target.value)}
-                    required
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Link to your live project, GitHub repo, or portfolio
@@ -743,45 +652,51 @@ function UploadPageContent() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Demo Video URL (Optional)
-                  </label>
-                  <Input
-                    type="url"
-                    placeholder="https://youtube.com/watch?v=..."
-                    value={formData.videoUrl}
-                    onChange={(e) => handleChange('videoUrl', e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    YouTube, Vimeo, or other video platform link
-                  </p>
-                </div>
+                  <div className="flex flex-col mb-3">
+                    <label className="text-sm font-medium block">
+                      Project Gallery (Optional)
+                    </label>
+                    <span className="text-xs text-muted-foreground">
+                      You can upload up to 10 project images.
+                    </span>
+                  </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Project Cover Photo (Optional)
-                  </label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleThumbnailChange}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Upload a cover image for your project card (Max 5MB)
-                  </p>
-                  {thumbnailPreview && (
-                    <div className="mt-4">
-                      <p className="text-xs font-medium mb-2">Preview:</p>
-                      <div className="relative w-full h-48 rounded-md overflow-hidden border">
-                        <img
-                          src={thumbnailPreview}
-                          alt="Thumbnail preview"
-                          className="w-full h-full object-cover"
-                        />
+                  <div className="grid grid-cols-3 gap-4">
+                    {galleryImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-border bg-muted/10 group">
+                        <img src={img.preview} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                        
+                        {/* Order Indicator */}
+                        <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          {idx + 1}
+                        </span>
+                        
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGalleryImage(idx)}
+                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white active:scale-95 transition-transform"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    ))}
+
+                    {galleryImages.length < 10 && (
+                      <label className="flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed border-border/60 bg-muted/20 active:bg-muted/30 cursor-pointer transition-colors p-4 text-center">
+                        <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                        <span className="text-xs font-semibold text-muted-foreground">Add Image</span>
+                        <span className="text-[10px] text-muted-foreground">JPG, PNG, WEBP (Max 5MB)</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handleGalleryChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 {/* Collaborators Section */}

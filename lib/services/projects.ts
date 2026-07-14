@@ -17,6 +17,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
         p.likes,
         p.views,
         p.thumbnail_url,
+        p.image_urls,
         p.file_name,
         p.file_size,
         s.name AS student_name,
@@ -98,6 +99,17 @@ export async function getProjects(opts: { studentId?: string; category?: string;
       likes: Number(p.likes) || 0,
       views: Number(p.views) || 0,
       thumbnailUrl: p.thumbnail_url,
+      imageUrls: (() => {
+        if (!p.image_urls) return [];
+        if (typeof p.image_urls === 'string') {
+          try {
+            return JSON.parse(p.image_urls);
+          } catch {
+            return [];
+          }
+        }
+        return Array.isArray(p.image_urls) ? p.image_urls : [];
+      })(),
       fileName: p.file_name,
       fileSize: p.file_size,
       savedBy,
@@ -127,10 +139,12 @@ export async function getProjectById(id: string, forUserId?: string) {
         p.likes,
         p.views,
         p.thumbnail_url,
+        p.image_urls,
         p.file_name,
         p.file_size,
         s.name AS student_name,
         s.year AS student_year,
+        s.department AS student_department,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
         GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by,
@@ -142,7 +156,7 @@ export async function getProjectById(id: string, forUserId?: string) {
       LEFT JOIN project_likes pl ON pl.project_id = p.id
       LEFT JOIN collaborators c ON c.project_id = p.id AND c.role = 'COLLABORATOR'
       WHERE p.id = ?
-      GROUP BY p.id, s.name, s.year
+      GROUP BY p.id, s.name, s.year, s.department
     `;
 
     let row: any = null;
@@ -181,7 +195,8 @@ export async function getProjectById(id: string, forUserId?: string) {
       id: row.id,
       studentId: row.student_id,
       studentName: row.student_name,
-      academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[row.student_year] ?? `${row.student_year}th` })(),
+      academicYear: (() => { const m: Record<number,string>={1:'1st Year',2:'2nd Year',3:'3rd Year',4:'Final Year'}; return m[row.student_year] ?? `${row.student_year} Year` })(),
+      studentDepartment: row.student_department || 'CSE',
       title: row.title,
       description: row.description || '',
       category: row.category || 'General',
@@ -189,6 +204,17 @@ export async function getProjectById(id: string, forUserId?: string) {
       likes: Number(row.likes) || 0,
       views: Number(row.views) || 0,
       thumbnailUrl: row.thumbnail_url,
+      imageUrls: (() => {
+        if (!row.image_urls) return [];
+        if (typeof row.image_urls === 'string') {
+          try {
+            return JSON.parse(row.image_urls);
+          } catch {
+            return [];
+          }
+        }
+        return Array.isArray(row.image_urls) ? row.image_urls : [];
+      })(),
       fileName: row.file_name,
       fileSize: row.file_size,
       savedBy,

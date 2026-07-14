@@ -537,8 +537,11 @@ export default function ProfilePage() {
                 <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-500 border-2 border-card" />
               </div>
 
-              <div className="min-w-0 space-y-1 text-left">
-                <h2 className="font-extrabold text-lg text-foreground tracking-tight truncate leading-snug">
+              <div className="flex-1 min-w-0 space-y-1 text-left">
+                <h2 className={`font-extrabold text-foreground tracking-tight leading-tight break-words ${
+                  studentData.name.length > 25 ? 'text-[13px]' :
+                  studentData.name.length > 18 ? 'text-base' : 'text-lg'
+                }`}>
                   {studentData.name}
                 </h2>
                 <p className="text-xs font-semibold text-muted-foreground">
@@ -741,7 +744,10 @@ export default function ProfilePage() {
             {!isEditing ? (
               <div className="flex-1 space-y-3">
                 <div>
-                  <h1 className="text-3xl font-bold text-balance">{studentData.name}</h1>
+                  <h1 className={`font-bold tracking-tight break-words leading-tight ${
+                    studentData.name.length > 25 ? 'text-xl' :
+                    studentData.name.length > 18 ? 'text-2xl' : 'text-3xl'
+                  }`}>{studentData.name}</h1>
                   <p className="text-muted-foreground flex items-center gap-2 mt-1">
                     <Briefcase className="w-4 h-4" />
                     {studentData.year} Year

@@ -156,6 +156,10 @@ export async function POST(request: NextRequest) {
 
     await conn.beginTransaction();
 
+    const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls : [];
+    const resolvedThumbnailUrl = imageUrls.length > 0 ? imageUrls[0] : (body.thumbnailUrl || null);
+    const jsonImageUrls = imageUrls.length > 0 ? JSON.stringify(imageUrls) : null;
+
     // 1. Insert project record
     await conn.query(
       `
@@ -167,19 +171,21 @@ export async function POST(request: NextRequest) {
         description,
         category,
         thumbnail_url,
+        image_urls,
         file_name,
         file_size,
         likes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
       `,
       [
         id,
         studentId,
         title,
         body.description || "",
-        body.category || "General",
-        body.thumbnailUrl || null,
+        "General",
+        resolvedThumbnailUrl,
+        jsonImageUrls,
         body.fileName || null,
         body.fileSize || null,
       ]

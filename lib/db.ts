@@ -63,6 +63,12 @@ async function ensureTables() {
     await p.query('ALTER TABLE projects ADD COLUMN views INT UNSIGNED DEFAULT 0 AFTER likes');
   }
 
+  // Check and add missing 'image_urls' column in projects table if not exists
+  const hasImageUrls = cols.some((c: any) => c.Field === 'image_urls');
+  if (!hasImageUrls) {
+    await p.query('ALTER TABLE projects ADD COLUMN image_urls JSON DEFAULT NULL AFTER thumbnail_url');
+  }
+
   // Check and add missing 'github_url' column in students table if not exists
   const [studentCols] = await p.query('DESCRIBE students') as any;
   const hasGithubUrl = studentCols.some((c: any) => c.Field === 'github_url');

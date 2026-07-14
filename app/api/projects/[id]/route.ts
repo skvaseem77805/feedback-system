@@ -162,20 +162,24 @@ export async function PATCH(
       return Response.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    const { title, description, category, thumbnailUrl, department, collaborators } = body;
+    const { title, description, thumbnailUrl, imageUrls, department, collaborators } = body;
 
     const pool = getPool();
     conn = await pool.getConnection();
     await conn.beginTransaction();
 
+    const resolvedImageUrls = Array.isArray(imageUrls) ? imageUrls : null;
+    const resolvedThumbnailUrl = resolvedImageUrls && resolvedImageUrls.length > 0 ? resolvedImageUrls[0] : (thumbnailUrl || null);
+    const jsonImageUrls = resolvedImageUrls ? JSON.stringify(resolvedImageUrls) : null;
+
     // 1. Update project record
     await conn.query(
       `
       UPDATE projects
-      SET title = ?, description = ?, category = ?, thumbnail_url = ?
+      SET title = ?, description = ?, thumbnail_url = ?, image_urls = ?
       WHERE id = ?
       `,
-      [title || "", description || "", category || "General", thumbnailUrl || null, pid]
+      [title || "", description || "", resolvedThumbnailUrl, jsonImageUrls, pid]
     );
 
     // 2. Update owner's department in students table

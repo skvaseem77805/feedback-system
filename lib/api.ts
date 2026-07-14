@@ -117,6 +117,7 @@ export interface ApiProject {
   likes: number;
   views: number;
   thumbnailUrl?: string;
+  imageUrls?: string[];
   fileName?: string;
   fileSize?: number;
   savedBy: string[];
@@ -143,6 +144,7 @@ export async function apiCreateProject(body: {
   fileName?: string;
   fileSize?: number;
   thumbnailUrl?: string;
+  imageUrls?: string[];
   collaborators?: string[];
 }): Promise<ApiProject> {
   const res = await fetch(`${BASE}/api/projects`, {

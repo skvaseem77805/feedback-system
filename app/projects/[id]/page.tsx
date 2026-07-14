@@ -7,7 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
@@ -42,6 +42,70 @@ export default function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getProjectImages = (p: ApiProject) => {
+    let list: string[] = [];
+    if (p.imageUrls) {
+      try {
+        list = typeof p.imageUrls === 'string' ? JSON.parse(p.imageUrls) : p.imageUrls;
+      } catch {
+        list = [];
+      }
+    }
+    if (!Array.isArray(list)) list = [];
+    if (list.length === 0 && p.thumbnailUrl) {
+      list = [p.thumbnailUrl];
+    }
+    return list;
+  };
+
+  const projectImages = project ? getProjectImages(project) : [];
+
+  const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [editGalleryImages, setEditGalleryImages] = useState<{ file?: File; preview: string; url?: string }[]>([]);
+
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+  const [fullscreenImageIndex, setFullscreenImageIndex] = useState(0);
+
+  useEffect(() => {
+    if (isFullscreenOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreenOpen]);
+
+  useEffect(() => {
+    if (!isFullscreenOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const images = projectImages;
+      if (images.length === 0) return;
+
+      if (e.key === 'ArrowLeft') {
+        setFullscreenImageIndex((prev) => (prev - 1 + images.length) % images.length);
+      } else if (e.key === 'ArrowRight') {
+        setFullscreenImageIndex((prev) => (prev + 1) % images.length);
+      } else if (e.key === 'Escape') {
+        setIsFullscreenOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreenOpen, projectImages]);
+
+  useEffect(() => {
+    if (project) {
+      const images = getProjectImages(project);
+      setActiveImage(images.length > 0 ? images[0] : null);
+    }
+  }, [project]);
+
   const currentStudentId = getCurrentStudentId();
   const isSaved = project?.savedBy?.includes(currentStudentId || '') ?? false;
 
@@ -59,7 +123,6 @@ export default function ProjectDetailsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editCategory, setEditCategory] = useState('');
   const [editDepartment, setEditDepartment] = useState('');
   const [editCollaborators, setEditCollaborators] = useState<{ id: string; name: string; avatar: string | null }[]>([]);
   const [editCollabSearchQuery, setEditCollabSearchQuery] = useState('');
@@ -88,7 +151,6 @@ export default function ProjectDetailsPage() {
       
     setEditDescription(cleanDesc);
     setEditProjectUrl(rawUrl);
-    setEditCategory(project.category || 'General');
     setEditDepartment(project.studentDepartment || localStorage.getItem('studentDepartment') || 'CSE');
     
     const collabs = (project.allCollaborators || []).map((c: any) => ({
@@ -100,9 +162,13 @@ export default function ProjectDetailsPage() {
     setEditCollabSearchQuery('');
     setEditCollabSearchResults([]);
 
-    setEditThumbnailUrl(project.thumbnailUrl || '');
-    setEditThumbnailPreview(project.thumbnailUrl || '');
-    setEditThumbnailFile(null);
+    let initialGallery: { url?: string; preview: string }[] = [];
+    if (project.imageUrls && project.imageUrls.length > 0) {
+      initialGallery = project.imageUrls.map((url: string) => ({ url, preview: url }));
+    } else if (project.thumbnailUrl) {
+      initialGallery = [{ url: project.thumbnailUrl, preview: project.thumbnailUrl }];
+    }
+    setEditGalleryImages(initialGallery);
     setEditError('');
     setIsEditModalOpen(true);
   };
@@ -119,50 +185,48 @@ export default function ProjectDetailsPage() {
       setEditError('Project description is required');
       return;
     }
-    if (!editProjectUrl.trim()) {
-      setEditError('Project URL is required');
-      return;
-    }
-    if (!editCategory) {
-      setEditError('Please select a category');
-      return;
-    }
     if (!editDepartment) {
       setEditError('Please select a department');
       return;
     }
 
-    try {
-      new URL(editProjectUrl);
-    } catch {
-      setEditError('Please enter a valid URL');
-      return;
+    // Project URL is now optional. Check format only if provided.
+    if (editProjectUrl.trim()) {
+      try {
+        new URL(editProjectUrl.trim());
+      } catch {
+        setEditError('Please enter a valid URL');
+        return;
+      }
     }
 
     setIsSavingEdit(true);
 
     try {
-      let uploadedThumbnailUrl = editThumbnailUrl;
+      const finalImageUrls: string[] = [];
+      for (const img of editGalleryImages) {
+        if (img.url) {
+          finalImageUrls.push(img.url);
+        } else if (img.file) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', img.file);
 
-      if (editThumbnailFile) {
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', editThumbnailFile);
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
 
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData,
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Image upload failed');
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Image upload failed');
+          }
+          finalImageUrls.push(data.url);
         }
-        uploadedThumbnailUrl = data.url;
-      } else if (!editThumbnailPreview) {
-        uploadedThumbnailUrl = '';
       }
 
-      const enhancedDescription = `${editDescription.trim()}\n\nProject URL: ${editProjectUrl.trim()}`;
+      const enhancedDescription = editProjectUrl.trim()
+        ? `${editDescription.trim()}\n\nProject URL: ${editProjectUrl.trim()}`
+        : editDescription.trim();
 
       const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
         method: 'PATCH',
@@ -172,8 +236,8 @@ export default function ProjectDetailsPage() {
           studentName: localStorage.getItem('studentName') || 'Student',
           title: editTitle.trim(),
           description: enhancedDescription,
-          category: editCategory,
-          thumbnailUrl: uploadedThumbnailUrl,
+          thumbnailUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : '',
+          imageUrls: finalImageUrls,
           department: editDepartment,
           collaborators: editCollaborators.map(c => c.id),
         }),
@@ -204,6 +268,48 @@ export default function ProjectDetailsPage() {
     } finally {
       setIsSavingEdit(false);
     }
+  };
+
+  const handleEditGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditError('');
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (editGalleryImages.length + files.length > 10) {
+      setEditError('You can upload up to 10 project images.');
+      return;
+    }
+
+    const validFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const newImages: { file: File; preview: string }[] = [];
+
+    for (const file of files) {
+      if (!validFormats.includes(file.type)) {
+        setEditError('Supported formats: JPG, JPEG, PNG, WEBP');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setEditError('Each image size should be less than 5MB');
+        return;
+      }
+      newImages.push({
+        file,
+        preview: URL.createObjectURL(file)
+      });
+    }
+
+    setEditGalleryImages(prev => [...prev, ...newImages]);
+  };
+
+  const handleRemoveEditGalleryImage = (index: number) => {
+    setEditGalleryImages(prev => {
+      const updated = [...prev];
+      if (updated[index].file) {
+        URL.revokeObjectURL(updated[index].preview);
+      }
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -485,9 +591,9 @@ export default function ProjectDetailsPage() {
                   return (
                     <>
                       <p className="text-xs mb-3 font-medium text-muted-foreground leading-relaxed">{cleanDescription || 'No description available.'}</p>
-                      <div className="mb-4">
-                        <span className="font-semibold text-muted-foreground block text-[10px] mb-0.5 uppercase tracking-wider">Project URL</span>
-                        {isValidUrl(rawProjectUrl) ? (
+                      {isValidUrl(rawProjectUrl) && (
+                        <div className="mb-4">
+                          <span className="font-semibold text-muted-foreground block text-[10px] mb-0.5 uppercase tracking-wider">Project URL</span>
                           <a
                             href={rawProjectUrl}
                             target="_blank"
@@ -497,10 +603,8 @@ export default function ProjectDetailsPage() {
                           >
                             {rawProjectUrl}
                           </a>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">No project URL provided.</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -531,17 +635,83 @@ export default function ProjectDetailsPage() {
                   {project.collaboratorNames && project.collaboratorNames.length > 0 && (
                     <p className="text-xs text-muted-foreground">Collaborators: <span className="font-semibold text-foreground">{project.collaboratorNames.join(', ')}</span></p>
                   )}
+                  <p className="text-xs text-muted-foreground">Year: <span className="font-semibold text-foreground">{project.academicYear}</span></p>
+                  <p className="text-xs text-muted-foreground">Department: <span className="font-semibold text-foreground">{project.studentDepartment || 'CSE'}</span></p>
                   {project.fileName && (
                     <p className="text-xs text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
                   )}
                 </div>
               </div>
 
-              {project.thumbnailUrl ? (
-                <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-[240px] rounded-2xl mx-auto mt-2">
-                  <img src={project.thumbnailUrl} alt={project.title} className="w-full h-full object-cover" />
-                </div>
-              ) : null}
+              {(() => {
+                const images = projectImages;
+                if (images.length > 1) {
+                  return (
+                    <div className="relative w-full max-w-[240px] mx-auto mt-2 aspect-video overflow-hidden border border-white/10 bg-muted/10 shadow-sm rounded-2xl group">
+                      <img
+                        src={activeImage || images[0]}
+                        alt={project.title}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => {
+                          const currentIdx = images.indexOf(activeImage || images[0]);
+                          setFullscreenImageIndex(currentIdx >= 0 ? currentIdx : 0);
+                          setIsFullscreenOpen(true);
+                        }}
+                      />
+                      
+                      {/* Left Circular Arrow */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const currentIdx = images.indexOf(activeImage || images[0]);
+                          const prevIdx = (currentIdx - 1 + images.length) % images.length;
+                          setActiveImage(images[prevIdx]);
+                        }}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
+                      >
+                        <ChevronLeft className="w-4.5 h-4.5 stroke-[2.5]" />
+                      </button>
+
+                      {/* Right Circular Arrow */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const currentIdx = images.indexOf(activeImage || images[0]);
+                          const nextIdx = (currentIdx + 1) % images.length;
+                          setActiveImage(images[nextIdx]);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
+                      >
+                        <ChevronRight className="w-4.5 h-4.5 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  );
+                } else if (images.length === 1) {
+                  return (
+                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-[240px] rounded-2xl mx-auto mt-2 aspect-video">
+                      <img
+                        src={images[0]}
+                        alt={project.title}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => {
+                          setFullscreenImageIndex(0);
+                          setIsFullscreenOpen(true);
+                        }}
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-[240px] rounded-2xl mx-auto mt-2 aspect-video flex items-center justify-center">
+                      <img src="/placeholder.jpg" alt="No image" className="w-full h-full object-cover" />
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-2 justify-center">
@@ -821,9 +991,9 @@ export default function ProjectDetailsPage() {
                   return (
                     <>
                       <p className="whitespace-pre-line text-muted-foreground mb-6">{cleanDescription || 'No description available.'}</p>
-                      <div className="mb-6">
-                        <span className="font-semibold text-muted-foreground block text-sm mb-1">Project URL</span>
-                        {isValidUrl(rawProjectUrl) ? (
+                      {isValidUrl(rawProjectUrl) && (
+                        <div className="mb-6">
+                          <span className="font-semibold text-muted-foreground block text-sm mb-1">Project URL</span>
                           <a
                             href={rawProjectUrl}
                             target="_blank"
@@ -833,10 +1003,8 @@ export default function ProjectDetailsPage() {
                           >
                             {rawProjectUrl}
                           </a>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">No project URL provided.</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -867,17 +1035,100 @@ export default function ProjectDetailsPage() {
                   {project.collaboratorNames && project.collaboratorNames.length > 0 && (
                     <p className="text-sm text-muted-foreground">Collaborators: <span className="font-semibold text-foreground">{project.collaboratorNames.join(', ')}</span></p>
                   )}
+                  <p className="text-sm text-muted-foreground">Year: <span className="font-semibold text-foreground">{project.academicYear}</span></p>
+                  <p className="text-sm text-muted-foreground">Department: <span className="font-semibold text-foreground">{project.studentDepartment || 'CSE'}</span></p>
                   {project.fileName && (
                     <p className="text-sm text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
                   )}
                 </div>
               </div>
 
-              {project.thumbnailUrl ? (
-                <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-md rounded-3xl">
-                  <img src={project.thumbnailUrl} alt={project.title} className="w-full h-full object-cover" />
-                </div>
-              ) : null}
+              {(() => {
+                const images = projectImages;
+                if (images.length > 1) {
+                  return (
+                    <div className="w-full max-w-md rounded-3xl flex flex-col gap-3">
+                      <div className="relative w-full aspect-video overflow-hidden border border-white/10 bg-muted/10 shadow-sm rounded-3xl group">
+                        <img
+                          src={activeImage || images[0]}
+                          alt={project.title}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => {
+                            const currentIdx = images.indexOf(activeImage || images[0]);
+                            setFullscreenImageIndex(currentIdx >= 0 ? currentIdx : 0);
+                            setIsFullscreenOpen(true);
+                          }}
+                        />
+                        
+                        {/* Left Circular Arrow */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const currentIdx = images.indexOf(activeImage || images[0]);
+                            const prevIdx = (currentIdx - 1 + images.length) % images.length;
+                            setActiveImage(images[prevIdx]);
+                          }}
+                          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
+                        >
+                          <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+                        </button>
+
+                        {/* Right Circular Arrow */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const currentIdx = images.indexOf(activeImage || images[0]);
+                            const nextIdx = (currentIdx + 1) % images.length;
+                            setActiveImage(images[nextIdx]);
+                          }}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
+                        >
+                          <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {images.map((imgUrl, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveImage(imgUrl)}
+                            className="w-16 h-12 rounded-xl overflow-hidden border-2 flex-shrink-0 focus:outline-none transition-none"
+                            style={{
+                              borderColor: activeImage === imgUrl ? 'var(--primary, #3b82f6)' : 'transparent',
+                            }}
+                          >
+                            <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                } else if (images.length === 1) {
+                  return (
+                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-md rounded-3xl aspect-video">
+                      <img
+                        src={images[0]}
+                        alt={project.title}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => {
+                          setFullscreenImageIndex(0);
+                          setIsFullscreenOpen(true);
+                        }}
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-md rounded-3xl aspect-video flex items-center justify-center">
+                      <img src="/placeholder.jpg" alt="No image" className="w-full h-full object-cover" />
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3 mt-8">
@@ -1045,49 +1296,6 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Section 2: Metadata */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-b pb-1">
-                  Section 2: Classification
-                </h3>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                      Category *
-                    </label>
-                    <select
-                      value={editCategory}
-                      onChange={(e) => setEditCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-sm h-10 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      {['Web Development', 'Mobile App', 'Data Science', 'IoT', 'Machine Learning', 'Other'].map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                      Department *
-                    </label>
-                    <select
-                      value={editDepartment}
-                      onChange={(e) => setEditDepartment(e.target.value)}
-                      className="w-full px-3 py-2 border border-border rounded-xl bg-background text-foreground text-sm h-10 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      required
-                    >
-                      <option value="">Select your department</option>
-                      {['CSE', 'CSM (Cyber Security)', 'AI & ML', 'AI & DS', 'IT', 'ECE', 'Mechanical', 'Civil', 'Other'].map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
               {/* Section 3: Links */}
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-b pb-1">
@@ -1096,7 +1304,7 @@ export default function ProjectDetailsPage() {
                 
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                    Project URL *
+                    Project URL (Optional)
                   </label>
                   <Input
                     type="url"
@@ -1104,7 +1312,6 @@ export default function ProjectDetailsPage() {
                     value={editProjectUrl}
                     onChange={(e) => setEditProjectUrl(e.target.value)}
                     className="h-10 text-sm rounded-xl focus-visible:ring-primary focus-visible:border-primary border-border"
-                    required
                   />
                   <span className="text-[10px] text-muted-foreground mt-1 block leading-tight">
                     Link to your live project, GitHub repo, or portfolio
@@ -1221,76 +1428,52 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Section 5: Cover Image */}
+              {/* Section 5: Project Gallery (Optional) */}
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-b pb-1">
-                  Section 5: Cover Image
-                </h3>
-                
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                  {editThumbnailPreview ? (
-                    <div className="relative w-40 h-24 rounded-xl overflow-hidden border border-border/60 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex-shrink-0 bg-muted/10">
-                      <img src={editThumbnailPreview} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-40 h-24 rounded-xl border border-dashed border-border/60 flex flex-col items-center justify-center text-xs text-muted-foreground bg-muted/10 flex-shrink-0 gap-1.5">
-                      <span className="text-xl">🖼️</span>
-                      <span>No Cover Image</span>
-                    </div>
-                  )}
+                <div className="flex flex-col">
+                  <h3 className="text-xs font-bold text-primary uppercase tracking-wider border-b pb-1">
+                    Section 5: Project Gallery (Optional)
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground mt-1">
+                    You can upload up to 10 project images.
+                  </span>
+                </div>
 
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {editGalleryImages.map((img, idx) => (
+                    <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-border bg-muted/10 group">
+                      <img src={img.preview} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                      
+                      {/* Order Indicator */}
+                      <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {idx + 1}
+                      </span>
+                      
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditGalleryImage(idx)}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white active:scale-95 transition-transform"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {editGalleryImages.length < 10 && (
+                    <label className="flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed border-border/60 bg-muted/20 active:bg-muted/30 cursor-pointer transition-colors p-4 text-center">
+                      <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                      <span className="text-xs font-semibold text-muted-foreground">Add Image</span>
+                      <span className="text-[10px] text-muted-foreground">JPG, PNG, WEBP (Max 5MB)</span>
                       <input
                         type="file"
-                        accept="image/*"
-                        id="edit-thumbnail-input"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 5 * 1024 * 1024) {
-                              setEditError('Image size should be less than 5MB');
-                              return;
-                            }
-                            setEditThumbnailFile(file);
-                            const previewUrl = URL.createObjectURL(file);
-                            setEditThumbnailPreview(previewUrl);
-                          }
-                        }}
+                        multiple
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleEditGalleryChange}
                         className="hidden"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 px-3 rounded-xl text-xs font-semibold"
-                        onClick={() => {
-                          document.getElementById('edit-thumbnail-input')?.click();
-                        }}
-                      >
-                        Replace Image
-                      </Button>
-                      
-                      {editThumbnailPreview && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-9 px-3 rounded-xl text-xs font-semibold text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setEditThumbnailPreview('');
-                            setEditThumbnailFile(null);
-                            setEditThumbnailUrl('');
-                          }}
-                        >
-                          Remove Image
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      JPG, PNG or WebP (Max 5MB)
-                    </p>
-                  </div>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
@@ -1323,6 +1506,89 @@ export default function ProjectDetailsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {isFullscreenOpen && projectImages.length > 0 && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-between bg-black/95 text-white p-4 select-none antialiased">
+          {/* Top Bar */}
+          <div className="flex justify-between items-center w-full h-12 px-2 z-10">
+            <div className="text-sm font-semibold tracking-wider opacity-90">
+              {fullscreenImageIndex + 1} / {projectImages.length}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFullscreenOpen(false)}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white cursor-pointer"
+            >
+              <X className="w-5 h-5 stroke-[2.5]" />
+            </button>
+          </div>
+
+          {/* Main Body */}
+          <div className="relative flex-1 flex items-center justify-center w-full min-h-0">
+            {/* Center Image */}
+            <div className="relative max-w-full max-h-full flex items-center justify-center p-4">
+              <img
+                src={projectImages[fullscreenImageIndex]}
+                alt={project?.title || 'Fullscreen project image'}
+                className="max-w-full max-h-[70vh] md:max-h-[75vh] object-contain select-none shadow-2xl rounded-lg"
+              />
+            </div>
+
+            {/* Left circular navigation arrow */}
+            {projectImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setFullscreenImageIndex((prev) => (prev - 1 + projectImages.length) % projectImages.length)}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/30 text-white shadow-md flex items-center justify-center focus:outline-none transition-none"
+              >
+                <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
+
+            {/* Right circular navigation arrow */}
+            {projectImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setFullscreenImageIndex((prev) => (prev + 1) % projectImages.length)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/30 text-white shadow-md flex items-center justify-center focus:outline-none transition-none"
+              >
+                <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails (Desktop Only) */}
+          {!isMobile && projectImages.length > 1 && (
+            <div className="w-full flex justify-center py-4 z-10 border-t border-white/10 bg-black/40">
+              <div className="flex gap-2.5 overflow-x-auto pb-1 max-w-2xl scrollbar-none">
+                {projectImages.map((imgUrl, idx) => {
+                  const isActive = idx === fullscreenImageIndex;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFullscreenImageIndex(idx)}
+                      className="w-16 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0 focus:outline-none transition-none"
+                      style={{
+                        borderColor: isActive ? 'var(--primary, #3b82f6)' : 'transparent',
+                        opacity: isActive ? 1 : 0.5,
+                      }}
+                    >
+                      <img src={imgUrl} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Preload adjacent images */}
+          <div style={{ display: 'none' }}>
+            <img src={projectImages[(fullscreenImageIndex + 1) % projectImages.length]} alt="preload-next" />
+            <img src={projectImages[(fullscreenImageIndex - 1 + projectImages.length) % projectImages.length]} alt="preload-prev" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

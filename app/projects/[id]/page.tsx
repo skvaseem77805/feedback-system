@@ -7,8 +7,8 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
-import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator } from '@/lib/api';
+import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag, Upload, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator, apiDeleteProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
 import { useSafeBack } from '@/hooks/useSafeBack';
@@ -27,6 +27,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -154,6 +155,36 @@ export default function ProjectDetailsPage() {
   const [editThumbnailPreview, setEditThumbnailPreview] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteProject = async () => {
+    if (!project || !currentStudentId) return;
+    setIsDeleting(true);
+    try {
+      const res = await apiDeleteProject(project.id, currentStudentId);
+      if (res.deleted) {
+        setIsDeleteConfirmOpen(false);
+        toast({
+          title: 'Success',
+          description: 'Project deleted successfully.',
+        });
+        router.push('/projects');
+      } else {
+        throw new Error('Failed to delete project');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete project. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const isOwner = project && currentStudentId && project.studentId?.toLowerCase().trim() === currentStudentId.toLowerCase().trim();
 
@@ -649,15 +680,15 @@ export default function ProjectDetailsPage() {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/10">
       <Navbar />
       {isMobile ? (
-        <main className="px-4 py-6 space-y-6">
+        <main className="px-4 py-4 space-y-4">
           {/* Back Button */}
           <div>
             <Button
               variant="ghost"
-              className="h-auto p-0 hover:bg-transparent text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-medium"
+              className="h-auto p-0 hover:bg-transparent text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs font-medium"
               onClick={() => safeBack('/projects')}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
               Back to Projects
             </Button>
           </div>
@@ -668,112 +699,116 @@ export default function ProjectDetailsPage() {
           </div>
 
           {/* 2. Project Title */}
-          <div className="space-y-1">
-            <h1 className={getTitleClass(project.title)}>
+          <div className="space-y-0.5">
+            <h1 className="text-xl font-extrabold tracking-tight text-foreground leading-tight">
               {project.title}
             </h1>
           </div>
 
-          {/* 3. Year + Department */}
-          <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4">
+          {/* 3. Unified Metadata Card */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border/40 pt-3 text-xs">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Year</span>
-              <span className="text-sm font-bold text-foreground">{project.academicYear}</span>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Owner</span>
+              <span className="text-xs font-bold text-foreground">{project.studentName}</span>
             </div>
-            <div className="flex flex-col gap-0.5 border-l border-border/40 pl-4">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Department</span>
-              <span className="text-sm font-bold text-foreground">{project.studentDepartment || 'CSE'}</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Department</span>
+              <span className="text-xs font-bold text-foreground">{project.studentDepartment || 'CSE'}</span>
             </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Year</span>
+              <span className="text-xs font-bold text-foreground">{project.academicYear}</span>
+            </div>
+            {rawProjectUrl && isValidUrl(rawProjectUrl) && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Project URL</span>
+                <a
+                  href={rawProjectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 break-all"
+                >
+                  Link <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+            {project.collaboratorNames && project.collaboratorNames.length > 0 && (
+              <div className="col-span-2 flex flex-col gap-0.5 border-t border-border/20 pt-2">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Collaborators</span>
+                <span className="text-xs font-bold text-foreground">{project.collaboratorNames.join(', ')}</span>
+              </div>
+            )}
           </div>
 
-          {/* 4. Owner */}
-          <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Owner</span>
-            <span className="text-sm font-bold text-foreground">{project.studentName}</span>
-          </div>
-
-          {/* 5. Collaborators */}
-          {project.collaboratorNames && project.collaboratorNames.length > 0 && (
-            <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Collaborators</span>
-              <span className="text-sm font-bold text-foreground">{project.collaboratorNames.join(', ')}</span>
-            </div>
-          )}
-
-          {/* 6. Project URL */}
-          {rawProjectUrl && isValidUrl(rawProjectUrl) && (
-            <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Project URL</span>
-              <a
-                href={rawProjectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-bold text-primary hover:underline inline-flex items-center gap-1.5 break-all"
-              >
-                {rawProjectUrl.replace(/^https?:\/\//, '')}
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          )}
-
-          {/* 7. Description */}
-          <div className="border-t border-border/40 pt-4 space-y-2">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Description</span>
+          {/* 4. Description */}
+          <div className="border-t border-border/40 pt-3 space-y-1">
+            <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider block">Description</span>
             <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed font-sans font-normal">
               {cleanDescription || 'No description available.'}
             </p>
           </div>
 
-          {/* 8. Compact Statistics */}
-          <div className="border-t border-border/40 pt-4">
-            <div className="grid grid-cols-3 gap-2 py-3 px-4 bg-muted/30 border border-border/40 rounded-xl">
+          {/* 5. Compact Statistics */}
+          <div className="border-t border-border/40 pt-3">
+            <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-muted/30 border border-border/40 rounded-xl">
               <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Likes</span>
-                <span className="text-base font-bold text-foreground">{project.likes}</span>
+                <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Likes</span>
+                <span className="text-sm font-bold text-foreground">{project.likes}</span>
               </div>
               <div className="flex flex-col items-center justify-center text-center border-x border-border/40">
-                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Views</span>
-                <span className="text-base font-bold text-foreground">{views ?? project.views}</span>
+                <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Views</span>
+                <span className="text-sm font-bold text-foreground">{views ?? project.views}</span>
               </div>
               <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Saved</span>
-                <span className="text-base font-bold text-foreground">{project.savedBy?.length ?? 0}</span>
+                <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Saved</span>
+                <span className="text-sm font-bold text-foreground">{project.savedBy?.length ?? 0}</span>
               </div>
             </div>
           </div>
 
-          {/* 9. Action Buttons */}
-          <div className="border-t border-border/40 pt-4">
-            <div className="grid grid-cols-2 gap-3">
+          {/* 6. Action Buttons */}
+          <div className="border-t border-border/40 pt-3">
+            <div className={`grid gap-2.5 ${isOwner ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <Button
                 variant={project.userHasLiked ? 'default' : 'outline'}
-                className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
                   project.userHasLiked
                     ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
                     : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
                 }`}
                 onClick={handleLike}
               >
-                <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
+                <Heart className="w-3.5 h-3.5" fill={project.userHasLiked ? 'currentColor' : 'none'} />
                 {project.userHasLiked ? 'Liked' : 'Like'}
               </Button>
 
               <Button
                 variant={isSaved ? 'default' : 'outline'}
-                className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
                   isSaved
                     ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
                     : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
                 }`}
                 onClick={handleSave}
               >
-                <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
+                <Bookmark className="w-3.5 h-3.5" fill={isSaved ? 'currentColor' : 'none'} />
                 {isSaved ? 'Saved' : 'Save'}
               </Button>
 
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-full border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-1.5 active:scale-95 cursor-pointer bg-background text-xs"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </Button>
+              )}
+
               <Button
                 variant="outline"
-                className="h-11 rounded-xl font-medium gap-2 col-span-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                className={`h-10 rounded-full font-medium gap-1.5 hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs ${isOwner ? 'col-span-3' : 'col-span-2'}`}
                 onClick={() => {
                   const targetPath = project.studentId === currentStudentId
                     ? '/profile'
@@ -781,33 +816,33 @@ export default function ProjectDetailsPage() {
                   router.push(targetPath);
                 }}
               >
-                <User className="w-4 h-4" />
-                View Owner Profile
+                <User className="w-3.5 h-3.5" />
+                View Profile
               </Button>
 
               {isOwner && (
                 <Button
                   variant="outline"
-                  className="h-11 rounded-xl font-medium gap-2 col-span-2 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                  className="h-10 rounded-full font-medium gap-1.5 col-span-3 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs"
                   onClick={openEditModal}
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="w-3.5 h-3.5" />
                   Edit Project Details
                 </Button>
               )}
             </div>
           </div>
 
-          {/* 10. Manage Collaborators */}
+          {/* 7. Manage Collaborators */}
           {project && isOwner && (
-            <div className="border-t border-border/40 pt-4">
-              <div className="border border-border/60 bg-muted/10 p-4 rounded-xl space-y-3">
+            <div className="border-t border-border/40 pt-3">
+              <div className="border border-border/60 bg-muted/10 p-3.5 rounded-xl space-y-2.5">
                 <div className="flex justify-between items-center">
                   <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Collaborators</h3>
                   <Button
                     onClick={() => setIsAddDrawerOpen(true)}
                     size="sm"
-                    className="bg-primary hover:bg-primary/95 text-white font-semibold rounded-full px-3 active:scale-95 text-[10px] h-7 cursor-pointer"
+                    className="bg-primary hover:bg-primary/95 text-white font-semibold rounded-full px-2.5 active:scale-95 text-[9px] h-6 cursor-pointer"
                   >
                     + Add
                   </Button>
@@ -815,24 +850,24 @@ export default function ProjectDetailsPage() {
                 {project.allCollaborators && project.allCollaborators.length > 0 ? (
                   <div className="divide-y divide-border/40">
                     {project.allCollaborators.map((collab: any) => (
-                      <div key={collab.studentId} className="py-2.5 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
+                      <div key={collab.studentId} className="py-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           {collab.avatar ? (
-                            <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-8 h-8" />
+                            <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-7.5 h-7.5" />
                           ) : (
-                            <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-8 h-8 text-xs font-bold">
+                            <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-7.5 h-7.5 text-[10px] font-bold">
                               {collab.name.charAt(0).toUpperCase()}
                             </div>
                           )}
                           <div>
                             <h4 className="font-semibold text-foreground text-xs">{collab.name}</h4>
-                            <p className="text-muted-foreground font-mono text-[9px]">{collab.studentId}</p>
+                            <p className="text-muted-foreground font-mono text-[8px]">{collab.studentId}</p>
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${
                                 collab.status === 'ACCEPTED' ? 'bg-green-500' :
                                 collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
                               }`}></span>
-                              <span className="font-medium text-muted-foreground capitalize text-[9px]">{collab.status.toLowerCase()}</span>
+                              <span className="font-medium text-muted-foreground capitalize text-[8px]">{collab.status.toLowerCase()}</span>
                             </div>
                           </div>
                         </div>
@@ -841,7 +876,7 @@ export default function ProjectDetailsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[8px] h-5.5 px-1.5 rounded cursor-pointer"
                               onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
                             >
                               Cancel
@@ -851,7 +886,7 @@ export default function ProjectDetailsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-primary/30 text-primary hover:bg-primary hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              className="border-primary/30 text-primary hover:bg-primary hover:text-white text-[8px] h-5.5 px-1.5 rounded cursor-pointer"
                               onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
                             >
                               Reinvite
@@ -861,7 +896,7 @@ export default function ProjectDetailsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[8px] h-5.5 px-1.5 rounded cursor-pointer"
                               onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
                             >
                               Remove
@@ -872,7 +907,7 @@ export default function ProjectDetailsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground text-center py-2">No collaborators added yet.</p>
+                  <p className="text-[10px] text-muted-foreground text-center py-1.5">No collaborators added yet.</p>
                 )}
               </div>
             </div>
@@ -969,7 +1004,7 @@ export default function ProjectDetailsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className={`grid gap-3 pt-2 ${isOwner ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <Button
                   variant={project.userHasLiked ? 'default' : 'outline'}
                   className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
@@ -996,9 +1031,20 @@ export default function ProjectDetailsPage() {
                   {isSaved ? 'Saved' : 'Save'}
                 </Button>
 
+                {isOwner && (
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-full border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-2 active:scale-95 cursor-pointer bg-background"
+                    onClick={() => setIsDeleteConfirmOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
-                  className="h-11 rounded-xl font-medium gap-2 col-span-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                  className={`h-11 rounded-xl font-medium gap-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background ${isOwner ? 'col-span-3' : 'col-span-2'}`}
                   onClick={() => {
                     const targetPath = project.studentId === currentStudentId
                       ? '/profile'
@@ -1007,13 +1053,13 @@ export default function ProjectDetailsPage() {
                   }}
                 >
                   <User className="w-4 h-4" />
-                  View Owner Profile
+                  View Profile
                 </Button>
 
                 {isOwner && (
                   <Button
                     variant="outline"
-                    className="h-11 rounded-xl font-medium gap-2 col-span-2 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                    className="h-11 rounded-xl font-medium gap-2 col-span-3 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
                     onClick={openEditModal}
                   >
                     <Pencil className="w-4 h-4" />
@@ -1361,6 +1407,38 @@ export default function ProjectDetailsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Project Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[420px] w-full p-6 rounded-2xl bg-white dark:bg-card border border-border shadow-lg">
+          <DialogHeader className="border-b pb-3 mb-4 text-left">
+            <DialogTitle className="text-lg font-bold text-foreground">Delete Project?</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="h-10 px-5 rounded-xl text-xs font-semibold cursor-pointer"
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteProject}
+              className="h-10 px-5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

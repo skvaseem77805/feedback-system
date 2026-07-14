@@ -64,6 +64,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let conn;
   try {
     const { id } = await params;
     const pid = (id || '').trim();
@@ -103,23 +104,41 @@ export async function DELETE(
     );
     const acceptedCollaborators = (Array.isArray(collabRows) ? collabRows : []).map((r: any) => r.student_id);
 
-    await query(`DELETE FROM project_saves WHERE project_id = ?`, [pid]);
-    await query(`DELETE FROM project_collaborators WHERE project_id = ?`, [pid]);
-    await query(`DELETE FROM project_likes WHERE project_id = ?`, [pid]);
-    await query(`DELETE FROM projects WHERE id = ?`, [pid]);
+    const pool = getPool();
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    await conn.query(`DELETE FROM project_saves WHERE project_id = ?`, [pid]);
+    await conn.query(`DELETE FROM project_collaborators WHERE project_id = ?`, [pid]);
+    await conn.query(`DELETE FROM collaborators WHERE project_id = ?`, [pid]);
+    await conn.query(`DELETE FROM project_likes WHERE project_id = ?`, [pid]);
+    await conn.query(`DELETE FROM notifications WHERE project_id = ?`, [pid]);
+    await conn.query(`DELETE FROM projects WHERE id = ?`, [pid]);
 
     // Recalculate stats for the project owner
-    await recalculateAndSyncStats(studentId);
+    await recalculateAndSyncStats(studentId, conn);
 
     // Recalculate stats for each collaborator
     for (const collabId of acceptedCollaborators) {
-      await recalculateAndSyncStats(collabId);
+      await recalculateAndSyncStats(collabId, conn);
     }
+
+    await conn.commit();
+    conn.release();
+    conn = null;
 
     invalidateProject(pid);
 
     return Response.json({ deleted: true });
   } catch (error) {
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch (rbError) {
+        console.error('Rollback failed:', rbError);
+      }
+      conn.release();
+    }
     console.error(error);
     return Response.json({ error: 'Database error' }, { status: 500 });
   }

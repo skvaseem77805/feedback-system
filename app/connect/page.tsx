@@ -146,7 +146,9 @@ function ConnectContent() {
                       <h3 className="font-bold text-lg group-hover:text-primary smooth-transition">
                         {student.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground">{student.academicYear} Year</p>
+                      <p className="text-xs text-muted-foreground">
+                        {student.academicYear} Year • {student.department} • Section {student.section || 'E'}
+                      </p>
                     </div>
                   </div>
                   <Badge className="bg-accent/20 text-accent text-xs">

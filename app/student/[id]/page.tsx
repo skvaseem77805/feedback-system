@@ -156,7 +156,7 @@ export default function PublicStudentProfile() {
                                     {student.name}
                                 </h2>
                                 <p className="text-xs font-semibold text-muted-foreground">
-                                    {student.academicYear} Year • {student.department}
+                                    {student.academicYear} Year • {student.department} • Section {student.section}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground/80 truncate font-medium">
                                     Sir C.R. Reddy College of Engineering
@@ -336,7 +336,7 @@ export default function PublicStudentProfile() {
                                 }`}>{student.name}</h1>
                                 <p className="text-muted-foreground flex items-center gap-2 mt-1">
                                     <Briefcase className="w-4 h-4" />
-                                    {student.academicYear} Year • {student.department}
+                                    {student.academicYear} Year • {student.department} • Section {student.section}
                                 </p>
                             </div>
 

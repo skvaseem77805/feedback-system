@@ -23,6 +23,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
         s.name AS student_name,
         s.year AS student_year,
         s.department AS student_department,
+        s.section AS student_section,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
         GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by,
@@ -51,7 +52,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
     params.push(opts.category);
   }
 
-  sql += ` GROUP BY p.id, s.name, s.year, s.department`;
+  sql += ` GROUP BY p.id, s.name, s.year, s.department, s.section`;
 
   if (opts.sort === 'trending') {
     sql += ` ORDER BY (
@@ -92,6 +93,7 @@ export async function getProjects(opts: { studentId?: string; category?: string;
       studentName: p.student_name,
       academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[p.student_year] ?? `${p.student_year}th` })(),
       studentDepartment: p.student_department || '',
+      studentSection: p.student_section || 'E',
       title: p.title,
       description: p.description || '',
       category: p.category || 'General',
@@ -145,6 +147,7 @@ export async function getProjectById(id: string, forUserId?: string) {
         s.name AS student_name,
         s.year AS student_year,
         s.department AS student_department,
+        s.section AS student_section,
         GROUP_CONCAT(DISTINCT ps.student_id) AS saved_by,
         GROUP_CONCAT(DISTINCT pc.student_id) AS collaborators,
         GROUP_CONCAT(DISTINCT pl.student_id) AS liked_by,
@@ -156,7 +159,7 @@ export async function getProjectById(id: string, forUserId?: string) {
       LEFT JOIN project_likes pl ON pl.project_id = p.id
       LEFT JOIN collaborators c ON c.project_id = p.id AND c.role = 'COLLABORATOR'
       WHERE p.id = ?
-      GROUP BY p.id, s.name, s.year, s.department
+      GROUP BY p.id, s.name, s.year, s.department, s.section
     `;
 
     let row: any = null;
@@ -197,6 +200,7 @@ export async function getProjectById(id: string, forUserId?: string) {
       studentName: row.student_name,
       academicYear: (() => { const m: Record<number,string>={1:'1st Year',2:'2nd Year',3:'3rd Year',4:'Final Year'}; return m[row.student_year] ?? `${row.student_year} Year` })(),
       studentDepartment: row.student_department || 'CSE',
+      studentSection: row.student_section || 'E',
       title: row.title,
       description: row.description || '',
       category: row.category || 'General',

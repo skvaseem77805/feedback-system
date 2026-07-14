@@ -35,6 +35,8 @@ export interface Project {
   fileName?: string;
   fileSize?: number;
   repostedBy?: string[];
+  studentDepartment?: string;
+  studentSection?: string;
 }
 
 export interface ConnectionRequest {

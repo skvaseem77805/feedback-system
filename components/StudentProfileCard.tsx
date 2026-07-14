@@ -90,7 +90,11 @@ export function StudentProfileCard({
             {student.name}
           </h3>
           <p className="text-xs text-muted-foreground line-clamp-1">
-            {student.course}
+            {(() => {
+              const m: Record<number, string> = {1:'1st',2:'2nd',3:'3rd',4:'Final'};
+              const yr = m[student.year] ?? `${student.year}th`;
+              return `${yr} Year • ${student.department} • Section ${student.section || 'E'}`;
+            })()}
           </p>
           <div className="flex flex-col gap-1">
             {student.email && (

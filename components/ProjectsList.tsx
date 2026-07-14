@@ -129,7 +129,7 @@ function ProjectsListComponent({ projects, filterByYear, onDelete, from }: Proje
 
               <div className="pt-2 border-t border-border/50 flex items-center justify-between">
                 <Badge variant="secondary" className="text-xs">
-                  {project.academicYear === 'final' ? 'Final Year' : `${project.academicYear} Year`}
+                  {project.academicYear === 'final' ? 'Final' : project.academicYear} Year • {project.studentDepartment || 'CSE'} • Section {project.studentSection || 'E'}
                 </Badge>
 
                 {project.studentId === getCurrentStudentId() && (

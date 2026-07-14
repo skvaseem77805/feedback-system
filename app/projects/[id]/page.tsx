@@ -838,7 +838,9 @@ export default function ProjectDetailsPage() {
             <div className="border-t border-border/40 pt-3">
               <div className="border border-border/60 bg-muted/10 p-3.5 rounded-xl space-y-2.5">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Collaborators</h3>
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Manage Collaborators ({project.allCollaborators?.length || 0})
+                  </h3>
                   <Button
                     onClick={() => setIsAddDrawerOpen(true)}
                     size="sm"
@@ -848,7 +850,21 @@ export default function ProjectDetailsPage() {
                   </Button>
                 </div>
                 {project.allCollaborators && project.allCollaborators.length > 0 ? (
-                  <div className="divide-y divide-border/40">
+                  <div
+                    className={`divide-y divide-border/40 ${
+                      project.allCollaborators.length > 3
+                        ? 'max-h-[300px] overflow-y-auto overflow-x-hidden pr-2'
+                        : ''
+                    }`}
+                    style={
+                      project.allCollaborators.length > 3
+                        ? {
+                            WebkitOverflowScrolling: 'touch',
+                            scrollbarWidth: 'thin',
+                          }
+                        : undefined
+                    }
+                  >
                     {project.allCollaborators.map((collab: any) => (
                       <div key={collab.studentId} className="py-2 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">

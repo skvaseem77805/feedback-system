@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, ExternalLink, Heart, Bookmark, Users, Eye, X, SlidersHorizontal } from 'lucide-react';
 import { Suspense } from 'react';
-import { apiProjects, apiLikeProject, apiSaveProject, apiJoinProject } from '@/lib/api';
-import type { ApiProject } from '@/lib/api';
+import { apiProjects, apiLikeProject, apiSaveProject, apiJoinProject, apiStudents } from '@/lib/api';
+import type { ApiProject, ApiStudent } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import Loading from './loading';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -42,12 +42,14 @@ const branchesList = [
 function ProjectsPageContent() {
   const isMobile = useIsMobile();
   const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [students, setStudents] = useState<ApiStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
-  const [isMobileFilterVisible, setIsMobileFilterVisible] = useState(false);
+  const [filterSection, setFilterSection] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const currentStudentId = getCurrentStudentId() ?? '';
 
   useEffect(() => {
@@ -66,10 +68,12 @@ function ProjectsPageContent() {
       const savedSearch = searchParam !== null ? searchParam : (sessionStorage.getItem('projects_search') || '');
       const savedYear = sessionStorage.getItem('projects_filterYear') || '';
       const savedBranch = sessionStorage.getItem('projects_filterBranch') || '';
+      const savedSection = sessionStorage.getItem('projects_filterSection') || '';
       
       setSearch(savedSearch);
       setFilterYear(savedYear);
       setFilterBranch(savedBranch);
+      setFilterSection(savedSection);
     }
   }, []);
 
@@ -93,6 +97,12 @@ function ProjectsPageContent() {
   }, [filterBranch]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('projects_filterSection', filterSection);
+    }
+  }, [filterSection]);
+
+  useEffect(() => {
     const load = async () => {
       try {
         const list = await apiProjects({ forUserId: currentStudentId || undefined });
@@ -105,6 +115,70 @@ function ProjectsPageContent() {
     };
     load();
   }, [currentStudentId]);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        const list = await apiStudents();
+        setStudents(list);
+      } catch (e) {
+        console.error('Failed to load students for sections', e);
+      }
+    };
+    loadStudents();
+  }, []);
+
+  const availableSections = useMemo(() => {
+    if (!students || students.length === 0) {
+      // Fallback: extract from projects list if students haven't loaded yet
+      const projFiltered = filterBranch
+        ? projects.filter(p => (p.studentDepartment || '').toLowerCase().trim() === filterBranch.toLowerCase().trim())
+        : projects;
+      return Array.from(
+        new Set(
+          projFiltered
+            .map(p => (p.studentSection || '').trim().toUpperCase())
+            .filter(s => s !== '')
+        )
+      ).sort();
+    }
+
+    const filtered = filterBranch
+      ? students.filter((s) => {
+          const d = (s.department || '').toLowerCase().trim();
+          const f = filterBranch.toLowerCase().trim();
+          if (f === 'cse') return d === 'cse';
+          if (f === 'csm') return d === 'csm' || d.includes('csm');
+          if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
+          if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
+          if (f === 'it') return d === 'it';
+          if (f === 'ece') return d === 'ece';
+          if (f === 'eee') return d === 'eee';
+          if (f === 'mechanical') return d === 'mechanical';
+          if (f === 'civil') return d === 'civil';
+          if (f === 'other') {
+            const known = ['cse', 'csm', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+            return !known.some(k => d === k || d.includes(k));
+          }
+          return d.includes(f);
+        })
+      : students;
+
+    return Array.from(
+      new Set(
+        filtered
+          .map(s => (s.section || '').trim().toUpperCase())
+          .filter(s => s !== '')
+      )
+    ).sort();
+  }, [students, projects, filterBranch]);
+
+  // Reset section filter if not available in current branch
+  useEffect(() => {
+    if (filterSection && !availableSections.includes(filterSection)) {
+      setFilterSection('');
+    }
+  }, [filterBranch, availableSections, filterSection]);
 
   const getRelevanceScore = (project: ApiProject, query: string) => {
     if (!query) return 0;
@@ -155,7 +229,9 @@ function ProjectsPageContent() {
           return d.includes(f);
         })();
 
-        if (!matchYear || !matchBranch) return false;
+        const matchSection = !filterSection || (p.studentSection || '').toLowerCase().trim() === filterSection.toLowerCase().trim();
+
+        if (!matchYear || !matchBranch || !matchSection) return false;
 
         const q = debouncedSearch.toLowerCase().trim();
         if (!q) return true;
@@ -247,9 +323,9 @@ function ProjectsPageContent() {
               )}
               <button
                 type="button"
-                onClick={() => setIsMobileFilterVisible(prev => !prev)}
+                onClick={() => setIsFilterVisible(prev => !prev)}
                 className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
-                  isMobileFilterVisible
+                  isFilterVisible
                     ? 'bg-primary border-primary text-white'
                     : 'bg-background border-border/60 text-muted-foreground'
                 }`}
@@ -260,7 +336,7 @@ function ProjectsPageContent() {
           </div>
 
           {/* Compact Filter Container */}
-          {isMobileFilterVisible && (
+          {isFilterVisible && (
             <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm space-y-4">
               {/* Year Filters */}
               <div className="space-y-2">
@@ -313,8 +389,46 @@ function ProjectsPageContent() {
                 </div>
               </div>
 
+              {/* Divider */}
+              <div className="border-t border-border/40" />
+
+              {/* Section Filters */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Section</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterSection('')}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                      filterSection === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {availableSections.map((s) => {
+                    const isActive = filterSection === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFilterSection(s)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                          isActive
+                            ? 'bg-primary border-primary text-primary-foreground'
+                            : 'bg-background text-foreground border-border/60'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Filter Status */}
-              {(filterYear || filterBranch) && (
+              {(filterYear || filterBranch || filterSection) && (
                 <div className="flex justify-between items-center pt-2 text-[10px] text-muted-foreground font-medium border-t border-border/20">
                   <span className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -325,6 +439,7 @@ function ProjectsPageContent() {
                     onClick={() => {
                       setFilterYear('');
                       setFilterBranch('');
+                      setFilterSection('');
                     }}
                     className="text-primary hover:underline font-bold"
                   >
@@ -350,7 +465,7 @@ function ProjectsPageContent() {
                 return (
                   <Card 
                     key={project.id} 
-                    className="overflow-hidden rounded-2xl bg-card/45 border border-border/40 shadow-sm flex flex-col active:scale-[0.99] transition-transform duration-100"
+                    className="overflow-hidden rounded-2xl bg-card/45 border border-border/40 shadow-sm flex flex-col active:scale-[0.99] cursor-pointer transition-transform duration-100"
                   >
                     {project.thumbnailUrl ? (
                       <div className="w-full aspect-video relative bg-muted/20 border-b border-border/40 flex-shrink-0">
@@ -392,8 +507,13 @@ function ProjectsPageContent() {
                       </div>
                     )}
                     
-                    <div className="p-4 space-y-3.5 flex-1 flex flex-col justify-between">
+                    <div className="p-4 space-y-3.5 flex-1 flex flex-col justify-between text-left">
                       <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {project.academicYear} Year • {project.studentDepartment || 'CSE'} • Section {project.studentSection || 'E'}
+                          </span>
+                        </div>
                         <h3 className="font-extrabold text-foreground text-sm tracking-tight leading-snug line-clamp-1">
                           {project.title}
                         </h3>
@@ -446,7 +566,7 @@ function ProjectsPageContent() {
               <Button
                 size="sm"
                 className="smooth-button text-xs font-bold rounded-xl"
-                onClick={() => { setSearch(''); setFilterYear(''); setFilterBranch(''); }}
+                onClick={() => { setSearch(''); setFilterYear(''); setFilterBranch(''); setFilterSection(''); }}
               >
                 Clear Filters
               </Button>
@@ -484,25 +604,39 @@ function ProjectsPageContent() {
                   placeholder="Search projects by title, description, or student name..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-11 rounded-xl bg-card border-border/60 focus:bg-background text-sm"
+                  className="pl-11 pr-24 h-11 rounded-xl bg-card border-border/60 focus:bg-background text-sm w-full"
                 />
-                {search && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      className="text-muted-foreground hover:text-foreground text-xs font-semibold px-1"
+                    >
+                      Clear
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setSearch('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-semibold"
+                    onClick={() => setIsFilterVisible(prev => !prev)}
+                    className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
+                      isFilterVisible
+                        ? 'bg-primary border-primary text-white'
+                        : 'bg-background border-border/60 text-muted-foreground'
+                    }`}
                   >
-                    Clear
+                    <SlidersHorizontal className="w-4 h-4" />
                   </button>
-                )}
+                </div>
               </div>
-              {(filterYear || filterBranch || search) && (
+              {(filterYear || filterBranch || filterSection || search) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSearch('');
                     setFilterYear('');
                     setFilterBranch('');
+                    setFilterSection('');
                   }}
                   className="h-11 px-5 rounded-xl border-border/60 font-bold text-xs hover:bg-muted/30"
                 >
@@ -512,62 +646,104 @@ function ProjectsPageContent() {
             </div>
 
             {/* Compact Filter Container */}
-            <div className="bg-card/45 border border-border/40 rounded-2xl p-5 shadow-sm space-y-4">
-              {/* Year Filters */}
-              <div className="flex items-center gap-6">
-                <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Year
+            {isFilterVisible && (
+              <div className="bg-card/45 border border-border/40 rounded-2xl p-5 shadow-sm space-y-4">
+                {/* Year Filters */}
+                <div className="flex items-center gap-6">
+                  <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Year
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {yearsList.map((y) => {
+                      const isActive = filterYear === y.value;
+                      return (
+                        <button
+                          key={y.value}
+                          type="button"
+                          onClick={() => setFilterYear(y.value)}
+                          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                            isActive
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                          }`}
+                        >
+                          {y.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {yearsList.map((y) => {
-                    const isActive = filterYear === y.value;
-                    return (
-                      <button
-                        key={y.value}
-                        type="button"
-                        onClick={() => setFilterYear(y.value)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                          isActive
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                        }`}
-                      >
-                        {y.label}
-                      </button>
-                    );
-                  })}
+
+                {/* Divider */}
+                <div className="border-t border-border/40" />
+
+                {/* Branch Filters */}
+                <div className="flex items-center gap-6">
+                  <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Branch
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {branchesList.map((b) => {
+                      const isActive = filterBranch === b.value;
+                      return (
+                        <button
+                          key={b.value}
+                          type="button"
+                          onClick={() => setFilterBranch(b.value)}
+                          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                            isActive
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                          }`}
+                        >
+                          {b.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-border/40" />
+
+                {/* Section Filters */}
+                <div className="flex items-center gap-6">
+                  <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Section
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilterSection('')}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                        filterSection === ''
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {availableSections.map((s) => {
+                      const isActive = filterSection === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setFilterSection(s)}
+                          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                            isActive
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-
-              {/* Divider */}
-              <div className="border-t border-border/40" />
-
-              {/* Branch Filters */}
-              <div className="flex items-center gap-6">
-                <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Branch
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {branchesList.map((b) => {
-                    const isActive = filterBranch === b.value;
-                    return (
-                      <button
-                        key={b.value}
-                        type="button"
-                        onClick={() => setFilterBranch(b.value)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                          isActive
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                        }`}
-                      >
-                        {b.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Projects Grid */}
@@ -611,8 +787,8 @@ function ProjectsPageContent() {
 
                       <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
 
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline" className="text-xs">{project.academicYear} Year</Badge>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground font-semibold">
+                        <span>{project.academicYear} Year • {project.studentDepartment || 'CSE'} • Section {project.studentSection || 'E'}</span>
                       </div>
                     </div>
 
@@ -661,7 +837,7 @@ function ProjectsPageContent() {
               <p className="text-muted-foreground text-sm mb-6">Try searching by project title, student name, student ID, or category.</p>
               <Button
                 className="smooth-button bg-primary text-primary-foreground"
-                onClick={() => { setSearch(''); setFilterYear(''); setFilterBranch(''); }}
+                onClick={() => { setSearch(''); setFilterYear(''); setFilterBranch(''); setFilterSection(''); }}
               >
                 Clear Filters
               </Button>

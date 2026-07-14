@@ -169,3 +169,90 @@
     }
   }
 }
+
+/* ==========================================================================
+   CRR Project Hub Global Cursor Behavior Rules
+   ========================================================================== */
+
+/* 1. Global Default Cursor for Non-interactive elements */
+body, 
+p, 
+span, 
+div, 
+label, 
+h1, 
+h2, 
+h3, 
+h4, 
+h5, 
+h6, 
+section, 
+main, 
+header, 
+footer, 
+aside, 
+article, 
+svg, 
+path, 
+img {
+  cursor: default;
+}
+
+/* 2. Global Text Inputs & Editable Fields */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+textarea,
+[contenteditable="true"] {
+  cursor: text !important;
+}
+
+/* 3. Global Clickable / Interactive Elements */
+a,
+a *,
+button,
+button *,
+select,
+option,
+[role="button"],
+[role="button"] *,
+[role="link"],
+[role="link"] *,
+[type="button"],
+[type="button"] *,
+[type="submit"],
+[type="submit"] *,
+[type="reset"],
+[type="reset"] *,
+.cursor-pointer,
+.cursor-pointer *,
+.smooth-button,
+.smooth-button *,
+.hover-lift,
+.hover-lift * {
+  cursor: pointer !important;
+}
+
+/* 4. Global Disabled / Not-Allowed Actions */
+button:disabled,
+button[disabled],
+button:disabled *,
+button[disabled] *,
+input:disabled,
+input[disabled],
+select:disabled,
+select[disabled],
+textarea:disabled,
+textarea[disabled],
+[aria-disabled="true"],
+[aria-disabled="true"] *,
+.disabled,
+.disabled *,
+.cursor-not-allowed,
+.cursor-not-allowed * {
+  cursor: not-allowed !important;
+}

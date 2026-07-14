@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StudentProfileCard } from '@/components/StudentProfileCard';
-import { Search, Users, ArrowRight, ExternalLink } from 'lucide-react';
+import { Search, Users, ArrowRight, ExternalLink, SlidersHorizontal } from 'lucide-react';
 import type { ApiStudent } from '@/lib/api';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
@@ -33,7 +33,25 @@ function toRecord(s: ApiStudent) {
   };
 }
 
-const years = ['1st', '2nd', '3rd', 'Final'];
+const years = [
+  { value: '1st', label: '1st Year' },
+  { value: '2nd', label: '2nd Year' },
+  { value: '3rd', label: '3rd Year' },
+  { value: 'Final', label: 'Final Year' },
+];
+
+const branches = [
+  { value: 'CSE', label: 'CSE' },
+  { value: 'CSM', label: 'CSM' },
+  { value: 'AI&ML', label: 'AI&ML' },
+  { value: 'AI&DS', label: 'AI&DS' },
+  { value: 'IT', label: 'IT' },
+  { value: 'ECE', label: 'ECE' },
+  { value: 'EEE', label: 'EEE' },
+  { value: 'Mechanical', label: 'Mechanical' },
+  { value: 'Civil', label: 'Civil' },
+  { value: 'Other', label: 'Other' },
+];
 
 export default function SelectStudentPage() {
   const router = useRouter();
@@ -43,20 +61,10 @@ export default function SelectStudentPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mobile filters state
   const [filterYear, setFilterYear] = useState('');
   const [filterDept, setFilterDept] = useState('');
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  const [tempFilterYear, setTempFilterYear] = useState('');
-  const [tempFilterDept, setTempFilterDept] = useState('');
-
-  // Sync temp state when mobile filter opens
-  useEffect(() => {
-    if (isMobileFilterOpen) {
-      setTempFilterYear(filterYear);
-      setTempFilterDept(filterDept);
-    }
-  }, [isMobileFilterOpen]);
+  const [filterSection, setFilterSection] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -76,7 +84,45 @@ export default function SelectStudentPage() {
     loadStudents();
   }, []);
 
-  // Filter logic (combining search, year, and department)
+  const availableSections = useMemo(() => {
+    if (!students || students.length === 0) return [];
+    const filtered = filterDept
+      ? students.filter((s) => {
+          const d = (s.department || '').toLowerCase().trim();
+          const f = filterDept.toLowerCase().trim();
+          if (f === 'cse') return d === 'cse';
+          if (f === 'csm') return d === 'csm' || d.includes('csm');
+          if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
+          if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
+          if (f === 'it') return d === 'it';
+          if (f === 'ece') return d === 'ece';
+          if (f === 'eee') return d === 'eee';
+          if (f === 'mechanical') return d === 'mechanical';
+          if (f === 'civil') return d === 'civil';
+          if (f === 'other') {
+            const known = ['cse', 'csm', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+            return !known.some(k => d === k || d.includes(k));
+          }
+          return d.includes(f);
+        })
+      : students;
+    return Array.from(
+      new Set(
+        filtered
+          .map(s => (s.section || '').trim().toUpperCase())
+          .filter(s => s !== '')
+      )
+    ).sort();
+  }, [students, filterDept]);
+
+  // Reset section filter if not available in current department
+  useEffect(() => {
+    if (filterSection && !availableSections.includes(filterSection)) {
+      setFilterSection('');
+    }
+  }, [filterDept, availableSections, filterSection]);
+
+  // Filter logic (combining search, year, department, and section)
   useEffect(() => {
     const q = searchQuery.toLowerCase().trim();
     const filtered = students.filter((student) => {
@@ -97,13 +143,33 @@ export default function SelectStudentPage() {
         ));
 
       const matchDept =
-        !filterDept ||
-        student.department?.toLowerCase().trim() === filterDept.toLowerCase().trim();
+        !filterDept || (() => {
+          const d = (student.department || '').toLowerCase().trim();
+          const f = filterDept.toLowerCase().trim();
+          if (f === 'cse') return d === 'cse';
+          if (f === 'csm') return d === 'csm' || d.includes('csm');
+          if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
+          if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
+          if (f === 'it') return d === 'it';
+          if (f === 'ece') return d === 'ece';
+          if (f === 'eee') return d === 'eee';
+          if (f === 'mechanical') return d === 'mechanical';
+          if (f === 'civil') return d === 'civil';
+          if (f === 'other') {
+            const known = ['cse', 'csm', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+            return !known.some(k => d === k || d.includes(k));
+          }
+          return d.includes(f);
+        })();
 
-      return matchSearch && matchYear && matchDept;
+      const matchSection =
+        !filterSection ||
+        (student.section || '').toLowerCase().trim() === filterSection.toLowerCase().trim();
+
+      return matchSearch && matchYear && matchDept && matchSection;
     });
     setFilteredStudents(filtered);
-  }, [searchQuery, filterYear, filterDept, students]);
+  }, [searchQuery, filterYear, filterDept, filterSection, students]);
 
   if (isLoading) {
     return (
@@ -123,29 +189,167 @@ export default function SelectStudentPage() {
         <Navbar />
 
         <main className="px-4 py-4 space-y-4">
-          {/* Mobile search bar and filter button */}
-          <div className="flex gap-2.5 items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search students..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-xl bg-muted/40 border-border/60 focus:bg-background h-10 text-sm"
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setIsMobileFilterOpen(true)}
-              className="rounded-xl border-border/60 font-bold text-xs h-10 px-4 flex items-center gap-1.5"
-            >
-              Filter
-              {(filterYear || filterDept) && (
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          {/* Mobile search bar and filter icon */}
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search students by name, ID, email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-20 rounded-xl bg-muted/40 border-border/60 focus:bg-background h-10 text-xs w-full"
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-muted-foreground hover:text-foreground text-xs font-semibold px-1"
+                >
+                  Clear
+                </button>
               )}
-            </Button>
+              <button
+                type="button"
+                onClick={() => setIsFilterVisible(prev => !prev)}
+                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
+                  isFilterVisible
+                    ? 'bg-primary border-primary text-white'
+                    : 'bg-background border-border/60 text-muted-foreground'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {/* Compact Filter Panel */}
+          {isFilterVisible && (
+            <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm space-y-4">
+              {/* Year Filters */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Year</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterYear('')}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                      filterYear === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {years.map((y) => (
+                    <button
+                      key={y.value}
+                      type="button"
+                      onClick={() => setFilterYear(y.value)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                        filterYear === y.value
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background text-foreground border-border/60'
+                      }`}
+                    >
+                      {y.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border/40" />
+
+              {/* Department Filters */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Branch</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterDept('')}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                      filterDept === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {branches.map((b) => (
+                    <button
+                      key={b.value}
+                      type="button"
+                      onClick={() => setFilterDept(b.value)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                        filterDept === b.value
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background text-foreground border-border/60'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border/40" />
+
+              {/* Section Filters */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Section</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterSection('')}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                      filterSection === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {availableSections.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFilterSection(s)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
+                        filterSection === s
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background text-foreground border-border/60'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter Status */}
+              {(filterYear || filterDept || filterSection) && (
+                <div className="flex justify-between items-center pt-2 text-[10px] text-muted-foreground font-medium border-t border-border/20">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Filters applied
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterYear('');
+                      setFilterDept('');
+                      setFilterSection('');
+                    }}
+                    className="text-primary hover:underline font-bold"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Student Cards List */}
           {filteredStudents.length > 0 ? (
@@ -153,7 +357,7 @@ export default function SelectStudentPage() {
               {filteredStudents.map((student) => (
                 <Card
                   key={student.userId}
-                  className="p-3.5 rounded-2xl bg-card/45 border border-border/40 shadow-sm flex items-center justify-between gap-4 active:scale-[0.99] transition-transform duration-100 text-left"
+                  className="p-3.5 rounded-2xl bg-card/45 border border-border/40 shadow-sm flex items-center justify-between gap-4 active:scale-[0.99] cursor-pointer transition-transform duration-100 text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-11 h-11 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center flex-shrink-0 border border-border/40">
@@ -179,7 +383,7 @@ export default function SelectStudentPage() {
                          String(student.year) === '2' ? '2nd' :
                          String(student.year) === '3' ? '3rd' :
                          String(student.year) === '4' ? 'Final' : 
-                         String(student.year)} Year • {student.department}
+                         String(student.year)} Year • {student.department} • Section {student.section || 'E'}
                       </p>
                       <p className="text-[9px] text-muted-foreground/85 truncate">
                         Sir C.R. Reddy College of Engineering
@@ -203,103 +407,13 @@ export default function SelectStudentPage() {
               <Button
                 size="sm"
                 className="smooth-button text-xs font-bold rounded-xl"
-                onClick={() => { setSearchQuery(''); setFilterYear(''); setFilterDept(''); }}
+                onClick={() => { setSearchQuery(''); setFilterYear(''); setFilterDept(''); setFilterSection(''); }}
               >
                 Clear Filters
               </Button>
             </Card>
           )}
         </main>
-
-        {/* Premium Bottom Sheet Filter */}
-        <Drawer open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
-          <DrawerContent className="p-5 space-y-4 rounded-t-[24px] border-t bg-background">
-            <VisuallyHidden>
-              <DrawerTitle>Filters</DrawerTitle>
-              <DrawerDescription>Filter students by year and department</DrawerDescription>
-            </VisuallyHidden>
-            <div className="mx-auto w-12 h-1 bg-muted rounded-full mb-1" />
-            <DrawerTitle className="text-center font-bold text-base text-foreground mb-1">Filters</DrawerTitle>
-            
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Year</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={tempFilterYear === '' ? 'default' : 'outline'}
-                    size="sm"
-                    className="rounded-lg text-xs"
-                    onClick={() => setTempFilterYear('')}
-                  >
-                    All
-                  </Button>
-                  {years.map(year => (
-                    <Button
-                      key={year}
-                      variant={tempFilterYear === year ? 'default' : 'outline'}
-                      size="sm"
-                      className="rounded-lg text-xs"
-                      onClick={() => setTempFilterYear(year)}
-                    >
-                      {year}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="border-t border-border/40 pt-3.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Department</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={tempFilterDept === '' ? 'default' : 'outline'}
-                    size="sm"
-                    className="rounded-lg text-xs"
-                    onClick={() => setTempFilterDept('')}
-                  >
-                    All
-                  </Button>
-                  {['CSE', 'IT', 'ECE', 'Mechanical', 'Civil'].map(dept => (
-                    <Button
-                      key={dept}
-                      variant={tempFilterDept === dept ? 'default' : 'outline'}
-                      size="sm"
-                      className="rounded-lg text-xs"
-                      onClick={() => setTempFilterDept(dept)}
-                    >
-                      {dept}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-3 border-t border-border/40">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl text-xs font-bold py-5"
-                onClick={() => {
-                  setTempFilterYear('');
-                  setTempFilterDept('');
-                  setFilterYear('');
-                  setFilterDept('');
-                  setIsMobileFilterOpen(false);
-                }}
-              >
-                Reset
-              </Button>
-              <Button
-                className="flex-1 rounded-xl text-xs font-bold py-5 text-white"
-                onClick={() => {
-                  setFilterYear(tempFilterYear);
-                  setFilterDept(tempFilterDept);
-                  setIsMobileFilterOpen(false);
-                }}
-              >
-                Apply
-              </Button>
-            </div>
-          </DrawerContent>
-        </Drawer>
       </div>
     );
   }
@@ -324,20 +438,171 @@ export default function SelectStudentPage() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        {/* Search Bar and filter button inside */}
+        <div className="mb-8 space-y-4">
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Search by name, ID, or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
+              className="pl-11 pr-24 h-12 rounded-xl bg-card border-border/60 focus:bg-background text-sm w-full"
             />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-muted-foreground hover:text-foreground text-xs font-semibold px-1"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsFilterVisible(prev => !prev)}
+                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
+                  isFilterVisible
+                    ? 'bg-primary border-primary text-white'
+                    : 'bg-background border-border/60 text-muted-foreground'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Found <span className="font-semibold">{filteredStudents.length}</span> student{filteredStudents.length !== 1 ? 's' : ''}
-          </p>
+
+          {/* Compact Filter Panel */}
+          {isFilterVisible && (
+            <div className="bg-card/45 border border-border/40 rounded-2xl p-5 shadow-sm space-y-4 text-left">
+              {/* Year Filters */}
+              <div className="flex items-center gap-6">
+                <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Year
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterYear('')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                      filterYear === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {years.map((y) => (
+                    <button
+                      key={y.value}
+                      type="button"
+                      onClick={() => setFilterYear(y.value)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                        filterYear === y.value
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                      }`}
+                    >
+                      {y.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border/40" />
+
+              {/* Department/Branch Filters */}
+              <div className="flex items-center gap-6">
+                <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Branch
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterDept('')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                      filterDept === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {branches.map((b) => (
+                    <button
+                      key={b.value}
+                      type="button"
+                      onClick={() => setFilterDept(b.value)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                        filterDept === b.value
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border/40" />
+
+              {/* Section Filters */}
+              <div className="flex items-center gap-6">
+                <div className="w-16 flex-shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Section
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterSection('')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                      filterSection === ''
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {availableSections.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFilterSection(s)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
+                        filterSection === s
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center text-sm text-muted-foreground mt-2">
+            <p>
+              Found <span className="font-semibold">{filteredStudents.length}</span> student{filteredStudents.length !== 1 ? 's' : ''}
+            </p>
+            {(filterYear || filterDept || filterSection) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterYear('');
+                  setFilterDept('');
+                  setFilterSection('');
+                }}
+                className="text-xs text-primary font-bold hover:underline"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Students Grid */}
@@ -361,11 +626,11 @@ export default function SelectStudentPage() {
             <Users className="w-16 h-16 mx-auto text-muted-foreground opacity-50" />
             <p className="text-lg text-muted-foreground">No students found matching your search</p>
             <Button
-              onClick={() => setSearchQuery('')}
+              onClick={() => { setSearchQuery(''); setFilterYear(''); setFilterDept(''); setFilterSection(''); }}
               variant="outline"
               className="smooth-button"
             >
-              Clear search
+              Clear filters
             </Button>
           </div>
         )}

@@ -38,6 +38,7 @@ interface StudentData {
   studentId: string;
   department: string;
   year: string;
+  section: string;
   email: string;
   profilePhoto?: string;
   linkedinUrl?: string;
@@ -98,6 +99,7 @@ export default function ProfilePage() {
             studentId: dbStudent.userId,
             department: dbStudent.department,
             year: dbStudent.academicYear,
+            section: dbStudent.section || 'E',
             email: dbStudent.email || '',
             linkedinUrl: dbStudent.linkedinUrl || '',
             githubUrl: dbStudent.githubUrl || '',
@@ -106,7 +108,7 @@ export default function ProfilePage() {
           };
           console.log("DB Student:", dbStudent);
           setStudentData(newStudent);
-         localStorage.setItem(storageKey, JSON.stringify(newStudent));
+          localStorage.setItem(storageKey, JSON.stringify(newStudent));
         } else if (existing) {
           const parsed = JSON.parse(existing);
           setStudentData(parsed);
@@ -117,6 +119,7 @@ export default function ProfilePage() {
             studentId,
             department: localStorage.getItem('studentDepartment') || 'CSE',
             year: '2nd',
+            section: localStorage.getItem('studentSection') || 'E',
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
             githubUrl: '',
@@ -139,6 +142,7 @@ export default function ProfilePage() {
             studentId,
             department: localStorage.getItem('studentDepartment') || 'CSE',
             year: '2nd',
+            section: localStorage.getItem('studentSection') || 'E',
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
             githubUrl: '',
@@ -408,6 +412,33 @@ export default function ProfilePage() {
                 <label className="text-xs font-semibold text-muted-foreground">Name (Read Only)</label>
                 <Input value={studentData.name} disabled className="mt-1 bg-muted/40 rounded-xl" />
               </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground">Department</label>
+                  <Input value={studentData.department} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground">Year</label>
+                  <select
+                    value={editData.year || studentData.year}
+                    onChange={(e) => setEditData({ ...editData, year: e.target.value })}
+                    className="mt-1 bg-muted/45 w-full p-2 rounded-xl text-xs h-9 border border-input focus:outline-none"
+                  >
+                    <option value="1st">1st Year</option>
+                    <option value="2nd">2nd Year</option>
+                    <option value="3rd">3rd Year</option>
+                    <option value="final">4th Year</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground">Section</label>
+                  <Input value={studentData.section || 'E'} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                </div>
+              </div>
+              <p className="text-[9px] text-muted-foreground -mt-2">
+                Section cannot be changed from official records.
+              </p>
               
               <div>
                 <label className="text-xs font-semibold text-muted-foreground">Email</label>
@@ -545,7 +576,7 @@ export default function ProfilePage() {
                   {studentData.name}
                 </h2>
                 <p className="text-xs font-semibold text-muted-foreground">
-                  {studentData.year} Year • {studentData.department}
+                  {studentData.year} Year • {studentData.department} • Section {studentData.section || 'E'}
                 </p>
                 <p className="text-[10px] text-muted-foreground/80 truncate font-medium">
                   Sir C.R. Reddy College of Engineering
@@ -762,6 +793,9 @@ export default function ProfilePage() {
                   <Badge className="bg-primary/20 text-primary">
                     {studentData.department}
                   </Badge>
+                  <Badge className="bg-accent/20 text-accent">
+                    Section {studentData.section || 'E'}
+                  </Badge>
 
                   {/* Skills display */}
                   {studentData.skills && studentData.skills.length > 0 && (
@@ -796,9 +830,9 @@ export default function ProfilePage() {
                     Name cannot be changed from official records
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Department (From CSV)</label>
+                    <label className="text-sm font-medium">Department</label>
                     <Input
                       value={studentData.department}
                       disabled
@@ -813,7 +847,7 @@ export default function ProfilePage() {
                     <select
                       value={editData.year || studentData.year}
                       onChange={(e) => setEditData({ ...editData, year: e.target.value })}
-                      className="mt-1 bg-muted w-full p-2 rounded"
+                      className="mt-1 bg-muted w-full p-2 rounded h-10 border border-input bg-background"
                     >
                       <option value="1st">1st Year</option>
                       <option value="2nd">2nd Year</option>
@@ -822,6 +856,17 @@ export default function ProfilePage() {
                     </select>
                     <p className="text-xs text-muted-foreground mt-1">
                       Select your academic year
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Section</label>
+                    <Input
+                      value={studentData.section || 'E'}
+                      disabled
+                      className="mt-1 bg-muted cursor-not-allowed"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Section cannot be changed from official records.
                     </p>
                   </div>
                 </div>
@@ -1091,9 +1136,9 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-muted-foreground">Department & Year</p>
+                    <p className="text-muted-foreground">Department, Year & Section</p>
                     <p>
-                      {studentData.department} - {studentData.year} Year
+                      {studentData.department} • {studentData.year} Year • Section {studentData.section || 'E'}
                     </p>
                   </div>
                 </div>

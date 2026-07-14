@@ -124,6 +124,7 @@ export interface ApiProject {
   collaborators: string[];
   userHasLiked?: boolean;
   studentDepartment?: string;
+  studentSection?: string;
   collaboratorNames?: string[];
   allCollaborators?: {
     studentId: string;

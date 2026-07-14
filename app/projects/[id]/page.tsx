@@ -60,11 +60,34 @@ export default function ProjectDetailsPage() {
 
   const projectImages = project ? getProjectImages(project) : [];
 
-  const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [editGalleryImages, setEditGalleryImages] = useState<{ file?: File; preview: string; url?: string }[]>([]);
 
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const [fullscreenImageIndex, setFullscreenImageIndex] = useState(0);
+
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEndX(null);
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const diffX = touchStartX - touchEndX;
+    const swipeThreshold = 50;
+    if (diffX > swipeThreshold) {
+      setFullscreenImageIndex((prev) => (prev + 1) % projectImages.length);
+    } else if (diffX < -swipeThreshold) {
+      setFullscreenImageIndex((prev) => (prev - 1 + projectImages.length) % projectImages.length);
+    }
+  };
 
   useEffect(() => {
     if (isFullscreenOpen) {
@@ -100,10 +123,7 @@ export default function ProjectDetailsPage() {
   }, [isFullscreenOpen, projectImages]);
 
   useEffect(() => {
-    if (project) {
-      const images = getProjectImages(project);
-      setActiveImage(images.length > 0 ? images[0] : null);
-    }
+    setGalleryIndex(0);
   }, [project]);
 
   const currentStudentId = getCurrentStudentId();
@@ -520,9 +540,91 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const description = project?.description || '';
+  const urlMatch = description.match(/Project URL:\s*([^\s\n\r]+)/i);
+  const rawProjectUrl = urlMatch ? urlMatch[1].trim() : '';
+  const cleanDescription = description
+    .replace(/Project URL:\s*[^\s\n\r]+/i, '')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .trim();
+
+  const getTitleClass = (text: string) => {
+    const len = text.length;
+    if (len > 50) return "text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground leading-tight";
+    if (len > 25) return "text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-tight";
+    return "text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground leading-tight";
+  };
+
+  const isValidUrl = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const renderGallery = (isMobileView: boolean) => {
+    const images = projectImages;
+    if (images.length === 0) {
+      return (
+        <div className={`relative flex items-center justify-center bg-muted/20 border border-border/40 aspect-video rounded-xl`}>
+          <span className="text-sm text-muted-foreground font-medium">No images available</span>
+        </div>
+      );
+    }
+
+    const hasMultiple = images.length > 1;
+
+    return (
+      <div className={`relative group select-none overflow-hidden bg-black/5 dark:bg-black/40 border border-border/40 aspect-video rounded-xl`}>
+        <img
+          src={images[galleryIndex]}
+          alt={project?.title || "Project image"}
+          className="w-full h-full object-cover cursor-zoom-in"
+          onClick={() => {
+            setFullscreenImageIndex(galleryIndex);
+            setIsFullscreenOpen(true);
+          }}
+        />
+
+        {hasMultiple && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setGalleryIndex((prev) => (prev - 1 + images.length) % images.length);
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/85 hover:bg-background text-foreground shadow-sm flex items-center justify-center border border-border focus:outline-none cursor-pointer"
+            >
+              <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setGalleryIndex((prev) => (prev + 1) % images.length);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/85 hover:bg-background text-foreground shadow-sm flex items-center justify-center border border-border focus:outline-none cursor-pointer"
+            >
+              <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+            </button>
+
+            <div className="absolute bottom-4 right-4 px-3 py-1 rounded-md bg-black/60 text-white text-xs font-semibold tracking-wider backdrop-blur-sm">
+              {galleryIndex + 1} / {images.length}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen gradient-bg">
+      <div className="min-h-screen bg-background text-foreground">
         <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <p className="text-muted-foreground animate-pulse">Loading project...</p>
@@ -533,7 +635,7 @@ export default function ProjectDetailsPage() {
 
   if (error || !project) {
     return (
-      <div className="min-h-screen gradient-bg">
+      <div className="min-h-screen bg-background text-foreground">
         <Navbar />
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] space-y-4 px-4 text-center">
           <p className="text-2xl font-bold text-muted-foreground">{error || 'Project not found'}</p>
@@ -544,628 +646,134 @@ export default function ProjectDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen gradient-bg">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10">
       <Navbar />
       {isMobile ? (
-        <main className="max-w-5xl mx-auto px-4 py-4 space-y-6">
-          <Button
-            variant="ghost"
-            className="mb-3 text-xs h-8 px-2 animate-none"
-            onClick={() => safeBack('/projects')}
-          >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Projects
-          </Button>
+        <main className="px-4 py-6 space-y-6">
+          {/* Back Button */}
+          <div>
+            <Button
+              variant="ghost"
+              className="h-auto p-0 hover:bg-transparent text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-medium"
+              onClick={() => safeBack('/projects')}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Projects
+            </Button>
+          </div>
 
-          <Card className="bg-card/70 backdrop-blur-sm border-primary/20 p-4 rounded-2xl relative">
-            {isOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-4 right-4 gap-2 border-border/80 text-muted-foreground hover:text-foreground h-8 rounded-lg px-3 text-xs z-10"
-                onClick={openEditModal}
-              >
-                <Pencil className="w-3.5 h-3.5" /> Edit
-              </Button>
-            )}
-            <div className="flex flex-col gap-4">
-              <div className="flex-1">
-                <h1 className="text-xl mb-2 font-extrabold text-foreground">{project.title}</h1>
-                {(() => {
-                  const description = project.description || '';
-                  const urlMatch = description.match(/Project URL:\s*([^\s\n\r]+)/i);
-                  const rawProjectUrl = urlMatch ? urlMatch[1].trim() : '';
-                  const cleanDescription = description
-                    .replace(/Project URL:\s*[^\s\n\r]+/i, '')
-                    .replace(/\n\s*\n\s*\n/g, '\n\n')
-                    .trim();
+          {/* 1. Large Gallery */}
+          <div className="w-full">
+            {renderGallery(true)}
+          </div>
 
-                  const isValidUrl = (url: string) => {
-                    try {
-                      const parsed = new URL(url);
-                      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-                    } catch {
-                      return false;
-                    }
-                  };
+          {/* 2. Project Title */}
+          <div className="space-y-1">
+            <h1 className={getTitleClass(project.title)}>
+              {project.title}
+            </h1>
+          </div>
 
-                  return (
-                    <>
-                      <p className="text-xs mb-3 font-medium text-muted-foreground leading-relaxed">{cleanDescription || 'No description available.'}</p>
-                      {isValidUrl(rawProjectUrl) && (
-                        <div className="mb-4">
-                          <span className="font-semibold text-muted-foreground block text-[10px] mb-0.5 uppercase tracking-wider">Project URL</span>
-                          <a
-                            href={rawProjectUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600 transition-colors duration-150 cursor-pointer break-all no-underline inline-block text-xs font-semibold"
-                            style={{ textDecoration: 'none' }}
-                          >
-                            {rawProjectUrl}
-                          </a>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                <div className="grid grid-cols-3 gap-2.5 mb-4">
-                  <div className="text-center rounded-xl bg-muted/15 p-2">
-                    <div className="font-bold text-base font-extrabold text-foreground">{project.likes}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-[9px] mt-0.5 tracking-wider font-semibold">
-                      <span className="text-xs">❤️</span> Likes
-                    </div>
-                  </div>
-                  <div className="text-center rounded-xl bg-muted/15 p-2">
-                    <div className="font-bold text-base font-extrabold text-foreground">{views ?? project.views}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-[9px] mt-0.5 tracking-wider font-semibold">
-                      <span className="text-xs">👁</span> Views
-                    </div>
-                  </div>
-                  <div className="text-center rounded-xl bg-muted/15 p-2">
-                    <div className="font-bold text-base font-extrabold text-foreground">{project.savedBy?.length ?? 0}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-[9px] mt-0.5 tracking-wider font-semibold">
-                      <span className="text-xs">🔖</span> Saved
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Owner: <span className="font-semibold text-foreground">{project.studentName}</span></p>
-                  {project.collaboratorNames && project.collaboratorNames.length > 0 && (
-                    <p className="text-xs text-muted-foreground">Collaborators: <span className="font-semibold text-foreground">{project.collaboratorNames.join(', ')}</span></p>
-                  )}
-                  <p className="text-xs text-muted-foreground">Year: <span className="font-semibold text-foreground">{project.academicYear}</span></p>
-                  <p className="text-xs text-muted-foreground">Department: <span className="font-semibold text-foreground">{project.studentDepartment || 'CSE'}</span></p>
-                  {project.fileName && (
-                    <p className="text-xs text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
-                  )}
-                </div>
-              </div>
-
-              {(() => {
-                const images = projectImages;
-                if (images.length > 1) {
-                  return (
-                    <div className="relative w-full max-w-[240px] mx-auto mt-2 aspect-video overflow-hidden border border-white/10 bg-muted/10 shadow-sm rounded-2xl group">
-                      <img
-                        src={activeImage || images[0]}
-                        alt={project.title}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => {
-                          const currentIdx = images.indexOf(activeImage || images[0]);
-                          setFullscreenImageIndex(currentIdx >= 0 ? currentIdx : 0);
-                          setIsFullscreenOpen(true);
-                        }}
-                      />
-                      
-                      {/* Left Circular Arrow */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const currentIdx = images.indexOf(activeImage || images[0]);
-                          const prevIdx = (currentIdx - 1 + images.length) % images.length;
-                          setActiveImage(images[prevIdx]);
-                        }}
-                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
-                      >
-                        <ChevronLeft className="w-4.5 h-4.5 stroke-[2.5]" />
-                      </button>
-
-                      {/* Right Circular Arrow */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const currentIdx = images.indexOf(activeImage || images[0]);
-                          const nextIdx = (currentIdx + 1) % images.length;
-                          setActiveImage(images[nextIdx]);
-                        }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
-                      >
-                        <ChevronRight className="w-4.5 h-4.5 stroke-[2.5]" />
-                      </button>
-                    </div>
-                  );
-                } else if (images.length === 1) {
-                  return (
-                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-[240px] rounded-2xl mx-auto mt-2 aspect-video">
-                      <img
-                        src={images[0]}
-                        alt={project.title}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => {
-                          setFullscreenImageIndex(0);
-                          setIsFullscreenOpen(true);
-                        }}
-                      />
-                    </div>
-                  );
-                } else {
-                  return (
-                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-[240px] rounded-2xl mx-auto mt-2 aspect-video flex items-center justify-center">
-                      <img src="/placeholder.jpg" alt="No image" className="w-full h-full object-cover" />
-                    </div>
-                  );
-                }
-              })()}
+          {/* 3. Year + Department */}
+          <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Year</span>
+              <span className="text-sm font-bold text-foreground">{project.academicYear}</span>
             </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-2 justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 shrink-0 smooth-transition"
-                onClick={() => safeBack('/projects')}
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back
-              </Button>
-              <Button
-                variant={project.userHasLiked ? 'default' : 'outline'}
-                size="sm"
-                className={`gap-2 smooth-transition ${
-                  project.userHasLiked
-                    ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
-                    : 'hover:text-red-500 hover:border-red-500 bg-transparent'
-                }`}
-                onClick={handleLike}
-              >
-                <Heart className="w-3.5 h-3.5" fill={project.userHasLiked ? 'currentColor' : 'none'} />
-                {project.userHasLiked ? 'Liked' : 'Like'}
-              </Button>
-              <Button
-                variant={isSaved ? 'default' : 'outline'}
-                size="sm"
-                className={`gap-2 smooth-transition ${
-                  isSaved
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
-                    : 'hover:text-yellow-500 hover:border-yellow-500 bg-transparent'
-                }`}
-                onClick={handleSave}
-              >
-                <Bookmark className="w-3.5 h-3.5" fill={isSaved ? 'currentColor' : 'none'} />
-                {isSaved ? 'Saved' : 'Save'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 smooth-transition hover:text-blue-500 hover:border-blue-500 bg-transparent"
-                onClick={() => {
-                  const targetPath = isOwner
-                    ? '/profile'
-                    : `/student/${project.studentId}`;
-                  router.push(targetPath);
-                }}
-              >
-                <User className="w-3.5 h-3.5" />
-                Profile
-              </Button>
+            <div className="flex flex-col gap-0.5 border-l border-border/40 pl-4">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Department</span>
+              <span className="text-sm font-bold text-foreground">{project.studentDepartment || 'CSE'}</span>
             </div>
-          </Card>
+          </div>
 
-          {/* Manage Collaborators Section - ONLY FOR OWNER */}
-          {project && isOwner && project.allCollaborators && (project.allCollaborators.length > 0 || isMobile) && (
-            <div className="bg-card border shadow-sm backdrop-blur-md text-left mt-4 p-4 rounded-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-base font-extrabold text-foreground">Manage Collaborators</h2>
-                <Button
-                  onClick={() => setIsAddDrawerOpen(true)}
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-white font-semibold rounded-full px-4 active:scale-95 transition-transform text-xs h-8"
-                >
-                  + Add
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {project.allCollaborators.map((collab: any) => (
-                  <div key={collab.studentId} className="flex flex-col justify-between border border-border/60 bg-muted/5 gap-3 p-3 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      {collab.avatar ? (
-                        <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-10 h-10" />
-                      ) : (
-                        <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-10 h-10 text-lg">👤</div>
-                      )}
-                      <div>
-                        <h4 className="font-semibold text-foreground text-xs">{collab.name}</h4>
-                        <p className="text-muted-foreground font-mono text-[10px]">{collab.studentId}</p>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            collab.status === 'ACCEPTED' ? 'bg-green-500' :
-                            collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}></span>
-                          <span className="font-medium text-muted-foreground capitalize text-[10px]">
-                            {collab.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+          {/* 4. Owner */}
+          <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Owner</span>
+            <span className="text-sm font-bold text-foreground">{project.studentName}</span>
+          </div>
 
-                    <div className="flex items-center gap-2">
-                      {collab.status === 'PENDING' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[10px] h-7 px-2.5 rounded-lg"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
-                        >
-                          Cancel Invitation
-                        </Button>
-                      )}
-                      {collab.status === 'REJECTED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-primary/30 text-primary hover:bg-primary hover:text-white text-[10px] h-7 px-2.5 rounded-lg"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
-                        >
-                          Invite Again
-                        </Button>
-                      )}
-                      {collab.status === 'ACCEPTED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[10px] h-7 px-2.5 rounded-lg"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
-                        >
-                          Remove Collaborator
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {/* 5. Collaborators */}
+          {project.collaboratorNames && project.collaboratorNames.length > 0 && (
+            <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Collaborators</span>
+              <span className="text-sm font-bold text-foreground">{project.collaboratorNames.join(', ')}</span>
             </div>
           )}
 
-          {/* Mobile Add Collaborator Drawer */}
-          <Drawer open={isAddDrawerOpen} onOpenChange={setIsAddDrawerOpen}>
-            <DrawerContent className="p-5 pb-8 rounded-t-[24px] border-t bg-background max-h-[85vh] flex flex-col">
-              <div className="sr-only">
-                <DrawerTitle>Add Collaborators</DrawerTitle>
-                <DrawerDescription>Search and add collaborators to your project</DrawerDescription>
-              </div>
-
-              <div className="flex items-center gap-3 w-full border-b pb-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    ref={searchInputRef}
-                    type="search"
-                    placeholder="Search student by Name or Registration Number"
-                    value={collabSearchQuery}
-                    onChange={(e) => setCollabSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full rounded-full bg-muted/40 border-border/60 focus:bg-background focus:ring-2 focus:ring-primary/20 text-sm"
-                  />
-                </div>
-                <DrawerClose asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </Button>
-                </DrawerClose>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-[200px]">
-                {isSearching ? (
-                  <div className="flex flex-col items-center justify-center py-10 space-y-2">
-                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                    <p className="text-xs text-muted-foreground">Searching students...</p>
-                  </div>
-                ) : collabSearchQuery.trim() && searchResults.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-muted-foreground">
-                    No students found matching "{collabSearchQuery}"
-                  </div>
-                ) : !collabSearchQuery.trim() ? (
-                  <div className="text-center py-10 text-xs text-muted-foreground">
-                    Type student name or registration number to search
-                  </div>
-                ) : (
-                  searchResults.map((student) => {
-                    const isAlreadyCollab = project?.allCollaborators?.some(
-                      (c: any) => c.studentId === student.id
-                    );
-                    const isAdding = addingCollabId === student.id;
-
-                    return (
-                      <div
-                        key={student.id}
-                        className="flex items-center justify-between p-3 rounded-2xl border border-border/40 bg-card/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          {student.avatar ? (
-                            <img
-                              src={student.avatar}
-                              alt={student.name}
-                              className="w-10 h-10 rounded-full object-cover border border-border/40"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-base font-semibold">
-                              {student.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="text-left">
-                            <h4 className="font-bold text-xs text-foreground leading-snug">
-                              {student.name}
-                            </h4>
-                            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                              {student.registrationNo || student.id}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
-                              {student.department} • {student.academicYear || `${student.year} Year`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant={isAlreadyCollab ? "ghost" : "outline"}
-                          disabled={isAlreadyCollab || isAdding}
-                          onClick={() => handleAddCollaborator(student.id)}
-                          className={`text-xs font-semibold rounded-xl h-8 px-3 ${
-                            isAlreadyCollab 
-                              ? "bg-transparent text-muted-foreground/80 cursor-not-allowed border-none shadow-none" 
-                              : "border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
-                          }`}
-                        >
-                          {isAdding ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                          ) : isAlreadyCollab ? (
-                            "Already Added"
-                          ) : (
-                            "+ Add"
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </DrawerContent>
-          </Drawer>
-        </main>
-      ) : (
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <Button
-            variant="ghost"
-            className="mb-6 hover:bg-transparent"
-            onClick={() => safeBack('/projects')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Projects
-          </Button>
-
-          <Card className="bg-card/70 backdrop-blur-sm border-primary/20 relative p-8 rounded-3xl">
-            {isOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-8 right-8 gap-2 border-border/80 text-muted-foreground hover:text-foreground h-9 rounded-xl px-4"
-                onClick={openEditModal}
+          {/* 6. Project URL */}
+          {rawProjectUrl && isValidUrl(rawProjectUrl) && (
+            <div className="border-t border-border/40 pt-4 flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Project URL</span>
+              <a
+                href={rawProjectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-bold text-primary hover:underline inline-flex items-center gap-1.5 break-all"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit
-              </Button>
-            )}
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="flex-1">
-                <h1 className="text-3xl mb-4 font-bold">{project.title}</h1>
-                {(() => {
-                  const description = project.description || '';
-                  const urlMatch = description.match(/Project URL:\s*([^\s\n\r]+)/i);
-                  const rawProjectUrl = urlMatch ? urlMatch[1].trim() : '';
-                  const cleanDescription = description
-                    .replace(/Project URL:\s*[^\s\n\r]+/i, '')
-                    .replace(/\n\s*\n\s*\n/g, '\n\n')
-                    .trim();
-
-                  const isValidUrl = (url: string) => {
-                    try {
-                      const parsed = new URL(url);
-                      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-                    } catch {
-                      return false;
-                    }
-                  };
-
-                  return (
-                    <>
-                      <p className="whitespace-pre-line text-muted-foreground mb-6">{cleanDescription || 'No description available.'}</p>
-                      {isValidUrl(rawProjectUrl) && (
-                        <div className="mb-6">
-                          <span className="font-semibold text-muted-foreground block text-sm mb-1">Project URL</span>
-                          <a
-                            href={rawProjectUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600 transition-colors duration-150 cursor-pointer break-all no-underline inline-block text-sm"
-                            style={{ textDecoration: 'none' }}
-                          >
-                            {rawProjectUrl}
-                          </a>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center rounded-xl bg-muted/10 p-4">
-                    <div className="font-bold text-3xl">{project.likes}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-xs mt-1">
-                      ❤️ Likes
-                    </div>
-                  </div>
-                  <div className="text-center rounded-xl bg-muted/10 p-4">
-                    <div className="font-bold text-3xl">{views ?? project.views}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-xs mt-1">
-                      👁 Views
-                    </div>
-                  </div>
-                  <div className="text-center rounded-xl bg-muted/10 p-4">
-                    <div className="font-bold text-3xl">{project.savedBy?.length ?? 0}</div>
-                    <div className="uppercase text-muted-foreground tracking-[0.2em] flex items-center justify-center gap-1 text-xs mt-1">
-                      🔖 Saved
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">Owner: <span className="font-semibold text-foreground">{project.studentName}</span></p>
-                  {project.collaboratorNames && project.collaboratorNames.length > 0 && (
-                    <p className="text-sm text-muted-foreground">Collaborators: <span className="font-semibold text-foreground">{project.collaboratorNames.join(', ')}</span></p>
-                  )}
-                  <p className="text-sm text-muted-foreground">Year: <span className="font-semibold text-foreground">{project.academicYear}</span></p>
-                  <p className="text-sm text-muted-foreground">Department: <span className="font-semibold text-foreground">{project.studentDepartment || 'CSE'}</span></p>
-                  {project.fileName && (
-                    <p className="text-sm text-muted-foreground">File: <span className="font-medium">{project.fileName}</span></p>
-                  )}
-                </div>
-              </div>
-
-              {(() => {
-                const images = projectImages;
-                if (images.length > 1) {
-                  return (
-                    <div className="w-full max-w-md rounded-3xl flex flex-col gap-3">
-                      <div className="relative w-full aspect-video overflow-hidden border border-white/10 bg-muted/10 shadow-sm rounded-3xl group">
-                        <img
-                          src={activeImage || images[0]}
-                          alt={project.title}
-                          className="w-full h-full object-cover cursor-pointer"
-                          onClick={() => {
-                            const currentIdx = images.indexOf(activeImage || images[0]);
-                            setFullscreenImageIndex(currentIdx >= 0 ? currentIdx : 0);
-                            setIsFullscreenOpen(true);
-                          }}
-                        />
-                        
-                        {/* Left Circular Arrow */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const currentIdx = images.indexOf(activeImage || images[0]);
-                            const prevIdx = (currentIdx - 1 + images.length) % images.length;
-                            setActiveImage(images[prevIdx]);
-                          }}
-                          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
-                        >
-                          <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-                        </button>
-
-                        {/* Right Circular Arrow */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const currentIdx = images.indexOf(activeImage || images[0]);
-                            const nextIdx = (currentIdx + 1) % images.length;
-                            setActiveImage(images[nextIdx]);
-                          }}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 hover:bg-white text-black shadow-sm flex items-center justify-center border border-black/10 focus:outline-none transition-none"
-                        >
-                          <ChevronRight className="w-5 h-5 stroke-[2.5]" />
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {images.map((imgUrl, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setActiveImage(imgUrl)}
-                            className="w-16 h-12 rounded-xl overflow-hidden border-2 flex-shrink-0 focus:outline-none transition-none"
-                            style={{
-                              borderColor: activeImage === imgUrl ? 'var(--primary, #3b82f6)' : 'transparent',
-                            }}
-                          >
-                            <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                } else if (images.length === 1) {
-                  return (
-                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-md rounded-3xl aspect-video">
-                      <img
-                        src={images[0]}
-                        alt={project.title}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => {
-                          setFullscreenImageIndex(0);
-                          setIsFullscreenOpen(true);
-                        }}
-                      />
-                    </div>
-                  );
-                } else {
-                  return (
-                    <div className="w-full overflow-hidden border border-white/10 bg-muted/10 shadow-sm max-w-md rounded-3xl aspect-video flex items-center justify-center">
-                      <img src="/placeholder.jpg" alt="No image" className="w-full h-full object-cover" />
-                    </div>
-                  );
-                }
-              })()}
+                {rawProjectUrl.replace(/^https?:\/\//, '')}
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
+          )}
 
-            <div className="mt-6 flex flex-wrap items-center gap-3 mt-8">
-              <Button
-                variant="outline"
-                className="gap-2 shrink-0 smooth-transition"
-                onClick={() => safeBack('/projects')}
-              >
-                <ArrowLeft className="w-4 h-4" /> Back
-              </Button>
+          {/* 7. Description */}
+          <div className="border-t border-border/40 pt-4 space-y-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Description</span>
+            <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed font-sans font-normal">
+              {cleanDescription || 'No description available.'}
+            </p>
+          </div>
+
+          {/* 8. Compact Statistics */}
+          <div className="border-t border-border/40 pt-4">
+            <div className="grid grid-cols-3 gap-2 py-3 px-4 bg-muted/30 border border-border/40 rounded-xl">
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Likes</span>
+                <span className="text-base font-bold text-foreground">{project.likes}</span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center border-x border-border/40">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Views</span>
+                <span className="text-base font-bold text-foreground">{views ?? project.views}</span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Saved</span>
+                <span className="text-base font-bold text-foreground">{project.savedBy?.length ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 9. Action Buttons */}
+          <div className="border-t border-border/40 pt-4">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 variant={project.userHasLiked ? 'default' : 'outline'}
-                className={`gap-2 smooth-transition ${
+                className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
                   project.userHasLiked
                     ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
-                    : 'hover:text-red-500 hover:border-red-500 bg-transparent'
+                    : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
                 }`}
                 onClick={handleLike}
               >
                 <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
                 {project.userHasLiked ? 'Liked' : 'Like'}
               </Button>
+
               <Button
                 variant={isSaved ? 'default' : 'outline'}
-                className={`gap-2 smooth-transition ${
+                className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
                   isSaved
                     ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
-                    : 'hover:text-yellow-500 hover:border-yellow-500 bg-transparent'
+                    : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
                 }`}
                 onClick={handleSave}
               >
                 <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
                 {isSaved ? 'Saved' : 'Save'}
               </Button>
+
               <Button
                 variant="outline"
-                className="gap-2 smooth-transition hover:text-blue-500 hover:border-blue-500 bg-transparent"
+                className="h-11 rounded-xl font-medium gap-2 col-span-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background"
                 onClick={() => {
                   const targetPath = project.studentId === currentStudentId
                     ? '/profile'
@@ -1174,76 +782,325 @@ export default function ProjectDetailsPage() {
                 }}
               >
                 <User className="w-4 h-4" />
-                Profile
+                View Owner Profile
               </Button>
-            </div>
-          </Card>
 
-          {/* Manage Collaborators Section - ONLY FOR OWNER */}
-          {project && project.studentId === currentStudentId && project.allCollaborators && (project.allCollaborators.length > 0) && (
-            <div className="bg-card border shadow-sm backdrop-blur-md text-left mt-8 p-8 sm:p-12 rounded-3xl">
-              <h2 className="text-xl font-bold mb-6">Manage Collaborators</h2>
-              <div className="space-y-3">
-                {project.allCollaborators.map((collab: any) => (
-                  <div key={collab.studentId} className="flex flex-col sm:flex-row sm:items-center justify-between border border-border/60 bg-muted/5 gap-3 p-4 rounded-2xl">
-                    <div className="flex items-center gap-3">
-                      {collab.avatar ? (
-                        <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-12 h-12" />
-                      ) : (
-                        <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-12 h-12 text-xl">👤</div>
-                      )}
-                      <div>
-                        <h4 className="font-semibold text-foreground text-sm">{collab.name}</h4>
-                        <p className="text-muted-foreground font-mono text-xs">{collab.studentId}</p>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            collab.status === 'ACCEPTED' ? 'bg-green-500' :
-                            collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}></span>
-                          <span className="font-medium text-muted-foreground capitalize text-[11px]">
-                            {collab.status}
-                          </span>
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl font-medium gap-2 col-span-2 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                  onClick={openEditModal}
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit Project Details
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* 10. Manage Collaborators */}
+          {project && isOwner && (
+            <div className="border-t border-border/40 pt-4">
+              <div className="border border-border/60 bg-muted/10 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Collaborators</h3>
+                  <Button
+                    onClick={() => setIsAddDrawerOpen(true)}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/95 text-white font-semibold rounded-full px-3 active:scale-95 text-[10px] h-7 cursor-pointer"
+                  >
+                    + Add
+                  </Button>
+                </div>
+                {project.allCollaborators && project.allCollaborators.length > 0 ? (
+                  <div className="divide-y divide-border/40">
+                    {project.allCollaborators.map((collab: any) => (
+                      <div key={collab.studentId} className="py-2.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          {collab.avatar ? (
+                            <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-8 h-8" />
+                          ) : (
+                            <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-8 h-8 text-xs font-bold">
+                              {collab.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="font-semibold text-foreground text-xs">{collab.name}</h4>
+                            <p className="text-muted-foreground font-mono text-[9px]">{collab.studentId}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                collab.status === 'ACCEPTED' ? 'bg-green-500' :
+                                collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}></span>
+                              <span className="font-medium text-muted-foreground capitalize text-[9px]">{collab.status.toLowerCase()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {collab.status === 'PENDING' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          {collab.status === 'REJECTED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-primary/30 text-primary hover:bg-primary hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
+                            >
+                              Reinvite
+                            </Button>
+                          )}
+                          {collab.status === 'ACCEPTED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[9px] h-6 px-1.5 rounded cursor-pointer"
+                              onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
+                            >
+                              Remove
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {collab.status === 'PENDING' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
-                        >
-                          Cancel Invitation
-                        </Button>
-                      )}
-                      {collab.status === 'REJECTED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-primary/30 text-primary hover:bg-primary hover:text-white"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
-                        >
-                          Invite Again
-                        </Button>
-                      )}
-                      {collab.status === 'ACCEPTED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white"
-                          onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
-                        >
-                          Remove Collaborator
-                        </Button>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">No collaborators added yet.</p>
+                )}
               </div>
             </div>
           )}
+        </main>
+      ) : (
+        <main className="max-w-[1400px] mx-auto px-6 py-12 md:py-20">
+          {/* Back Button */}
+          <div className="mb-8">
+            <Button
+              variant="ghost"
+              className="h-auto p-0 hover:bg-transparent text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-medium"
+              onClick={() => safeBack('/projects')}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Projects
+            </Button>
+          </div>
+
+          {/* Two Column Layout (60% Left, 40% Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-12 lg:gap-16 items-start">
+            {/* LEFT (60%) */}
+            <div className="lg:col-span-6 space-y-6">
+              {renderGallery(false)}
+            </div>
+
+            {/* RIGHT (40%) */}
+            <div className="lg:col-span-4 space-y-8">
+              {/* Project Title */}
+              <div className="space-y-3">
+                <h1 className={getTitleClass(project.title)}>
+                  {project.title}
+                </h1>
+              </div>
+
+              {/* Premium Info List */}
+              <div className="border-t border-border/60 divide-y divide-border/40">
+                <div className="py-4 flex justify-between items-center">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Owner</span>
+                  <span className="text-sm font-bold text-foreground">{project.studentName}</span>
+                </div>
+                {project.collaboratorNames && project.collaboratorNames.length > 0 && (
+                  <div className="py-4 flex justify-between items-center">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Collaborators</span>
+                    <span className="text-sm font-bold text-foreground">{project.collaboratorNames.join(', ')}</span>
+                  </div>
+                )}
+                <div className="py-4 flex justify-between items-center">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Year</span>
+                  <span className="text-sm font-bold text-foreground">{project.academicYear}</span>
+                </div>
+                <div className="py-4 flex justify-between items-center">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Department</span>
+                  <span className="text-sm font-bold text-foreground">{project.studentDepartment || 'CSE'}</span>
+                </div>
+                {rawProjectUrl && isValidUrl(rawProjectUrl) && (
+                  <div className="py-4 flex justify-between items-center">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project URL</span>
+                    <a
+                      href={rawProjectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-bold text-primary hover:underline inline-flex items-center gap-1.5 break-all text-right"
+                    >
+                      {rawProjectUrl.replace(/^https?:\/\//, '')}
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="space-y-3 pt-2">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</h3>
+                <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed font-sans font-normal">
+                  {cleanDescription || 'No description available.'}
+                </p>
+              </div>
+
+              {/* Compact Statistics */}
+              <div className="grid grid-cols-3 gap-4 py-4 px-6 bg-muted/30 border border-border/40 rounded-xl">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Likes</span>
+                  <span className="text-xl font-bold text-foreground">{project.likes}</span>
+                </div>
+                <div className="flex flex-col items-center justify-center text-center border-x border-border/40">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Views</span>
+                  <span className="text-xl font-bold text-foreground">{views ?? project.views}</span>
+                </div>
+                <div className="flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Saved</span>
+                  <span className="text-xl font-bold text-foreground">{project.savedBy?.length ?? 0}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button
+                  variant={project.userHasLiked ? 'default' : 'outline'}
+                  className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                    project.userHasLiked
+                      ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
+                      : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
+                  }`}
+                  onClick={handleLike}
+                >
+                  <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
+                  {project.userHasLiked ? 'Liked' : 'Like'}
+                </Button>
+
+                <Button
+                  variant={isSaved ? 'default' : 'outline'}
+                  className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                    isSaved
+                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
+                      : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
+                  }`}
+                  onClick={handleSave}
+                >
+                  <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
+                  {isSaved ? 'Saved' : 'Save'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl font-medium gap-2 col-span-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                  onClick={() => {
+                    const targetPath = project.studentId === currentStudentId
+                      ? '/profile'
+                      : `/student/${project.studentId}`;
+                    router.push(targetPath);
+                  }}
+                >
+                  <User className="w-4 h-4" />
+                  View Owner Profile
+                </Button>
+
+                {isOwner && (
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl font-medium gap-2 col-span-2 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                    onClick={openEditModal}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Edit Project Details
+                  </Button>
+                )}
+              </div>
+
+              {/* Manage Collaborators Section */}
+              {project && isOwner && (
+                <div className="border border-border/60 bg-muted/10 p-6 rounded-2xl space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Collaborators</h3>
+                    <Button
+                      onClick={() => setIsAddDrawerOpen(true)}
+                      size="sm"
+                      className="bg-primary hover:bg-primary/95 text-white font-semibold rounded-full px-4 active:scale-95 text-xs h-8 cursor-pointer"
+                    >
+                      + Add
+                    </Button>
+                  </div>
+                  {project.allCollaborators && project.allCollaborators.length > 0 ? (
+                    <div className="divide-y divide-border/40">
+                      {project.allCollaborators.map((collab: any) => (
+                        <div key={collab.studentId} className="py-3 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            {collab.avatar ? (
+                              <img src={collab.avatar} alt={collab.name} className="rounded-full object-cover border border-border w-9 h-9" />
+                            ) : (
+                              <div className="rounded-full bg-primary/10 flex items-center justify-center text-primary w-9 h-9 text-sm font-bold">
+                                {collab.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <h4 className="font-semibold text-foreground text-xs">{collab.name}</h4>
+                              <p className="text-muted-foreground font-mono text-[10px]">{collab.studentId}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                  collab.status === 'ACCEPTED' ? 'bg-green-500' :
+                                  collab.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}></span>
+                                <span className="font-medium text-muted-foreground capitalize text-[9px]">{collab.status.toLowerCase()}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {collab.status === 'PENDING' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[10px] h-7 px-2 rounded-lg cursor-pointer"
+                                onClick={() => handleManageCollaborator(collab.studentId, 'cancel')}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                            {collab.status === 'REJECTED' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-primary/30 text-primary hover:bg-primary hover:text-white text-[10px] h-7 px-2 rounded-lg cursor-pointer"
+                                onClick={() => handleManageCollaborator(collab.studentId, 'invite')}
+                              >
+                                Reinvite
+                              </Button>
+                            )}
+                            {collab.status === 'ACCEPTED' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-[10px] h-7 px-2 rounded-lg cursor-pointer"
+                                onClick={() => handleManageCollaborator(collab.studentId, 'remove')}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">No collaborators added yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </main>
       )}
 
@@ -1508,7 +1365,12 @@ export default function ProjectDetailsPage() {
       </Dialog>
 
       {isFullscreenOpen && projectImages.length > 0 && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-between bg-black/95 text-white p-4 select-none antialiased">
+        <div 
+          className="fixed inset-0 z-50 flex flex-col justify-between bg-black/95 text-white p-4 select-none antialiased"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {/* Top Bar */}
           <div className="flex justify-between items-center w-full h-12 px-2 z-10">
             <div className="text-sm font-semibold tracking-wider opacity-90">

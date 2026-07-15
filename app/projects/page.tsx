@@ -28,7 +28,7 @@ const yearsList = [
 const branchesList = [
   { value: '', label: 'All' },
   { value: 'CSE', label: 'CSE' },
-  { value: 'CSM', label: 'CSM' },
+  { value: 'CSY', label: 'CSY' },
   { value: 'AI&ML', label: 'AI&ML' },
   { value: 'AI&DS', label: 'AI&DS' },
   { value: 'IT', label: 'IT' },
@@ -148,7 +148,7 @@ function ProjectsPageContent() {
           const d = (s.department || '').toLowerCase().trim();
           const f = filterBranch.toLowerCase().trim();
           if (f === 'cse') return d === 'cse';
-          if (f === 'csm') return d === 'csm' || d.includes('csm');
+          if (f === 'csy') return d === 'csy' || d.includes('csy');
           if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
           if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
           if (f === 'it') return d === 'it';
@@ -157,7 +157,7 @@ function ProjectsPageContent() {
           if (f === 'mechanical') return d === 'mechanical';
           if (f === 'civil') return d === 'civil';
           if (f === 'other') {
-            const known = ['cse', 'csm', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+            const known = ['cse', 'csy', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
             return !known.some(k => d === k || d.includes(k));
           }
           return d.includes(f);
@@ -214,7 +214,7 @@ function ProjectsPageContent() {
           const d = (p.studentDepartment || '').toLowerCase().trim();
           const f = filterBranch.toLowerCase().trim();
           if (f === 'cse') return d === 'cse';
-          if (f === 'csm') return d === 'csm' || d.includes('csm');
+          if (f === 'csy') return d === 'csy' || d.includes('csy');
           if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
           if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
           if (f === 'it') return d === 'it';
@@ -223,7 +223,7 @@ function ProjectsPageContent() {
           if (f === 'mechanical') return d === 'mechanical';
           if (f === 'civil') return d === 'civil';
           if (f === 'other') {
-            const known = ['cse', 'csm', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+            const known = ['cse', 'csy', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
             return !known.some(k => d === k || d.includes(k));
           }
           return d.includes(f);

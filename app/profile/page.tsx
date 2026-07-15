@@ -1,8 +1,6 @@
 'use client';
 import { apiUpdateStudent } from "@/lib/api";
-import React from "react"
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { CollaborationsModal } from '@/components/CollaborationsModal';
@@ -12,6 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ProjectsList } from '@/components/ProjectsList';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Spinner } from '@/components/ui/spinner';
+import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 import type { Project, AcademicYear } from '@/lib/data';
 import {
   Mail,
@@ -54,6 +58,10 @@ export default function ProfilePage() {
   const [editData, setEditData] = useState<Partial<StudentData>>({});
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [collabModalOpen, setCollabModalOpen] = useState(false);
+  const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
+  const [isConfirmRemoveOpen, setIsConfirmRemoveOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -229,94 +237,102 @@ export default function ProfilePage() {
   }, [studentData]);
 
   const saveProfile = async () => {
-  if (!studentData) return;
+    if (!studentData) return;
+    if (isUploading) return;
 
-  const githubUrl = editData.githubUrl !== undefined ? editData.githubUrl : studentData.githubUrl;
-  if (githubUrl) {
-    const trimmed = githubUrl.trim();
-    const githubRegex = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+(\/)?$/;
-    if (!githubRegex.test(trimmed)) {
-      alert("Please enter a valid GitHub profile URL (e.g., https://github.com/username)");
-      return;
+    const githubUrl = editData.githubUrl !== undefined ? editData.githubUrl : studentData.githubUrl;
+    if (githubUrl) {
+      const trimmed = githubUrl.trim();
+      const githubRegex = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+(\/)?$/;
+      if (!githubRegex.test(trimmed)) {
+        alert("Please enter a valid GitHub profile URL (e.g., https://github.com/username)");
+        return;
+      }
     }
-  }
 
-  let avatarUrl = studentData.profilePhoto;
+    let avatarUrl = studentData.profilePhoto;
+    setIsUploading(true);
 
-  try {
-    // Upload image to Cloudinary
-    if (selectedFile) {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+    try {
+      // Upload image to Cloudinary
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Image upload failed");
+        if (!res.ok) {
+          throw new Error(data.error || "Image upload failed");
+        }
+
+        avatarUrl = data.url;
       }
 
-      avatarUrl = data.url;
+      // Build payload
+      const payload: any = {};
+
+      if (editData.email !== undefined) {
+        payload.email = editData.email;
+      }
+
+      if (editData.linkedinUrl !== undefined) {
+        payload.linkedinUrl = editData.linkedinUrl;
+      }
+
+      if (editData.githubUrl !== undefined) {
+        payload.githubUrl = editData.githubUrl;
+      }
+
+      if (editData.year && editData.year !== studentData.year) {
+        payload.academicYear = editData.year;
+      }
+
+      if (editData.skills) {
+        payload.skills = editData.skills;
+      }
+
+      if (avatarUrl !== studentData.profilePhoto) {
+        payload.avatar = avatarUrl;
+      }
+
+      // Save locally
+      const updated: StudentData = {
+        ...studentData,
+        ...editData,
+        profilePhoto: avatarUrl,
+      };
+
+      localStorage.setItem(
+        `studentProfile_${studentData.studentId}`,
+        JSON.stringify(updated)
+      );
+
+      setStudentData(updated);
+
+      // Save to backend
+      if (Object.keys(payload).length > 0) {
+        console.log("apiUpdateStudent =", apiUpdateStudent);
+        const res = await apiUpdateStudent(studentData.studentId, payload);
+        if (res.success && (payload.avatar !== undefined || payload.profilePhoto !== undefined)) {
+          toast.success("Profile photo updated successfully.");
+        }
+      }
+
+      setIsEditing(false);
+      setEditData({});
+      setSelectedFile(null);
+    } catch (e) {
+      console.error("Failed to save profile to server", e);
+      toast.error("Failed to upload image.");
+    } finally {
+      setIsUploading(false);
     }
-
-    // Build payload
-    const payload: any = {};
-
-    if (editData.email !== undefined) {
-      payload.email = editData.email;
-    }
-
-    if (editData.linkedinUrl !== undefined) {
-      payload.linkedinUrl = editData.linkedinUrl;
-    }
-
-    if (editData.githubUrl !== undefined) {
-      payload.githubUrl = editData.githubUrl;
-    }
-
-    if (editData.year && editData.year !== studentData.year) {
-      payload.academicYear = editData.year;
-    }
-
-    if (editData.skills) {
-      payload.skills = editData.skills;
-    }
-
-    if (avatarUrl !== studentData.profilePhoto) {
-      payload.avatar = avatarUrl;
-    }
-
-    // Save locally
-    const updated: StudentData = {
-      ...studentData,
-      ...editData,
-      profilePhoto: avatarUrl,
-    };
-
-    localStorage.setItem(
-      `studentProfile_${studentData.studentId}`,
-      JSON.stringify(updated)
-    );
-
-    setStudentData(updated);
-
-    // Save to backend
-    if (Object.keys(payload).length > 0) {
-      console.log("apiUpdateStudent =", apiUpdateStudent);
-      await apiUpdateStudent(studentData.studentId, payload);
-    }
-
-    setIsEditing(false);
-    setEditData({});
-    setSelectedFile(null);
-  } catch (e) {
-    console.error("Failed to save profile to server", e);
-  }
-};
+  };
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -329,6 +345,51 @@ export default function ProfilePage() {
         setEditData(prev => ({ ...prev, profilePhoto: result })); // Keep for immediate feedback
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    setIsPhotoMenuOpen(true);
+  };
+
+  const handleRemovePhoto = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!studentData) return;
+    setIsUploading(true);
+
+    try {
+      const payload = {
+        avatar: null,
+      };
+
+      const res = await apiUpdateStudent(studentData.studentId, payload);
+      
+      if (!res.success) {
+        throw new Error(res.message || "Failed to remove photo on backend");
+      }
+
+      const updated: StudentData = {
+        ...studentData,
+        profilePhoto: undefined,
+      };
+      setStudentData(updated);
+      setPhotoPreview(null);
+      setSelectedFile(null);
+
+      localStorage.setItem(
+        `studentProfile_${studentData.studentId}`,
+        JSON.stringify(updated)
+      );
+
+      toast.success("Profile photo removed successfully.");
+      setIsConfirmRemoveOpen(false);
+    } catch (err) {
+      console.error("Failed to remove profile photo:", err);
+      toast.error("Failed to remove profile photo.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -395,15 +456,13 @@ export default function ProfilePage() {
                       {getInitials(studentData.name)}
                     </div>
                   )}
-                  <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={handleAvatarClick}
+                    className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none outline-none"
+                  >
                     <Upload className="w-4 h-4 text-white" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
-                  </label>
+                  </button>
                 </div>
                 <span className="text-[10px] text-muted-foreground">Tap photo to upload new avatar</span>
               </div>
@@ -575,6 +634,9 @@ export default function ProfilePage() {
                 }`}>
                   {studentData.name}
                 </h2>
+                <p className="text-xs font-semibold text-muted-foreground/80 break-all leading-normal">
+                  Registration No: {studentData.studentId}
+                </p>
                 <p className="text-xs font-semibold text-muted-foreground">
                   {studentData.year} Year • {studentData.department} • Section {studentData.section || 'E'}
                 </p>
@@ -759,15 +821,50 @@ export default function ProfilePage() {
   )}
 
   {isEditing && (
-    <label className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-      <Upload className="w-5 h-5 text-white" />
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handlePhotoUpload}
-        className="hidden"
-      />
-    </label>
+    <Popover open={isPhotoMenuOpen} onOpenChange={setIsPhotoMenuOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none outline-none"
+        >
+          <Upload className="w-5 h-5 text-white" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-56 p-2 rounded-xl border border-border shadow-lg bg-white dark:bg-card">
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setIsPhotoMenuOpen(false);
+              fileInputRef.current?.click();
+            }}
+            className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-semibold hover:bg-muted rounded-lg transition-colors border-none bg-transparent cursor-pointer text-foreground"
+            disabled={isUploading}
+          >
+            📷 Replace Photo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsPhotoMenuOpen(false);
+              setIsConfirmRemoveOpen(true);
+            }}
+            className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+            disabled={isUploading || (!photoPreview && !studentData.profilePhoto)}
+          >
+            🗑 Remove Photo
+          </button>
+          <div className="h-px bg-border my-1" />
+          <button
+            type="button"
+            onClick={() => setIsPhotoMenuOpen(false)}
+            className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-semibold hover:bg-muted rounded-lg transition-colors border-none bg-transparent cursor-pointer text-foreground"
+          >
+            ✕ Cancel
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )}
 </div>
 
@@ -1232,6 +1329,92 @@ export default function ProfilePage() {
         isOpen={collabModalOpen}
         onClose={() => setCollabModalOpen(false)}
       />
+
+      {/* Hidden file input for Replace Photo */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
+
+      {/* Mobile Bottom Sheet action menu */}
+      {isMobile && isEditing && (
+        <Drawer open={isPhotoMenuOpen} onOpenChange={setIsPhotoMenuOpen}>
+          <DrawerContent className="p-4 rounded-t-2xl bg-white dark:bg-card">
+            <DrawerHeader className="text-center pb-4">
+              <DrawerTitle className="text-sm font-semibold text-muted-foreground">Profile Photo Management</DrawerTitle>
+            </DrawerHeader>
+            <div className="space-y-3 pb-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPhotoMenuOpen(false);
+                  fileInputRef.current?.click();
+                }}
+                className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+                disabled={isUploading}
+              >
+                📷 Replace Photo
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  setIsPhotoMenuOpen(false);
+                  setIsConfirmRemoveOpen(true);
+                }}
+                className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+                disabled={isUploading || (!photoPreview && !studentData.profilePhoto)}
+              >
+                🗑 Remove Photo
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsPhotoMenuOpen(false)}
+                className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                ✕ Cancel
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Remove Confirmation Dialog */}
+      <AlertDialog open={isConfirmRemoveOpen} onOpenChange={setIsConfirmRemoveOpen}>
+        <AlertDialogContent className="bg-white dark:bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Profile Photo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your current profile picture will be removed. You can upload a new one anytime.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUploading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isUploading}
+              onClick={handleRemovePhoto}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+            >
+              {isUploading ? (
+                <>
+                  <Spinner className="w-4 h-4 mr-2 animate-spin text-white" />
+                  Removing...
+                </>
+              ) : (
+                'Remove'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Global sonner toaster notifications */}
+      <Toaster />
     </div>
   );
 }

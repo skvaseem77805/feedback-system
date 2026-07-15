@@ -42,7 +42,7 @@ export interface ApiStudent {
   githubUrl?: string;
   bio?: string;
   skills?: string[];
-  avatar?: string;
+  avatar?: string | null;
   academicYear: string;
   projectsUploaded?: number;
   connectionsCount?: number;

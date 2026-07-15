@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { queryOne, query } from '@/lib/db';
+import cloudinary from '@/lib/cloudinary';
 
 function formatYear(year: number): string {
   const m: Record<number, string> = {
@@ -117,6 +118,37 @@ export async function PATCH(
 
     const body = await request.json();
 
+    const isAvatarUpdated = body.avatar !== undefined || body.profilePhoto !== undefined;
+    if (isAvatarUpdated) {
+      const newAvatarVal = body.avatar || body.profilePhoto || null;
+      // 1. Fetch current avatar URL
+      const currentStudent = await queryOne<{ avatar: string | null }>(
+        `SELECT avatar FROM students WHERE id = ? LIMIT 1`,
+        [sid]
+      );
+      if (currentStudent && currentStudent.avatar && currentStudent.avatar !== newAvatarVal) {
+        const oldAvatar = currentStudent.avatar;
+        if (oldAvatar.includes('res.cloudinary.com')) {
+          const parts = oldAvatar.split('/image/upload/');
+          if (parts.length >= 2) {
+            let path = parts[1];
+            const versionMatch = path.match(/^v\d+\/(.+)$/);
+            if (versionMatch) {
+              path = versionMatch[1];
+            }
+            const dotIndex = path.lastIndexOf('.');
+            const publicId = dotIndex !== -1 ? path.substring(0, dotIndex) : path;
+            try {
+              await cloudinary.uploader.destroy(publicId);
+              console.log('Successfully deleted old Cloudinary image:', publicId);
+            } catch (err) {
+              console.error('Failed to destroy old Cloudinary image:', err);
+            }
+          }
+        }
+      }
+    }
+
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -142,7 +174,8 @@ export async function PATCH(
 
     if (body.avatar !== undefined || body.profilePhoto !== undefined) {
       updates.push('avatar = ?');
-      values.push(body.avatar || body.profilePhoto);
+      const val = body.avatar !== undefined ? body.avatar : body.profilePhoto;
+      values.push(val === undefined || val === '' ? null : val);
     }
 
     if (body.mobileNo !== undefined) {

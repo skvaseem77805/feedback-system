@@ -88,7 +88,7 @@ function UploadPageContent() {
 
   const departments = [
     'CSE',
-    'CSM (Cyber Security)',
+    'CSY (Cyber Security)',
     'AI & ML',
     'AI & DS',
     'IT',
@@ -99,7 +99,7 @@ function UploadPageContent() {
   ];
   const mobileDepartments = [
     'CSE',
-    'CSM (Cyber Security)',
+    'CSY (Cyber Security)',
     'AI & ML',
     'AI & DS',
     'IT',
@@ -467,26 +467,30 @@ function UploadPageContent() {
                     )}
 
                     {searchResults.length > 0 && (
-                      <Card className="absolute z-10 w-full mt-1.5 max-h-52 overflow-y-auto border border-border/40 bg-background shadow-xl rounded-2xl p-2 space-y-1">
+                      <Card className="absolute z-10 w-full mt-1.5 max-h-[58vh] overflow-y-auto border border-border/40 bg-background shadow-xl rounded-2xl p-3 space-y-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent scroll-smooth overscroll-contain">
                         {searchResults.map((student) => {
                           const isAlreadySelected = selectedCollaborators.some(c => c.id === student.id);
                           return (
-                            <div key={student.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/40 transition-colors">
-                              <div className="flex items-center gap-3">
+                            <div key={student.id} className="flex items-center justify-between min-h-[70px] p-3 rounded-xl border border-border/30 bg-card hover:bg-muted/30 transition-none gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
                                 {student.avatar ? (
                                   <img
                                     src={student.avatar}
                                     alt={student.name}
-                                    className="w-9 h-9 rounded-full object-cover border border-border/40"
+                                    className="w-11 h-11 rounded-full object-cover border border-border/40 flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
+                                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary text-base font-bold flex-shrink-0">
                                     {student.name.charAt(0).toUpperCase()}
                                   </div>
                                 )}
-                                <div className="text-left">
-                                  <div className="font-bold text-xs text-foreground">{student.name}</div>
-                                  <div className="text-[9px] text-muted-foreground font-mono">{student.registrationNo || student.id}</div>
+                                <div className="text-left min-w-0 flex flex-col gap-0.5">
+                                  <div className="font-bold text-sm text-foreground leading-snug break-words line-clamp-2">
+                                    {student.name}
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground/80 font-mono leading-none">
+                                    {student.registrationNo || student.id}
+                                  </div>
                                 </div>
                               </div>
                               <Button
@@ -499,7 +503,7 @@ function UploadPageContent() {
                                   setCollabSearchQuery('');
                                   setSearchResults([]);
                                 }}
-                                className="h-7 text-[10px] font-bold rounded-lg px-3"
+                                className="h-8 text-[11px] font-bold rounded-lg px-3 flex-shrink-0"
                               >
                                 {isAlreadySelected ? "Added" : "Add"}
                               </Button>

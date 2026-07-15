@@ -852,15 +852,15 @@ export default function ProjectDetailsPage() {
                 {project.allCollaborators && project.allCollaborators.length > 0 ? (
                   <div
                     className={`divide-y divide-border/40 ${
-                      project.allCollaborators.length > 3
-                        ? 'max-h-[300px] overflow-y-auto overflow-x-hidden pr-2'
+                      project.allCollaborators.length >= 4
+                        ? 'overflow-y-auto overflow-x-hidden pr-2 mobile-collab-scrollbar'
                         : ''
                     }`}
                     style={
-                      project.allCollaborators.length > 3
+                      project.allCollaborators.length >= 4
                         ? {
+                            height: '260px',
                             WebkitOverflowScrolling: 'touch',
-                            scrollbarWidth: 'thin',
                           }
                         : undefined
                     }
@@ -1544,6 +1544,212 @@ export default function ProjectDetailsPage() {
             <img src={projectImages[(fullscreenImageIndex - 1 + projectImages.length) % projectImages.length]} alt="preload-prev" />
           </div>
         </div>
+      )}
+
+      {/* Add Collaborator Modal / Drawer */}
+      {isMobile ? (
+        <Drawer open={isAddDrawerOpen} onOpenChange={setIsAddDrawerOpen}>
+          <DrawerContent className="p-5 pb-8 rounded-t-[24px] border-t bg-background max-h-[85vh] flex flex-col">
+            <div className="sr-only">
+              <DrawerTitle>Add Collaborators</DrawerTitle>
+              <DrawerDescription>Search and add collaborators to your project</DrawerDescription>
+            </div>
+
+            <div className="flex items-center gap-3 w-full border-b pb-4 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  type="search"
+                  placeholder="Search student by Name or Registration Number"
+                  value={collabSearchQuery}
+                  onChange={(e) => setCollabSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full rounded-full bg-muted/40 border-border/60 focus:bg-background focus:ring-2 focus:ring-primary/20 text-sm"
+                />
+              </div>
+              <DrawerClose asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </Button>
+              </DrawerClose>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 min-h-[200px]">
+              {isSearching ? (
+                <div className="flex flex-col items-center justify-center py-10 space-y-2">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <p className="text-xs text-muted-foreground">Searching students...</p>
+                </div>
+              ) : collabSearchQuery.trim() && searchResults.length === 0 ? (
+                <div className="text-center py-10 text-xs text-muted-foreground">
+                  No students found matching "{collabSearchQuery}"
+                </div>
+              ) : !collabSearchQuery.trim() ? (
+                <div className="text-center py-10 text-xs text-muted-foreground">
+                  Type student name or registration number to search
+                </div>
+              ) : (
+                searchResults.map((student) => {
+                  const isAlreadyCollab = project?.allCollaborators?.some(
+                    (c: any) => c.studentId === student.id
+                  );
+                  const isAdding = addingCollabId === student.id;
+
+                  return (
+                    <div
+                      key={student.id}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-border/40 bg-card/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        {student.avatar ? (
+                          <img
+                            src={student.avatar}
+                            alt={student.name}
+                            className="w-10 h-10 rounded-full object-cover border border-border/40"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-base font-semibold">
+                            {student.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="text-left">
+                          <h4 className="font-bold text-xs text-foreground leading-snug">
+                            {student.name}
+                          </h4>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            {student.registrationNo || student.id}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                            {student.department} • {student.academicYear || `${student.year} Year`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant={isAlreadyCollab ? "ghost" : "outline"}
+                        disabled={isAlreadyCollab || isAdding}
+                        onClick={() => handleAddCollaborator(student.id)}
+                        className={`text-xs font-semibold rounded-xl h-8 px-3 ${
+                          isAlreadyCollab 
+                            ? "bg-transparent text-muted-foreground/80 cursor-not-allowed border-none shadow-none" 
+                            : "border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
+                        }`}
+                      >
+                        {isAdding ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                        ) : isAlreadyCollab ? (
+                          "Already Added"
+                        ) : (
+                          "+ Add"
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={isAddDrawerOpen} onOpenChange={setIsAddDrawerOpen}>
+          <DialogContent className="sm:max-w-[480px] w-full p-5 rounded-2xl bg-white dark:bg-card border border-border shadow-lg flex flex-col max-h-[80vh]">
+            <DialogHeader className="border-b pb-3 mb-4 text-left">
+              <DialogTitle className="text-lg font-bold text-foreground">Add Collaborators</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-1">
+                Search and invite collaborators to join your project.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="relative w-full mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                type="search"
+                placeholder="Search student by Name or Registration Number"
+                value={collabSearchQuery}
+                onChange={(e) => setCollabSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 w-full rounded-xl bg-muted/40 border-border/60 focus:bg-background focus:ring-2 focus:ring-primary/20 text-sm h-10"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 min-h-[250px] pr-1">
+              {isSearching ? (
+                <div className="flex flex-col items-center justify-center py-10 space-y-2">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <p className="text-xs text-muted-foreground">Searching students...</p>
+                </div>
+              ) : collabSearchQuery.trim() && searchResults.length === 0 ? (
+                <div className="text-center py-10 text-xs text-muted-foreground">
+                  No students found matching "{collabSearchQuery}"
+                </div>
+              ) : !collabSearchQuery.trim() ? (
+                <div className="text-center py-10 text-xs text-muted-foreground">
+                  Type student name or registration number to search
+                </div>
+              ) : (
+                searchResults.map((student) => {
+                  const isAlreadyCollab = project?.allCollaborators?.some(
+                    (c: any) => c.studentId === student.id
+                  );
+                  const isAdding = addingCollabId === student.id;
+
+                  return (
+                    <div
+                      key={student.id}
+                      className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-card/50 hover:bg-muted/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {student.avatar ? (
+                          <img
+                            src={student.avatar}
+                            alt={student.name}
+                            className="w-10 h-10 rounded-full object-cover border border-border/40"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-base font-semibold">
+                            {student.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="text-left">
+                          <h4 className="font-bold text-xs text-foreground leading-snug">
+                            {student.name}
+                          </h4>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            {student.registrationNo || student.id}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                            {student.department} • {student.academicYear || `${student.year} Year`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant={isAlreadyCollab ? "ghost" : "outline"}
+                        disabled={isAlreadyCollab || isAdding}
+                        onClick={() => handleAddCollaborator(student.id)}
+                        className={`text-xs font-semibold rounded-lg h-8 px-3 cursor-pointer ${
+                          isAlreadyCollab 
+                            ? "bg-transparent text-muted-foreground/80 cursor-not-allowed border-none shadow-none" 
+                            : "border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
+                        }`}
+                      >
+                        {isAdding ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                        ) : isAlreadyCollab ? (
+                          "Already Added"
+                        ) : (
+                          "+ Add"
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

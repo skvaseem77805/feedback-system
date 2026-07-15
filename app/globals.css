@@ -256,3 +256,24 @@ textarea[disabled],
 .cursor-not-allowed * {
   cursor: not-allowed !important;
 }
+
+/* Custom scrollbar style for mobile collaborators */
+.mobile-collab-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--primary) 35%, transparent) transparent;
+}
+
+.mobile-collab-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  display: block;
+}
+
+.mobile-collab-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-collab-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: 9999px;
+}
+

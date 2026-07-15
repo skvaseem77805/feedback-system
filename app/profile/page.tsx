@@ -422,183 +422,265 @@ export default function ProfilePage() {
   if (isMobile) {
     if (isEditing) {
       return (
-        <div className="min-h-screen bg-background pb-20 select-none antialiased">
-          <Navbar />
-          <main className="px-4 py-4 space-y-4">
-            <Card className="p-5 rounded-2xl bg-card border border-border/40 space-y-4">
-              <div className="flex justify-between items-center pb-2 border-b border-border/20">
-                <h3 className="font-extrabold text-base tracking-tight text-foreground">Edit Profile</h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditData({});
-                    setPhotoPreview(studentData.profilePhoto || null);
-                  }}
-                  className="w-8 h-8 rounded-full animate-none"
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
+        <>
+          <div className="min-h-screen bg-background pb-20 select-none antialiased">
+            <Navbar />
+            <main className="px-4 py-4 space-y-4">
+              <Card className="p-5 rounded-2xl bg-card border border-border/40 space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-border/20">
+                  <h3 className="font-extrabold text-base tracking-tight text-foreground">Edit Profile</h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditData({});
+                      setPhotoPreview(studentData.profilePhoto || null);
+                    }}
+                    className="w-8 h-8 rounded-full animate-none"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </div>
 
-              {/* Profile Photo Upload */}
-              <div className="flex flex-col items-center gap-2 py-2">
-                <div className="relative group">
-                  {(photoPreview || studentData.profilePhoto) ? (
-                    <img
-                      src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
-                      alt={studentData.name}
-                      className="w-20 h-20 rounded-full object-cover border-4 border-primary/30"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
-                      {getInitials(studentData.name)}
-                    </div>
-                  )}
-                  <button
-                    type="button"
+                {/* Profile Photo Upload */}
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <div 
+                    className="relative group cursor-pointer"
                     onClick={handleAvatarClick}
-                    className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none outline-none"
                   >
-                    <Upload className="w-4 h-4 text-white" />
-                  </button>
+                    {(photoPreview || studentData.profilePhoto) ? (
+                      <img
+                        src={photoPreview || studentData.profilePhoto || "/placeholder.svg"}
+                        alt={studentData.name}
+                        className="w-20 h-20 rounded-full object-cover border-4 border-primary/30"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
+                        {getInitials(studentData.name)}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">Tap photo to upload new avatar</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">Tap photo to upload new avatar</span>
-              </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">Name (Read Only)</label>
-                <Input value={studentData.name} disabled className="mt-1 bg-muted/40 rounded-xl" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground">Department</label>
-                  <Input value={studentData.department} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                  <label className="text-xs font-semibold text-muted-foreground">Name (Read Only)</label>
+                  <Input value={studentData.name} disabled className="mt-1 bg-muted/40 rounded-xl" />
                 </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Department</label>
+                    <Input value={studentData.department} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Year</label>
+                    <select
+                      value={editData.year || studentData.year}
+                      onChange={(e) => setEditData({ ...editData, year: e.target.value })}
+                      className="mt-1 bg-muted/45 w-full p-2 rounded-xl text-xs h-9 border border-input focus:outline-none"
+                    >
+                      <option value="1st">1st Year</option>
+                      <option value="2nd">2nd Year</option>
+                      <option value="3rd">3rd Year</option>
+                      <option value="final">4th Year</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-muted-foreground">Section</label>
+                    <Input value={studentData.section || 'E'} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                  </div>
+                </div>
+                <p className="text-[9px] text-muted-foreground -mt-2">
+                  Section cannot be changed from official records.
+                </p>
+                
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground">Year</label>
-                  <select
-                    value={editData.year || studentData.year}
-                    onChange={(e) => setEditData({ ...editData, year: e.target.value })}
-                    className="mt-1 bg-muted/45 w-full p-2 rounded-xl text-xs h-9 border border-input focus:outline-none"
-                  >
-                    <option value="1st">1st Year</option>
-                    <option value="2nd">2nd Year</option>
-                    <option value="3rd">3rd Year</option>
-                    <option value="final">4th Year</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground">Section</label>
-                  <Input value={studentData.section || 'E'} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
-                </div>
-              </div>
-              <p className="text-[9px] text-muted-foreground -mt-2">
-                Section cannot be changed from official records.
-              </p>
-              
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">Email</label>
-                <Input
-                  type="email"
-                  value={editData.email !== undefined ? editData.email : (studentData.email && studentData.email !== 'Not provided' ? studentData.email : '')}
-                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                  className="mt-1 rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">LinkedIn URL</label>
-                <Input
-                  type="url"
-                  value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
-                  onChange={(e) => setEditData({ ...editData, linkedinUrl: e.target.value })}
-                  className="mt-1 rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">GitHub URL</label>
-                <Input
-                  type="url"
-                  value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
-                  onChange={(e) => setEditData({ ...editData, githubUrl: e.target.value })}
-                  className="mt-1 rounded-xl"
-                />
-              </div>
-
-              {/* Skills Editor */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground">Skills</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {(editData.skills || studentData.skills || []).map((s) => (
-                    <Badge key={s} variant="secondary" className="flex items-center gap-1 text-[10px] py-1 px-2.5 rounded-lg border-none">
-                      <span>{s}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = (editData.skills || studentData.skills || []).filter(sk => sk !== s);
-                          setEditData({ ...editData, skills: next });
-                        }}
-                        className="text-muted-foreground hover:text-destructive animate-none"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
                   <Input
-                    placeholder="Add skill..."
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && skillInput.trim()) {
-                        e.preventDefault();
+                    type="email"
+                    value={editData.email !== undefined ? editData.email : (studentData.email && studentData.email !== 'Not provided' ? studentData.email : '')}
+                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">LinkedIn URL</label>
+                  <Input
+                    type="url"
+                    value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
+                    onChange={(e) => setEditData({ ...editData, linkedinUrl: e.target.value })}
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">GitHub URL</label>
+                  <Input
+                    type="url"
+                    value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
+                    onChange={(e) => setEditData({ ...editData, githubUrl: e.target.value })}
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+
+                {/* Skills Editor */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Skills</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(editData.skills || studentData.skills || []).map((s) => (
+                      <Badge key={s} variant="secondary" className="flex items-center gap-1 text-[10px] py-1 px-2.5 rounded-lg border-none">
+                        <span>{s}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = (editData.skills || studentData.skills || []).filter(sk => sk !== s);
+                            setEditData({ ...editData, skills: next });
+                          }}
+                          className="text-muted-foreground hover:text-destructive animate-none"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add skill..."
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && skillInput.trim()) {
+                          e.preventDefault();
+                          const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
+                          setEditData({ ...editData, skills: existing });
+                          setSkillInput('');
+                        }
+                      }}
+                      className="h-9 text-xs rounded-xl"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!skillInput.trim()) return;
                         const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
                         setEditData({ ...editData, skills: existing });
                         setSkillInput('');
-                      }
-                    }}
-                    className="h-9 text-xs rounded-xl"
-                  />
+                      }}
+                      className="h-9 px-3 rounded-xl font-bold text-xs text-white"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
                   <Button
-                    size="sm"
                     onClick={() => {
-                      if (!skillInput.trim()) return;
-                      const existing = Array.from(new Set([...(editData.skills || studentData.skills || []), skillInput.trim()]));
-                      setEditData({ ...editData, skills: existing });
-                      setSkillInput('');
+                      setIsEditing(false);
+                      setEditData({});
+                      setPhotoPreview(studentData.profilePhoto || null);
                     }}
-                    className="h-9 px-3 rounded-xl font-bold text-xs text-white"
+                    variant="outline"
+                    className="flex-1 rounded-xl py-5 font-bold text-xs"
                   >
-                    Add
+                    Cancel
+                  </Button>
+                  <Button onClick={saveProfile} className="flex-1 rounded-xl py-5 font-bold text-xs text-white">
+                    Save
                   </Button>
                 </div>
-              </div>
+              </Card>
+            </main>
+          </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
+          {/* Hidden file input for Replace Photo */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+
+          {/* Mobile Bottom Sheet action menu */}
+          <Drawer open={isPhotoMenuOpen} onOpenChange={setIsPhotoMenuOpen}>
+            <DrawerContent className="p-4 rounded-t-2xl bg-white dark:bg-card">
+              <DrawerHeader className="text-center pb-4">
+                <DrawerTitle className="text-sm font-semibold text-muted-foreground">Profile Photo Management</DrawerTitle>
+              </DrawerHeader>
+              <div className="space-y-3 pb-6">
                 <Button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditData({});
-                    setPhotoPreview(studentData.profilePhoto || null);
-                  }}
+                  type="button"
                   variant="outline"
-                  className="flex-1 rounded-xl py-5 font-bold text-xs"
+                  onClick={() => {
+                    setIsPhotoMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+                  disabled={isUploading}
                 >
-                  Cancel
+                  📷 Replace Photo
                 </Button>
-                <Button onClick={saveProfile} className="flex-1 rounded-xl py-5 font-bold text-xs text-white">
-                  Save
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    setIsPhotoMenuOpen(false);
+                    setIsConfirmRemoveOpen(true);
+                  }}
+                  className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+                  disabled={isUploading || (!photoPreview && !studentData.profilePhoto)}
+                >
+                  🗑 Remove Photo
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsPhotoMenuOpen(false)}
+                  className="w-full rounded-xl py-5 text-sm font-semibold flex items-center justify-center gap-2"
+                >
+                  ✕ Cancel
                 </Button>
               </div>
-            </Card>
-          </main>
-        </div>
+            </DrawerContent>
+          </Drawer>
+
+          {/* Remove Confirmation Dialog */}
+          <AlertDialog open={isConfirmRemoveOpen} onOpenChange={setIsConfirmRemoveOpen}>
+            <AlertDialogContent className="bg-white dark:bg-card">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove Profile Photo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your current profile picture will be removed. You can upload a new one anytime.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isUploading}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isUploading}
+                  onClick={handleRemovePhoto}
+                  className="bg-destructive hover:bg-destructive/90 text-white"
+                >
+                  {isUploading ? (
+                    <>
+                      <Spinner className="w-4 h-4 mr-2 animate-spin text-white" />
+                      Removing...
+                    </>
+                  ) : (
+                    'Remove'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Global sonner toaster notifications */}
+          <Toaster />
+        </>
       );
     }
 

@@ -63,29 +63,50 @@ export async function POST(request: NextRequest) {
       const createdTime = new Date(lastOtp.created_time).getTime();
       const now = Date.now();
       const diffSec = (now - createdTime) / 1000;
+
       if (diffSec < 30) {
-        return Response.json({ error: 'Too many OTP requests.' }, { status: 429 });
+        const remaining = Math.ceil(30 - diffSec);
+
+        return Response.json(
+          {
+            error: `Please wait ${remaining} seconds before requesting another OTP.`
+          },
+          { status: 429 }
+        );
       }
     }
 
     // 6. Generate random 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    console.log('[DEBUG REGISTRATION] OTP generated successfully.');
 
     // 7. Delete previous OTPs for this email & store the new one
-    await query('DELETE FROM otps WHERE email = ?', [email]);
-    await query(
-      'INSERT INTO otps (email, otp, expiry, created_time) VALUES (?, ?, ?, NOW())',
-      [email, otp, expiry]
-    );
+    console.log(`[DEBUG REGISTRATION] Storing OTP in database for email: ${email}`);
+    try {
+      await query('DELETE FROM otps WHERE email = ?', [email]);
+      await query(
+        'INSERT INTO otps (email, otp, expiry, created_time) VALUES (?, ?, ?, NOW())',
+        [email, otp, expiry]
+      );
+      console.log('[DEBUG REGISTRATION] OTP stored successfully in MySQL.');
+    } catch (dbErr: any) {
+      console.error('[DEBUG REGISTRATION] MySQL database error during OTP storage:', dbErr.stack || dbErr);
+      return Response.json(
+        { error: `Database error: ${dbErr.message || 'Failed to write OTP to database.'}` },
+        { status: 500 }
+      );
+    }
 
     // 8. Send OTP via Brevo
     try {
+      console.log(`[DEBUG REGISTRATION] Starting Brevo dispatch to: ${email}`);
       await sendOtpEmail(email, otp, name);
-    } catch (brevoErr) {
-      console.error('Brevo send email error:', brevoErr);
+      console.log('[DEBUG REGISTRATION] Brevo dispatch successful.');
+    } catch (brevoErr: any) {
+      console.error('[DEBUG REGISTRATION] Brevo email dispatch failed! Stack trace:', brevoErr.stack || brevoErr);
       return Response.json(
-        { error: 'Failed to send OTP email. Please check your email address.' },
+        { error: `Failed to send OTP email: ${brevoErr.message || 'Unknown Brevo Error'}` },
         { status: 500 }
       );
     }
@@ -94,8 +115,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'OTP Sent Successfully.'
     });
-  } catch (error) {
-    console.error('Register API Error:', error);
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[DEBUG REGISTRATION] Register API Error:', error.stack || error);
+    return Response.json({ error: `Internal Server Error: ${error.message || 'Unknown'}` }, { status: 500 });
   }
 }

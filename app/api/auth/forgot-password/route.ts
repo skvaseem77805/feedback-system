@@ -46,21 +46,34 @@ export async function POST(request: NextRequest) {
     // 4. Generate random 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    console.log('[DEBUG FORGOT PASSWORD] OTP generated successfully.');
 
     // 5. Delete previous OTPs & insert new
-    await query('DELETE FROM otps WHERE email = ?', [email]);
-    await query(
-      'INSERT INTO otps (email, otp, expiry, created_time) VALUES (?, ?, ?, NOW())',
-      [email, otp, expiry]
-    );
+    console.log(`[DEBUG FORGOT PASSWORD] Storing OTP in database for email: ${email}`);
+    try {
+      await query('DELETE FROM otps WHERE email = ?', [email]);
+      await query(
+        'INSERT INTO otps (email, otp, expiry, created_time) VALUES (?, ?, ?, NOW())',
+        [email, otp, expiry]
+      );
+      console.log('[DEBUG FORGOT PASSWORD] OTP stored successfully in MySQL.');
+    } catch (dbErr: any) {
+      console.error('[DEBUG FORGOT PASSWORD] MySQL database error during OTP storage:', dbErr.stack || dbErr);
+      return Response.json(
+        { error: `Database error: ${dbErr.message || 'Failed to write OTP to database.'}` },
+        { status: 500 }
+      );
+    }
 
     // 6. Send email using Brevo service
     try {
+      console.log(`[DEBUG FORGOT PASSWORD] Starting Brevo dispatch to: ${email}`);
       await sendOtpEmail(email, otp, user.name);
-    } catch (brevoErr) {
-      console.error('Brevo forgot password error:', brevoErr);
+      console.log('[DEBUG FORGOT PASSWORD] Brevo dispatch successful.');
+    } catch (brevoErr: any) {
+      console.error('[DEBUG FORGOT PASSWORD] Brevo email dispatch failed! Stack trace:', brevoErr.stack || brevoErr);
       return Response.json(
-        { error: 'Failed to send OTP email. Please check your email address.' },
+        { error: `Failed to send OTP email: ${brevoErr.message || 'Unknown Brevo Error'}` },
         { status: 500 }
       );
     }
@@ -69,8 +82,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'OTP Sent Successfully.'
     });
-  } catch (error) {
-    console.error('Forgot Password Send OTP API Error:', error);
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[DEBUG FORGOT PASSWORD] Forgot Password Send OTP API Error:', error.stack || error);
+    return Response.json({ error: `Internal Server Error: ${error.message || 'Unknown'}` }, { status: 500 });
   }
 }

@@ -19,6 +19,7 @@ import {
   Brain,
   Gamepad2,
   Trash2,
+  Share2,
 } from 'lucide-react';
 
 interface ProjectsListProps {
@@ -26,7 +27,9 @@ interface ProjectsListProps {
   filterByYear?: AcademicYear;
   onDelete?: (id: string) => void;
   from?: string;
+  onShare?: (project: Project) => void;
 }
+
 
 const categoryIcons: Record<string, React.ReactNode> = {
   web: <GlobePlaceholder />,
@@ -56,7 +59,7 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function ProjectsListComponent({ projects, filterByYear, onDelete, from }: ProjectsListProps) {
+function ProjectsListComponent({ projects, filterByYear, onDelete, from, onShare }: ProjectsListProps) {
   const [deleting, setDeleting] = React.useState<Record<string, boolean>>({});
   const [repostedMap, setRepostedMap] = React.useState<Record<string, boolean>>({});
 
@@ -132,48 +135,48 @@ function ProjectsListComponent({ projects, filterByYear, onDelete, from }: Proje
                   {project.academicYear === 'final' ? 'Final' : project.academicYear} Year • {project.studentDepartment || 'CSE'} • Section {project.studentSection || 'E'}
                 </Badge>
 
-                {project.studentId === getCurrentStudentId() && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      className="smooth-button"
-                    >
-                      <Link href={`/projects/${project.id}${from ? `?from=${from}` : ''}`}>
-                        View Project
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={async () => {
-                        const ok = confirm("Are you sure you want to delete this project? This cannot be undone.");
-                        if (!ok) return;
+                <div className="flex items-center gap-2">
+                  {project.studentId === getCurrentStudentId() && (
+                    <>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="smooth-button"
+                      >
+                        <Link href={`/projects/${project.id}${from ? `?from=${from}` : ''}`}>
+                          View Project
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={async () => {
+                          const ok = confirm("Are you sure you want to delete this project? This cannot be undone.");
+                          if (!ok) return;
 
-                        const studentId = getCurrentStudentId();
-                        if (!studentId) return;
+                          const studentId = getCurrentStudentId();
+                          if (!studentId) return;
 
-                        setDeleting((prev) => ({ ...prev, [project.id]: true }));
+                          setDeleting((prev) => ({ ...prev, [project.id]: true }));
 
-                        try {
-                          const res = await apiDeleteProject(project.id, studentId);
-                          console.log('Delete Success:', res);
-                          onDelete?.(project.id);
-                        } catch (e) {
-                          console.error('DELETE ERROR:', e);
-                          alert('Failed to delete project.');
-                        } finally {
-                          setDeleting((prev) => ({ ...prev, [project.id]: false }));
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                )}
+                          try {
+                            const res = await apiDeleteProject(project.id, studentId);
+                            console.log('Delete Success:', res);
+                            onDelete?.(project.id);
+                          } catch (e) {
+                            console.error('DELETE ERROR:', e);
+                            alert('Failed to delete project.');
+                          } finally {
+                            setDeleting((prev) => ({ ...prev, [project.id]: false }));
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
 
-                {project.studentId !== getCurrentStudentId() && project.collaborators.includes(getCurrentStudentId() || '') && (
-                  <div>
+                  {project.studentId !== getCurrentStudentId() && project.collaborators.includes(getCurrentStudentId() || '') && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -183,8 +186,31 @@ function ProjectsListComponent({ projects, filterByYear, onDelete, from }: Proje
                     >
                       {project.repostedBy?.includes(getCurrentStudentId() || '') || !!repostedMap[project.id] ? 'Already Added' : 'Repost to My Profile'}
                     </Button>
-                  </div>
-                )}
+                  )}
+
+                  {project.studentId !== getCurrentStudentId() && !project.collaborators.includes(getCurrentStudentId() || '') && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="smooth-button"
+                    >
+                      <Link href={`/projects/${project.id}${from ? `?from=${from}` : ''}`}>
+                        View Project
+                      </Link>
+                    </Button>
+                  )}
+
+                  {onShare && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onShare(project)}
+                      className="h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl animate-none shrink-0"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </Card>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, ExternalLink, Heart, Bookmark, Users, Eye, X, SlidersHorizontal } from 'lucide-react';
+import { Search, ExternalLink, Heart, Bookmark, Users, Eye, X, SlidersHorizontal, Share2 } from 'lucide-react';
 import { Suspense } from 'react';
 import { apiProjects, apiLikeProject, apiSaveProject, apiJoinProject, apiStudents } from '@/lib/api';
 import type { ApiProject, ApiStudent } from '@/lib/api';
@@ -16,6 +16,8 @@ import Loading from './loading';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription, DrawerClose } from '@/components/ui/drawer';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { ShareBottomSheet } from '@/components/ShareBottomSheet';
+
 
 const yearsList = [
   { value: '', label: 'All' },
@@ -51,6 +53,19 @@ function ProjectsPageContent() {
   const [filterSection, setFilterSection] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const currentStudentId = getCurrentStudentId() ?? '';
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareClick = (projectId: string, title: string) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/project/${projectId}`);
+      setShareTitle(title);
+      setShareOpen(true);
+    }
+  };
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -547,11 +562,25 @@ function ProjectsPageContent() {
                           </span>
                         </div>
 
-                        <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block w-full">
-                          <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs py-3.5 rounded-xl border-none shadow-none h-9">
-                            View Project
+                        <div className="flex gap-2 w-full pt-1">
+                          <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="flex-1">
+                            <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs py-3.5 rounded-xl border-none shadow-none h-9">
+                              View Project
+                            </Button>
+                          </Link>
+                          <Button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleShareClick(project.id, project.title);
+                            }}
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-xl border-border/50 text-muted-foreground animate-none shrink-0"
+                          >
+                            <Share2 className="w-4 h-4" />
                           </Button>
-                        </Link>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -573,6 +602,12 @@ function ProjectsPageContent() {
             </Card>
           )}
         </main>
+        <ShareBottomSheet
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          shareUrl={shareUrl}
+          title={shareTitle}
+        />
       </div>
     );
   }
@@ -818,13 +853,21 @@ function ProjectsPageContent() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="block">
+                    <div className="flex gap-2">
+                      <Link href={`/projects/${encodeURIComponent(project.id)}?from=projects`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
                           <ExternalLink className="w-4 h-4" />
                           View Project
                         </Button>
                       </Link>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleShareClick(project.id, project.title)}
+                        className="smooth-button text-muted-foreground hover:text-foreground h-9 w-9 border border-border/40 rounded-xl shrink-0"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </Card>
                 );
@@ -845,6 +888,12 @@ function ProjectsPageContent() {
           )}
         </div>
       </section>
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+      />
     </div>
   );
 }

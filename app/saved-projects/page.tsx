@@ -6,16 +6,31 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ExternalLink, Trash2, Bookmark } from 'lucide-react';
+import { ExternalLink, Trash2, Bookmark, Share2 } from 'lucide-react';
 import { apiProjects, apiSaveProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
+import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
 export default function SavedProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [loading, setLoading] = useState(true);
   const currentStudentId = getCurrentStudentId() ?? '';
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareClick = (projectId: string, title: string) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/project/${projectId}`);
+      setShareTitle(title);
+      setShareOpen(true);
+    }
+  };
+
+
 
   useEffect(() => {
     if (!currentStudentId) {
@@ -111,6 +126,14 @@ export default function SavedProjectsPage() {
                     </Link>
                     <Button
                       variant="ghost"
+                      size="icon"
+                      onClick={() => handleShareClick(project.id, project.title)}
+                      className="smooth-button text-muted-foreground hover:text-foreground h-9 w-9 border border-border/40 rounded-xl shrink-0"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveFromSaved(project.id)}
                       className="smooth-button text-red-500 hover:text-red-600 hover:bg-red-500/10 gap-2"
@@ -137,6 +160,12 @@ export default function SavedProjectsPage() {
           </Card>
         )}
       </main>
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+      />
     </div>
   );
 }

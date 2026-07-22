@@ -22,11 +22,13 @@ import {
     Linkedin,
     Github,
     MessageSquare,
+    Share2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import type { ApiStudent, ApiProject } from '@/lib/api';
 import { useSafeBack } from '@/hooks/useSafeBack';
+import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
 export default function PublicStudentProfile() {
     const isMobile = useIsMobile();
@@ -44,6 +46,27 @@ export default function PublicStudentProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [collabModalOpen, setCollabModalOpen] = useState(false);
+
+    const [shareOpen, setShareOpen] = useState(false);
+    const [shareUrl, setShareUrl] = useState("");
+    const [shareTitle, setShareTitle] = useState("");
+
+    const handleShareProject = (project: ApiProject) => {
+        if (typeof window !== "undefined") {
+            setShareUrl(`${window.location.origin}/project/${project.id}`);
+            setShareTitle(project.title);
+            setShareOpen(true);
+        }
+    };
+
+    const handleShareStudent = () => {
+        if (typeof window !== "undefined" && student) {
+            setShareUrl(`${window.location.origin}/student/${student.id}`);
+            setShareTitle(student.name);
+            setShareOpen(true);
+        }
+    };
+
 
     useEffect(() => {
         if (!id) return;
@@ -149,12 +172,20 @@ export default function PublicStudentProfile() {
                             </div>
 
                              <div className="flex-1 min-w-0 space-y-1 text-left">
-                                <h2 className={`font-extrabold text-foreground tracking-tight leading-tight break-words ${
-                                    student.name.length > 25 ? 'text-[13px]' :
-                                    student.name.length > 18 ? 'text-base' : 'text-lg'
-                                }`}>
-                                    {student.name}
-                                </h2>
+                                <div className="flex items-center justify-between">
+                                    <h2 className={`font-extrabold text-foreground tracking-tight leading-tight break-words ${
+                                        student.name.length > 25 ? 'text-[13px]' :
+                                        student.name.length > 18 ? 'text-base' : 'text-lg'
+                                    }`}>
+                                        {student.name}
+                                    </h2>
+                                    <button
+                                        onClick={handleShareStudent}
+                                        className="p-1.5 rounded-full hover:bg-muted active:scale-95 transition-transform"
+                                    >
+                                        <Share2 className="w-4 h-4 text-muted-foreground" />
+                                    </button>
+                                </div>
                                 <p className="text-xs font-semibold text-muted-foreground">
                                     {student.academicYear} Year • {student.department} • Section {student.section}
                                 </p>
@@ -234,11 +265,21 @@ export default function PublicStudentProfile() {
                                                 </span>
                                             </div>
 
-                                            <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="block w-full">
-                                                <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
-                                                    View Project
-                                                </Button>
-                                            </Link>
+                                             <div className="flex gap-2">
+                                                 <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="flex-1">
+                                                     <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
+                                                         View Project
+                                                     </Button>
+                                                 </Link>
+                                                 <Button
+                                                     onClick={() => handleShareProject(project)}
+                                                     variant="outline"
+                                                     size="icon"
+                                                     className="h-8.5 w-8.5 rounded-xl border-border/50 text-muted-foreground animate-none shrink-0"
+                                                 >
+                                                     <Share2 className="w-3.5 h-3.5" />
+                                                 </Button>
+                                             </div>
                                         </div>
                                     </Card>
                                 ))}
@@ -291,6 +332,12 @@ export default function PublicStudentProfile() {
                     isOpen={collabModalOpen}
                     onClose={() => setCollabModalOpen(false)}
                 />
+                <ShareBottomSheet
+                    isOpen={shareOpen}
+                    onClose={() => setShareOpen(false)}
+                    shareUrl={shareUrl}
+                    title={shareTitle}
+                />
             </div>
         );
     }
@@ -330,10 +377,20 @@ export default function PublicStudentProfile() {
                         {/* Profile Info */}
                         <div className="flex-1 space-y-3">
                             <div>
-                                <h1 className={`font-bold tracking-tight break-words leading-tight ${
-                                    student.name.length > 25 ? 'text-xl' :
-                                    student.name.length > 18 ? 'text-2xl' : 'text-3xl'
-                                }`}>{student.name}</h1>
+                                <div className="flex justify-between items-center w-full">
+                                    <h1 className={`font-bold tracking-tight break-words leading-tight ${
+                                        student.name.length > 25 ? 'text-xl' :
+                                        student.name.length > 18 ? 'text-2xl' : 'text-3xl'
+                                    }`}>{student.name}</h1>
+                                    <Button
+                                        onClick={handleShareStudent}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="rounded-full hover:bg-muted p-2 h-9 w-9 animate-none shrink-0"
+                                    >
+                                        <Share2 className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+                                    </Button>
+                                </div>
                                 <p className="text-muted-foreground flex items-center gap-2 mt-1">
                                     <Briefcase className="w-4 h-4" />
                                     {student.academicYear} Year • {student.department} • Section {student.section}
@@ -555,10 +612,16 @@ export default function PublicStudentProfile() {
                 </Tabs>
             </div>
 
-            <CollaborationsModal
+             <CollaborationsModal
                 studentId={id}
                 isOpen={collabModalOpen}
                 onClose={() => setCollabModalOpen(false)}
+            />
+            <ShareBottomSheet
+                isOpen={shareOpen}
+                onClose={() => setShareOpen(false)}
+                shareUrl={shareUrl}
+                title={shareTitle}
             />
         </div>
     );

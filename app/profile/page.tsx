@@ -32,10 +32,12 @@ import {
   MessageSquare,
   Bookmark,
   Github,
+  Share2,
 } from 'lucide-react';
 import { getStudentStats, getCurrentStudentId, initializeStudentStats } from '@/lib/statsTracker';
 import type { StudentStats } from '@/lib/statsTracker';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
 interface StudentData {
   name: string;
@@ -62,6 +64,53 @@ export default function ProfilePage() {
   const [isConfirmRemoveOpen, setIsConfirmRemoveOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [linkedinError, setLinkedinError] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
+
+  const validateLinkedIn = (url: string): boolean => {
+    if (!url) return true;
+    const trimmed = url.trim();
+    const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9_\-\.]+\/?$/;
+    return linkedinRegex.test(trimmed);
+  };
+
+  const validateGitHub = (url: string): boolean => {
+    if (!url) return true;
+    const trimmed = url.trim();
+    const githubRegex = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_\-\.]+\/?$/;
+    return githubRegex.test(trimmed);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditData({});
+    setPhotoPreview(studentData?.profilePhoto || null);
+    setLinkedinError(null);
+    setGithubError(null);
+  };
+
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareProject = (project: Project) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/project/${project.id}`);
+      setShareTitle(project.title);
+      setShareOpen(true);
+    }
+  };
+
+  const handleShareOwnProfile = () => {
+    if (typeof window !== "undefined" && studentData) {
+      setShareUrl(`${window.location.origin}/student/${studentData.studentId}`);
+      setShareTitle(studentData.name);
+      setShareOpen(true);
+    }
+  };
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -241,14 +290,29 @@ export default function ProfilePage() {
     if (isUploading) return;
 
     const githubUrl = editData.githubUrl !== undefined ? editData.githubUrl : studentData.githubUrl;
-    if (githubUrl) {
-      const trimmed = githubUrl.trim();
-      const githubRegex = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+(\/)?$/;
-      if (!githubRegex.test(trimmed)) {
-        alert("Please enter a valid GitHub profile URL (e.g., https://github.com/username)");
-        return;
-      }
+    const linkedinUrl = editData.linkedinUrl !== undefined ? editData.linkedinUrl : studentData.linkedinUrl;
+
+    let hasError = false;
+
+    if (linkedinUrl && !validateLinkedIn(linkedinUrl)) {
+      setLinkedinError("Please enter a valid LinkedIn profile URL.");
+      hasError = true;
+    } else {
+      setLinkedinError(null);
     }
+
+    if (githubUrl && !validateGitHub(githubUrl)) {
+      setGithubError("Please enter a valid GitHub profile URL.");
+      hasError = true;
+    } else {
+      setGithubError(null);
+    }
+
+    if (hasError) {
+      toast.error("Please enter valid profile URLs.");
+      return;
+    }
+
 
     let avatarUrl = studentData.profilePhoto;
     setIsUploading(true);
@@ -432,11 +496,7 @@ export default function ProfilePage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditData({});
-                      setPhotoPreview(studentData.profilePhoto || null);
-                    }}
+                    onClick={cancelEdit}
                     className="w-8 h-8 rounded-full animate-none"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
@@ -510,21 +570,66 @@ export default function ProfilePage() {
                   <label className="text-xs font-semibold text-muted-foreground">LinkedIn URL</label>
                   <Input
                     type="url"
+                    placeholder="https://www.linkedin.com/in/yourname"
                     value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
-                    onChange={(e) => setEditData({ ...editData, linkedinUrl: e.target.value })}
-                    className="mt-1 rounded-xl"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditData({ ...editData, linkedinUrl: val });
+                      if (!val.trim()) {
+                        setLinkedinError(null);
+                      } else if (!validateLinkedIn(val)) {
+                        setLinkedinError("Please enter a valid LinkedIn profile URL.");
+                      } else {
+                        setLinkedinError(null);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value;
+                      if (val && !validateLinkedIn(val)) {
+                        setLinkedinError("Please enter a valid LinkedIn profile URL.");
+                      } else {
+                        setLinkedinError(null);
+                      }
+                    }}
+                    className={`mt-1 rounded-xl ${linkedinError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {linkedinError && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold text-left">{linkedinError}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground">GitHub URL</label>
                   <Input
                     type="url"
+                    placeholder="https://github.com/yourusername"
                     value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
-                    onChange={(e) => setEditData({ ...editData, githubUrl: e.target.value })}
-                    className="mt-1 rounded-xl"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditData({ ...editData, githubUrl: val });
+                      if (!val.trim()) {
+                        setGithubError(null);
+                      } else if (!validateGitHub(val)) {
+                        setGithubError("Please enter a valid GitHub profile URL.");
+                      } else {
+                        setGithubError(null);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value;
+                      if (val && !validateGitHub(val)) {
+                        setGithubError("Please enter a valid GitHub profile URL.");
+                      } else {
+                        setGithubError(null);
+                      }
+                    }}
+                    className={`mt-1 rounded-xl ${githubError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {githubError && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold text-left">{githubError}</p>
+                  )}
                 </div>
+
 
                 {/* Skills Editor */}
                 <div className="space-y-2">
@@ -579,11 +684,7 @@ export default function ProfilePage() {
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
                   <Button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditData({});
-                      setPhotoPreview(studentData.profilePhoto || null);
-                    }}
+                    onClick={cancelEdit}
                     variant="outline"
                     className="flex-1 rounded-xl py-5 font-bold text-xs"
                   >
@@ -760,15 +861,14 @@ export default function ProfilePage() {
                 <Edit2 className="w-3.5 h-3.5 mr-1.5" />
                 Edit Profile
               </Button>
-              <Link href="/saved-projects" className="flex-1">
-                <Button
-                  variant="outline"
-                  className="w-full font-bold text-xs h-9.5 rounded-xl border-border/50 shadow-none text-muted-foreground"
-                >
-                  <Bookmark className="w-3.5 h-3.5 mr-1.5" />
-                  Saved Projects
-                </Button>
-              </Link>
+              <Button
+                onClick={handleShareOwnProfile}
+                variant="outline"
+                className="flex-1 font-bold text-xs h-9.5 rounded-xl border-border/50 shadow-none text-muted-foreground"
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                Share
+              </Button>
             </div>
           </Card>
 
@@ -825,11 +925,21 @@ export default function ProfilePage() {
                         </span>
                       </div>
 
-                      <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="block w-full">
-                        <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
-                          View Project
+                      <div className="flex gap-2">
+                        <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="flex-1">
+                          <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
+                            View Project
+                          </Button>
+                        </Link>
+                        <Button
+                          onClick={() => handleShareProject(project)}
+                          variant="outline"
+                          size="icon"
+                          className="h-8.5 w-8.5 rounded-xl border-border/50 text-muted-foreground animate-none shrink-0"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
                         </Button>
-                      </Link>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -1064,13 +1174,32 @@ export default function ProfilePage() {
                   <label className="text-sm font-medium">LinkedIn Profile URL</label>
                   <Input
                     type="url"
-                    placeholder="https://linkedin.com/in/yourprofile"
+                    placeholder="https://www.linkedin.com/in/yourname"
                     value={editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '')}
-                    onChange={(e) =>
-                      setEditData({ ...editData, linkedinUrl: e.target.value })
-                    }
-                    className="mt-1"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditData({ ...editData, linkedinUrl: val });
+                      if (!val.trim()) {
+                        setLinkedinError(null);
+                      } else if (!validateLinkedIn(val)) {
+                        setLinkedinError("Please enter a valid LinkedIn profile URL.");
+                      } else {
+                        setLinkedinError(null);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value;
+                      if (val && !validateLinkedIn(val)) {
+                        setLinkedinError("Please enter a valid LinkedIn profile URL.");
+                      } else {
+                        setLinkedinError(null);
+                      }
+                    }}
+                    className={`mt-1 ${linkedinError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {linkedinError && (
+                    <p className="text-xs text-destructive mt-1 font-semibold text-left">{linkedinError}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Used for connection and collaboration features
                   </p>
@@ -1081,15 +1210,35 @@ export default function ProfilePage() {
                     type="url"
                     placeholder="https://github.com/yourusername"
                     value={editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '')}
-                    onChange={(e) =>
-                      setEditData({ ...editData, githubUrl: e.target.value })
-                    }
-                    className="mt-1"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditData({ ...editData, githubUrl: val });
+                      if (!val.trim()) {
+                        setGithubError(null);
+                      } else if (!validateGitHub(val)) {
+                        setGithubError("Please enter a valid GitHub profile URL.");
+                      } else {
+                        setGithubError(null);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value;
+                      if (val && !validateGitHub(val)) {
+                        setGithubError("Please enter a valid GitHub profile URL.");
+                      } else {
+                        setGithubError(null);
+                      }
+                    }}
+                    className={`mt-1 ${githubError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {githubError && (
+                    <p className="text-xs text-destructive mt-1 font-semibold text-left">{githubError}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Your GitHub profile link (optional)
                   </p>
                 </div>
+
 
                 {/* Skills editor */}
                 <div>
@@ -1162,15 +1311,13 @@ export default function ProfilePage() {
                       Saved Projects
                     </Button>
                   </Link>
-                  {studentData.linkedinUrl && (
-                    <Button
-                      onClick={handleConnectLinkedIn}
-                      className="smooth-button bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      <Linkedin className="w-4 h-4 mr-2" />
-                      Connect
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleShareOwnProfile}
+                    className="smooth-button bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
                 </>
               ) : (
                 <>
@@ -1181,13 +1328,7 @@ export default function ProfilePage() {
                     Save
                   </Button>
                   <Button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditData({});
-                      setPhotoPreview(
-                        studentData.profilePhoto || null
-                      );
-                    }}
+                    onClick={cancelEdit}
                     variant="outline"
                     className="smooth-button"
                   >
@@ -1334,6 +1475,7 @@ export default function ProfilePage() {
               <ProjectsList
                 projects={userProjects}
                 from="profile"
+                onShare={handleShareProject}
                 onDelete={async (id) => {
                   setUserProjects((prev) => prev.filter((p) => p.id !== id));
                   try {
@@ -1497,6 +1639,12 @@ export default function ProfilePage() {
 
       {/* Global sonner toaster notifications */}
       <Toaster />
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+      />
     </div>
   );
 }

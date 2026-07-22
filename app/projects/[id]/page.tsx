@@ -7,7 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag, Upload, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, Heart, Bookmark, User, Search, X, Loader2, Pencil, Globe, ExternalLink, Calendar, Tag, Upload, ChevronLeft, ChevronRight, Trash2, Share2 } from 'lucide-react';
 import { apiProject, apiViewProject, apiLikeProject, apiSaveProject, apiManageCollaborator, apiDeleteProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId, ensureViewerToken } from '@/lib/statsTracker';
@@ -30,6 +30,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -37,6 +38,19 @@ export default function ProjectDetailsPage() {
   const safeBack = useSafeBack();
   const rawId = params?.id as string;
   const projectId = rawId ? decodeURIComponent(rawId) : '';
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareClick = () => {
+    if (typeof window !== "undefined" && project) {
+      setShareUrl(`${window.location.origin}/project/${project.id}`);
+      setShareTitle(project.title);
+      setShareOpen(true);
+    }
+  };
+
 
   const [project, setProject] = useState<ApiProject | null>(null);
   const [views, setViews] = useState<number | null>(null);
@@ -768,62 +782,75 @@ export default function ProjectDetailsPage() {
 
           {/* 6. Action Buttons */}
           <div className="border-t border-border/40 pt-3">
-            <div className={`grid gap-2.5 ${isOwner ? 'grid-cols-3' : 'grid-cols-2'}`}>
-              <Button
-                variant={project.userHasLiked ? 'default' : 'outline'}
-                className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
-                  project.userHasLiked
-                    ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
-                    : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
-                }`}
-                onClick={handleLike}
-              >
-                <Heart className="w-3.5 h-3.5" fill={project.userHasLiked ? 'currentColor' : 'none'} />
-                {project.userHasLiked ? 'Liked' : 'Like'}
-              </Button>
-
-              <Button
-                variant={isSaved ? 'default' : 'outline'}
-                className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
-                  isSaved
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
-                    : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
-                }`}
-                onClick={handleSave}
-              >
-                <Bookmark className="w-3.5 h-3.5" fill={isSaved ? 'currentColor' : 'none'} />
-                {isSaved ? 'Saved' : 'Save'}
-              </Button>
-
-              {isOwner && (
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-3 gap-2.5">
                 <Button
-                  variant="outline"
-                  className="h-10 rounded-full border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-1.5 active:scale-95 cursor-pointer bg-background text-xs"
-                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  variant={project.userHasLiked ? 'default' : 'outline'}
+                  className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
+                    project.userHasLiked
+                      ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
+                      : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
+                  }`}
+                  onClick={handleLike}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
+                  <Heart className="w-3.5 h-3.5" fill={project.userHasLiked ? 'currentColor' : 'none'} />
+                  {project.userHasLiked ? 'Liked' : 'Like'}
                 </Button>
-              )}
 
-              <Button
-                variant="outline"
-                className={`h-10 rounded-full font-medium gap-1.5 hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs ${isOwner ? 'col-span-3' : 'col-span-2'}`}
-                onClick={() => {
-                  const targetPath = project.studentId === currentStudentId
-                    ? '/profile'
-                    : `/student/${project.studentId}`;
-                  router.push(targetPath);
-                }}
-              >
-                <User className="w-3.5 h-3.5" />
-                View Profile
-              </Button>
+                <Button
+                  variant={isSaved ? 'default' : 'outline'}
+                  className={`h-10 rounded-full font-medium gap-1.5 active:scale-95 cursor-pointer text-xs ${
+                    isSaved
+                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
+                      : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
+                  }`}
+                  onClick={handleSave}
+                >
+                  <Bookmark className="w-3.5 h-3.5" fill={isSaved ? 'currentColor' : 'none'} />
+                  {isSaved ? 'Saved' : 'Save'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-full font-medium gap-1.5 hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs"
+                  onClick={handleShareClick}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  Share
+                </Button>
+              </div>
+
+              <div className={`grid gap-2.5 ${isOwner ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-full font-medium gap-1.5 hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs w-full"
+                  onClick={() => {
+                    const targetPath = project.studentId === currentStudentId
+                      ? '/profile'
+                      : `/student/${project.studentId}`;
+                    router.push(targetPath);
+                  }}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  View Profile
+                </Button>
+
+                {isOwner && (
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-full border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-1.5 active:scale-95 cursor-pointer bg-background text-xs"
+                    onClick={() => setIsDeleteConfirmOpen(true)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </Button>
+                )}
+              </div>
 
               {isOwner && (
                 <Button
                   variant="outline"
-                  className="h-10 rounded-full font-medium gap-1.5 col-span-3 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs"
+                  className="h-10 rounded-full font-medium gap-1.5 w-full border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background text-xs"
                   onClick={openEditModal}
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -831,6 +858,7 @@ export default function ProjectDetailsPage() {
                 </Button>
               )}
             </div>
+
           </div>
 
           {/* 7. Manage Collaborators */}
@@ -1019,63 +1047,75 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className={`grid gap-3 pt-2 ${isOwner ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                <Button
-                  variant={project.userHasLiked ? 'default' : 'outline'}
-                  className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
-                    project.userHasLiked
-                      ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
-                      : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
-                  }`}
-                  onClick={handleLike}
-                >
-                  <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
-                  {project.userHasLiked ? 'Liked' : 'Like'}
-                </Button>
-
-                <Button
-                  variant={isSaved ? 'default' : 'outline'}
-                  className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
-                    isSaved
-                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
-                      : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
-                  }`}
-                  onClick={handleSave}
-                >
-                  <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
-                  {isSaved ? 'Saved' : 'Save'}
-                </Button>
-
-                {isOwner && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3 pt-2">
                   <Button
-                    variant="outline"
-                    className="h-11 rounded-full border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-2 active:scale-95 cursor-pointer bg-background"
-                    onClick={() => setIsDeleteConfirmOpen(true)}
+                    variant={project.userHasLiked ? 'default' : 'outline'}
+                    className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                      project.userHasLiked
+                        ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
+                        : 'hover:text-red-500 hover:border-red-500 bg-background text-foreground'
+                    }`}
+                    onClick={handleLike}
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
+                    <Heart className="w-4 h-4" fill={project.userHasLiked ? 'currentColor' : 'none'} />
+                    {project.userHasLiked ? 'Liked' : 'Like'}
                   </Button>
-                )}
 
-                <Button
-                  variant="outline"
-                  className={`h-11 rounded-xl font-medium gap-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background ${isOwner ? 'col-span-3' : 'col-span-2'}`}
-                  onClick={() => {
-                    const targetPath = project.studentId === currentStudentId
-                      ? '/profile'
-                      : `/student/${project.studentId}`;
-                    router.push(targetPath);
-                  }}
-                >
-                  <User className="w-4 h-4" />
-                  View Profile
-                </Button>
+                  <Button
+                    variant={isSaved ? 'default' : 'outline'}
+                    className={`h-11 rounded-xl font-medium gap-2 active:scale-95 cursor-pointer ${
+                      isSaved
+                        ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500'
+                        : 'hover:text-yellow-500 hover:border-yellow-500 bg-background text-foreground'
+                    }`}
+                    onClick={handleSave}
+                  >
+                    <Bookmark className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} />
+                    {isSaved ? 'Saved' : 'Save'}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl font-medium gap-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                    onClick={handleShareClick}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </Button>
+                </div>
+
+                <div className={`grid gap-3 pt-2 ${isOwner ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl font-medium gap-2 hover:bg-muted/50 cursor-pointer text-foreground bg-background w-full"
+                    onClick={() => {
+                      const targetPath = project.studentId === currentStudentId
+                        ? '/profile'
+                        : `/student/${project.studentId}`;
+                      router.push(targetPath);
+                    }}
+                  >
+                    <User className="w-4 h-4" />
+                    View Profile
+                  </Button>
+
+                  {isOwner && (
+                    <Button
+                      variant="outline"
+                      className="h-11 rounded-xl border border-red-500/80 hover:bg-red-50/10 text-red-500 hover:text-red-600 hover:border-red-600 font-medium gap-2 active:scale-95 cursor-pointer bg-background"
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
 
                 {isOwner && (
                   <Button
                     variant="outline"
-                    className="h-11 rounded-xl font-medium gap-2 col-span-3 border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
+                    className="h-11 rounded-xl font-medium gap-2 w-full border-dashed hover:bg-muted/50 cursor-pointer text-foreground bg-background"
                     onClick={openEditModal}
                   >
                     <Pencil className="w-4 h-4" />
@@ -1083,6 +1123,7 @@ export default function ProjectDetailsPage() {
                   </Button>
                 )}
               </div>
+
 
               {/* Manage Collaborators Section */}
               {project && isOwner && (
@@ -1751,6 +1792,14 @@ export default function ProjectDetailsPage() {
           </DialogContent>
         </Dialog>
       )}
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+        type="project"
+      />
     </div>
   );
 }
+

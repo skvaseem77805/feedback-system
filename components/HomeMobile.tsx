@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Zap, Heart, Eye } from "lucide-react";
+import { Sparkles, Zap, Heart, Eye, Share2 } from "lucide-react";
 import { apiProjects } from "@/lib/api";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Navbar } from "@/components/Navbar";
+import { ShareBottomSheet } from "@/components/ShareBottomSheet";
 
 export function HomeMobile() {
   const router = useRouter();
@@ -17,6 +18,20 @@ export function HomeMobile() {
   const [trendingProjects, setTrendingProjects] = useState<any[]>([]);
   const [latestProjects, setLatestProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareClick = (projectId: string, title: string) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/project/${projectId}`);
+      setShareTitle(title);
+      setShareOpen(true);
+    }
+  };
+
+
 
   useEffect(() => {
     // Fetch feed items
@@ -140,8 +155,8 @@ export function HomeMobile() {
                       key={p.id}
                       className="min-w-[210px] w-[210px] snap-align-start overflow-hidden rounded-xl bg-card/45 border border-border/40 shadow-sm flex flex-col justify-between"
                     >
-                      <Link href={`/projects/${encodeURIComponent(p.id)}`} className="block">
-                        <div className="relative w-full aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
+                      <div className="relative w-full aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
+                        <Link href={`/projects/${encodeURIComponent(p.id)}`} className="w-full h-full block">
                           {p.thumbnailUrl ? (
                             <img
                               src={p.thumbnailUrl}
@@ -150,10 +165,23 @@ export function HomeMobile() {
                               loading="lazy"
                             />
                           ) : (
-                            <Sparkles className="w-6 h-6 text-primary/30" />
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Sparkles className="w-6 h-6 text-primary/30" />
+                            </div>
                           )}
-                        </div>
-                      </Link>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleShareClick(p.id, p.title);
+                          }}
+                          className="absolute top-2 right-2 p-1.5 bg-black/50 active:bg-black/75 text-white rounded-full backdrop-blur-xs transition-transform active:scale-90 z-10 border-none cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
                       <div className="p-3 space-y-2.5 flex-1 flex flex-col justify-between">
                         <div className="space-y-1">
@@ -209,8 +237,8 @@ export function HomeMobile() {
                       key={p.id}
                       className="min-w-[210px] w-[210px] snap-align-start overflow-hidden rounded-xl bg-card/45 border border-border/40 shadow-sm flex flex-col justify-between"
                     >
-                      <Link href={`/projects/${encodeURIComponent(p.id)}`} className="block">
-                        <div className="relative w-full aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
+                      <div className="relative w-full aspect-video bg-muted/40 flex items-center justify-center overflow-hidden">
+                        <Link href={`/projects/${encodeURIComponent(p.id)}`} className="w-full h-full block">
                           {p.thumbnailUrl ? (
                             <img
                               src={p.thumbnailUrl}
@@ -219,13 +247,26 @@ export function HomeMobile() {
                               loading="lazy"
                             />
                           ) : (
-                            <Sparkles className="w-6 h-6 text-primary/30" />
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Sparkles className="w-6 h-6 text-primary/30" />
+                            </div>
                           )}
-                          <Badge className="absolute top-2 left-2 bg-black/60 text-white font-bold text-[9px] px-2 py-0.5 rounded-full border-none">
-                            #{index + 1}
-                          </Badge>
-                        </div>
-                      </Link>
+                        </Link>
+                        <Badge className="absolute top-2 left-2 bg-black/60 text-white font-bold text-[9px] px-2 py-0.5 rounded-full border-none">
+                          #{index + 1}
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleShareClick(p.id, p.title);
+                          }}
+                          className="absolute top-2 right-2 p-1.5 bg-black/50 active:bg-black/75 text-white rounded-full backdrop-blur-xs transition-transform active:scale-90 z-10 border-none cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
                       <div className="p-3 space-y-2.5 flex-1 flex flex-col justify-between">
                         <div className="space-y-1">
@@ -262,6 +303,12 @@ export function HomeMobile() {
           </>
         )}
       </main>
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+      />
     </div>
   );
 }

@@ -30,14 +30,30 @@ import {
   Cpu,
   Shield,
   Database,
+  Share2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { apiProjects, apiStudents } from "@/lib/api";
+import { ShareBottomSheet } from "@/components/ShareBottomSheet";
 
 export function HomeDesktop() {
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareTitle, setShareTitle] = useState("");
+
+  const handleShareClick = (projectId: string, title: string) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/project/${projectId}`);
+      setShareTitle(title);
+      setShareOpen(true);
+    }
+  };
+
+
 
   const [stats, setStats] = useState({
     projects: 0,
@@ -414,11 +430,21 @@ export function HomeDesktop() {
                       </div>
 
                       {/* Action */}
-                      <Link href={`/projects/${encodeURIComponent(p.id)}`}>
-                        <Button size="sm" variant="ghost" className="w-full text-xs font-semibold justify-center hover:bg-primary/10 hover:text-primary gap-1 pt-1 mt-1 border border-white/5 group-hover:border-primary/20">
-                          View Project <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      <div className="flex gap-2 items-center">
+                        <Link href={`/projects/${encodeURIComponent(p.id)}`} className="flex-1">
+                          <Button size="sm" variant="ghost" className="w-full text-xs font-semibold justify-center hover:bg-primary/10 hover:text-primary gap-1 pt-1 mt-1 border border-white/5 group-hover:border-primary/20">
+                            View Project <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </Button>
+                        </Link>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleShareClick(p.id, p.title)}
+                          className="text-xs font-semibold justify-center hover:bg-primary/10 hover:text-primary p-2 mt-1 border border-white/5 group-hover:border-primary/20 h-8.5 rounded-lg animate-none shrink-0"
+                        >
+                          <Share2 className="w-4 h-4" />
                         </Button>
-                      </Link>
+                      </div>
                     </div>
                   </div>
                 );
@@ -620,6 +646,12 @@ export function HomeDesktop() {
           </Button>
         </div>
       </section>
+      <ShareBottomSheet
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareUrl}
+        title={shareTitle}
+      />
     </div>
   );
 }

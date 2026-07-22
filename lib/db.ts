@@ -121,6 +121,53 @@ async function ensureTables() {
     SELECT CONCAT('collab-owner-', id), id, student_id, 'OWNER', 'ACCEPTED'
     FROM projects
   `);
+
+  // Ensure 'email_verified' exists in legacy 'students' table
+  const [studentsCols] = await p.query('DESCRIBE students') as any;
+  const hasEmailVerified = studentsCols.some((c: any) => c.Field === 'email_verified');
+  if (!hasEmailVerified) {
+    await p.query('ALTER TABLE students ADD COLUMN email_verified TINYINT(1) DEFAULT 0 AFTER password_hash');
+  }
+
+  // Create new tables for the authentication system
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      registration_no VARCHAR(20) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      email_verified TINYINT(1) DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS student_profiles (
+      registration_no VARCHAR(20) PRIMARY KEY,
+      department VARCHAR(50) NOT NULL,
+      year VARCHAR(20) NOT NULL,
+      section VARCHAR(10) NOT NULL,
+      linkedin_url VARCHAR(500) DEFAULT NULL,
+      github_url VARCHAR(500) DEFAULT NULL,
+      bio TEXT DEFAULT NULL,
+      skills JSON DEFAULT NULL,
+      avatar VARCHAR(500) DEFAULT NULL,
+      portfolio VARCHAR(500) DEFAULT NULL,
+      phone_number VARCHAR(20) DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_sp_users FOREIGN KEY (registration_no) REFERENCES users (registration_no) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS otps (
+      email VARCHAR(255) PRIMARY KEY,
+      otp VARCHAR(6) NOT NULL,
+      expiry DATETIME NOT NULL,
+      created_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
 }
 
 export async function query<T = unknown>(

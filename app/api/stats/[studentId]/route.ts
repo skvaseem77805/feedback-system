@@ -22,8 +22,21 @@ export async function GET(
       );
     }
 
+    // Resolve sid to actual students.id
+    const studentRow = await queryOne<{ id: string | number }>(
+      'SELECT id FROM students WHERE id = ? OR registration_no = ? LIMIT 1',
+      [sid, sid]
+    );
+    if (!studentRow) {
+      return Response.json(
+        { error: 'Student not found' },
+        { status: 404 }
+      );
+    }
+    const actualSid = studentRow.id;
+
     // Recalculate stats dynamically from the actual tables
-    const stats = await recalculateAndSyncStats(sid);
+    const stats = await recalculateAndSyncStats(actualSid);
 
     return Response.json({
       projectsUploaded: stats.projectsUploaded,
@@ -58,6 +71,19 @@ export async function PATCH(
       );
     }
 
+    // Resolve sid to actual students.id
+    const studentRow = await queryOne<{ id: string | number }>(
+      'SELECT id FROM students WHERE id = ? OR registration_no = ? LIMIT 1',
+      [sid, sid]
+    );
+    if (!studentRow) {
+      return Response.json(
+        { error: 'Student not found' },
+        { status: 404 }
+      );
+    }
+    const actualSid = studentRow.id;
+
     const body = await request.json().catch(() => ({}));
     const set = body?.set;
 
@@ -80,7 +106,7 @@ export async function PATCH(
         WHERE student_id = ?
         LIMIT 1
         `,
-        [sid]
+        [actualSid]
       );
 
       const curP = Number(current?.projects_uploaded) || 0;
@@ -122,7 +148,7 @@ export async function PATCH(
         collaborations = VALUES(collaborations)
       `,
       [
-        sid,
+        actualSid,
         projectsUploaded,
         connections,
         collaborations,
@@ -130,7 +156,7 @@ export async function PATCH(
     );
 
     // Sync from source-of-truth tables to overwrite any manual offsets with correct dynamic stats
-    const syncedStats = await recalculateAndSyncStats(sid);
+    const syncedStats = await recalculateAndSyncStats(actualSid);
 
     return Response.json({
       projectsUploaded: syncedStats.projectsUploaded,

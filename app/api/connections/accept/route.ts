@@ -17,6 +17,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Resolve both studentId and otherId to their actual students.id
+    const [idRows] = await query<any>(
+      'SELECT id, registration_no FROM students WHERE id IN (?, ?) OR registration_no IN (?, ?)',
+      [studentId, otherId, studentId, otherId]
+    );
+
+    let actualStudentId: string | number = studentId;
+    let actualOtherId: string | number = otherId;
+
+    if (Array.isArray(idRows)) {
+      const studentMap = new Map<string, string | number>();
+      idRows.forEach((r: any) => {
+        studentMap.set(r.registration_no, r.id);
+        studentMap.set(r.id.toString(), r.id);
+      });
+      actualStudentId = studentMap.get(studentId) || studentId;
+      actualOtherId = studentMap.get(otherId) || otherId;
+    }
+
     // Accept request
     const [result]: any = await query(
       `
@@ -29,7 +48,7 @@ export async function POST(request: NextRequest) {
         AND to_student_id = ?
         AND status = 'pending'
       `,
-      [otherId, studentId]
+      [actualOtherId, actualStudentId]
     );
 
     if (result.affectedRows === 0) {
@@ -46,7 +65,7 @@ export async function POST(request: NextRequest) {
       SET connections = connections + 1
       WHERE student_id = ?
       `,
-      [studentId]
+      [actualStudentId]
     );
 
     await query(
@@ -55,7 +74,7 @@ export async function POST(request: NextRequest) {
       SET connections = connections + 1
       WHERE student_id = ?
       `,
-      [otherId]
+      [actualOtherId]
     );
 
     return Response.json({

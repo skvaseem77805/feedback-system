@@ -217,13 +217,23 @@ export async function POST(request: NextRequest) {
                 );
             }
 
+            // Obtain the actual student ID
+            const [rows] = await connection.query(
+                'SELECT id FROM students WHERE registration_no = ? LIMIT 1',
+                [registrationNo]
+            );
+            let actualId = studentId;
+            if (Array.isArray(rows) && rows.length > 0) {
+                actualId = (rows[0] as any).id;
+            }
+
             await connection.query(
                 `
           INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
           VALUES (?, 0, 0, 0)
           ON DUPLICATE KEY UPDATE student_id = student_id
         `,
-                [studentId]
+                [actualId]
             );
 
             await connection.commit();

@@ -104,13 +104,13 @@ export async function getStudentById(id: string) {
       skills,
       avatar
     FROM students
-    WHERE id = ?
+    WHERE id = ? OR registration_no = ?
     LIMIT 1
   `;
 
   let row: any = null;
   try {
-    const r = await query<any>(rowSql, [id]);
+    const r = await query<any>(rowSql, [id, id]);
     row = Array.isArray(r[0]) ? r[0][0] : r[0]?.[0] ?? null;
   } catch (err) {
     console.error('getStudentById DB error', err);

@@ -40,11 +40,21 @@ export async function POST(request: NextRequest) {
       [department, numericYear, courseName, section, registrationNo]
     );
 
+    // Get the actual students.id
+    const studentRow = await queryOne<{ id: string | number }>(
+      'SELECT id FROM students WHERE registration_no = ? LIMIT 1',
+      [registrationNo]
+    );
+
+    if (!studentRow) {
+      return Response.json({ error: 'User is not registered.' }, { status: 400 });
+    }
+
     // 5. Initialize user stats
     await query(
       `INSERT IGNORE INTO student_stats (student_id, projects_uploaded, connections, collaborations)
        VALUES (?, 0, 0, 0)`,
-      [registrationNo]
+      [studentRow.id]
     );
 
     return Response.json({

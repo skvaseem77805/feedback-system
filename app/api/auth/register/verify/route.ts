@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { queryOne, query } from '@/lib/db';
+import { queryOne, query, getPool } from '@/lib/db';
 import { hashPassword } from '@/lib/auth-utils';
 
 export async function POST(request: NextRequest) {
@@ -42,17 +42,71 @@ export async function POST(request: NextRequest) {
     // 5. Hash password using bcrypt
     const passwordHash = await hashPassword(password);
 
-    // 6. Insert student user directly into students table
-    await query(
-      `INSERT INTO students (id, name, registration_no, email, password_hash, email_verified, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-       ON DUPLICATE KEY UPDATE 
-         name = VALUES(name), 
-         email = VALUES(email), 
-         password_hash = VALUES(password_hash), 
-         email_verified = VALUES(email_verified)`,
-      [registrationNo, name.toUpperCase(), registrationNo, email, passwordHash]
-    );
+    // 6. Insert student user directly into students table using a transaction
+    const pool = getPool();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      let actualStudentId: string | number | null = null;
+      let insertResult: any;
+
+      try {
+        // Try inserting without specifying id (if it is auto-increment)
+        const [res] = await connection.query(
+          `INSERT INTO students (name, registration_no, email, password_hash, email_verified, created_at)
+           VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+          [name.toUpperCase(), registrationNo, email, passwordHash]
+        );
+        insertResult = res;
+      } catch (e) {
+        // Fallback to inserting registrationNo as id
+        const [res] = await connection.query(
+          `INSERT INTO students (id, name, registration_no, email, password_hash, email_verified, created_at)
+           VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+           ON DUPLICATE KEY UPDATE 
+             name = VALUES(name), 
+             email = VALUES(email), 
+             password_hash = VALUES(password_hash), 
+             email_verified = VALUES(email_verified)`,
+          [registrationNo, name.toUpperCase(), registrationNo, email, passwordHash]
+        );
+        insertResult = res;
+      }
+
+      if (insertResult && insertResult.insertId) {
+        actualStudentId = insertResult.insertId;
+      }
+
+      // Query to ensure/obtain the correct id
+      const [rows] = await connection.query(
+        'SELECT id FROM students WHERE registration_no = ? LIMIT 1',
+        [registrationNo]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        actualStudentId = (rows[0] as any).id;
+      }
+
+      if (!actualStudentId) {
+        throw new Error('Failed to obtain student ID after insertion.');
+      }
+
+      // Insert stats using numeric / actual ID
+      await connection.query(
+        `INSERT INTO student_stats (student_id, projects_uploaded, connections, collaborations)
+         VALUES (?, 0, 0, 0)
+         ON DUPLICATE KEY UPDATE student_id = student_id`,
+        [actualStudentId]
+      );
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return Response.json({
       success: true,

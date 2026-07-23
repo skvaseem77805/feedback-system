@@ -560,12 +560,28 @@ export async function POST(request: NextRequest) {
             [studentValues]
           );
 
-          const statsValues = chunk.map(item => [
-            item.rawValues.rollNumber,
-            0,
-            0,
-            0
-          ]);
+          const rollNos = chunk.map(item => item.rawValues.rollNumber);
+          const [idRows] = await connection.query(
+            'SELECT id, registration_no FROM students WHERE registration_no IN (?)',
+            [rollNos]
+          );
+
+          const regToIdMap = new Map<string, string | number>();
+          if (Array.isArray(idRows)) {
+            idRows.forEach((r: any) => {
+              regToIdMap.set(r.registration_no, r.id);
+            });
+          }
+
+          const statsValues = chunk.map(item => {
+            const actualId = regToIdMap.get(item.rawValues.rollNumber) || item.rawValues.rollNumber;
+            return [
+              actualId,
+              0,
+              0,
+              0
+            ];
+          });
 
           await connection.query(
             `

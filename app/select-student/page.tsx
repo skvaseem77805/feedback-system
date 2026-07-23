@@ -22,9 +22,7 @@ function toRecord(s: ApiStudent) {
     registrationNo: s.registrationNo,
     uniqueId: s.uniqueId ?? '',
     year: s.year,
-    course: s.course ?? '',
     email: s.email,
-    mobileNo: s.mobileNo,
     department: s.department,
     section: s.section,
     linkedinUrl: s.linkedinUrl,
@@ -88,23 +86,23 @@ export default function SelectStudentPage() {
     if (!students || students.length === 0) return [];
     const filtered = filterDept
       ? students.filter((s) => {
-          const d = (s.department || '').toLowerCase().trim();
-          const f = filterDept.toLowerCase().trim();
-          if (f === 'cse') return d === 'cse';
-          if (f === 'csy') return d === 'csy' || d.includes('csy');
-          if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
-          if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
-          if (f === 'it') return d === 'it';
-          if (f === 'ece') return d === 'ece';
-          if (f === 'eee') return d === 'eee';
-          if (f === 'mechanical') return d === 'mechanical';
-          if (f === 'civil') return d === 'civil';
-          if (f === 'other') {
-            const known = ['cse', 'csy', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
-            return !known.some(k => d === k || d.includes(k));
-          }
-          return d.includes(f);
-        })
+        const d = (s.department || '').toLowerCase().trim();
+        const f = filterDept.toLowerCase().trim();
+        if (f === 'cse') return d === 'cse';
+        if (f === 'csy') return d === 'csy' || d.includes('csy');
+        if (f === 'ai&ml') return d === 'ai & ml' || d === 'ai&ml' || d.includes('ai & ml') || d.includes('ai&ml');
+        if (f === 'ai&ds') return d === 'ai & ds' || d === 'ai&ds' || d.includes('ai & ds') || d.includes('ai&ds');
+        if (f === 'it') return d === 'it';
+        if (f === 'ece') return d === 'ece';
+        if (f === 'eee') return d === 'eee';
+        if (f === 'mechanical') return d === 'mechanical';
+        if (f === 'civil') return d === 'civil';
+        if (f === 'other') {
+          const known = ['cse', 'csy', 'ai & ml', 'ai&ml', 'ai & ds', 'ai&ds', 'it', 'ece', 'eee', 'mechanical', 'civil'];
+          return !known.some(k => d === k || d.includes(k));
+        }
+        return d.includes(f);
+      })
       : students;
     return Array.from(
       new Set(
@@ -212,11 +210,10 @@ export default function SelectStudentPage() {
               <button
                 type="button"
                 onClick={() => setIsFilterVisible(prev => !prev)}
-                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
-                  isFilterVisible
+                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${isFilterVisible
                     ? 'bg-primary border-primary text-white'
                     : 'bg-background border-border/60 text-muted-foreground'
-                }`}
+                  }`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
@@ -233,11 +230,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterYear('')}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                      filterYear === ''
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterYear === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -246,11 +242,10 @@ export default function SelectStudentPage() {
                       key={y.value}
                       type="button"
                       onClick={() => setFilterYear(y.value)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                        filterYear === y.value
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterYear === y.value
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {y.label}
                     </button>
@@ -268,11 +263,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterDept('')}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                      filterDept === ''
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterDept === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -281,11 +275,10 @@ export default function SelectStudentPage() {
                       key={b.value}
                       type="button"
                       onClick={() => setFilterDept(b.value)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                        filterDept === b.value
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterDept === b.value
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {b.label}
                     </button>
@@ -303,11 +296,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterSection('')}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                      filterSection === ''
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterSection === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -316,11 +308,10 @@ export default function SelectStudentPage() {
                       key={s}
                       type="button"
                       onClick={() => setFilterSection(s)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${
-                        filterSection === s
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-none ${filterSection === s
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {s}
                     </button>
@@ -373,17 +364,17 @@ export default function SelectStudentPage() {
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="min-w-0 space-y-0.5">
                       <h4 className="font-extrabold text-foreground text-sm tracking-tight truncate leading-snug">
                         {student.name}
                       </h4>
                       <p className="text-[10px] font-bold text-muted-foreground">
-                        {String(student.year) === '1' ? '1st' : 
-                         String(student.year) === '2' ? '2nd' :
-                         String(student.year) === '3' ? '3rd' :
-                         String(student.year) === '4' ? 'Final' : 
-                         String(student.year)} Year • {student.department} • Section {student.section || 'E'}
+                        {String(student.year) === '1' ? '1st' :
+                          String(student.year) === '2' ? '2nd' :
+                            String(student.year) === '3' ? '3rd' :
+                              String(student.year) === '4' ? 'Final' :
+                                String(student.year)} Year • {student.department} • Section {student.section || 'E'}
                       </p>
                       <p className="text-[9px] text-muted-foreground/85 truncate">
                         Sir C.R. Reddy College of Engineering
@@ -461,11 +452,10 @@ export default function SelectStudentPage() {
               <button
                 type="button"
                 onClick={() => setIsFilterVisible(prev => !prev)}
-                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${
-                  isFilterVisible
+                className={`p-1.5 rounded-lg active:scale-95 transition-none flex items-center justify-center border ${isFilterVisible
                     ? 'bg-primary border-primary text-white'
                     : 'bg-background border-border/60 text-muted-foreground'
-                }`}
+                  }`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
@@ -484,11 +474,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterYear('')}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                      filterYear === ''
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterYear === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -497,11 +486,10 @@ export default function SelectStudentPage() {
                       key={y.value}
                       type="button"
                       onClick={() => setFilterYear(y.value)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                        filterYear === y.value
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterYear === y.value
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {y.label}
                     </button>
@@ -521,11 +509,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterDept('')}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                      filterDept === ''
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterDept === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -534,11 +521,10 @@ export default function SelectStudentPage() {
                       key={b.value}
                       type="button"
                       onClick={() => setFilterDept(b.value)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                        filterDept === b.value
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterDept === b.value
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {b.label}
                     </button>
@@ -558,11 +544,10 @@ export default function SelectStudentPage() {
                   <button
                     type="button"
                     onClick={() => setFilterSection('')}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                      filterSection === ''
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterSection === ''
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                    }`}
+                      }`}
                   >
                     All
                   </button>
@@ -571,11 +556,10 @@ export default function SelectStudentPage() {
                       key={s}
                       type="button"
                       onClick={() => setFilterSection(s)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${
-                        filterSection === s
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-none duration-150 ${filterSection === s
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background hover:bg-muted/50 text-foreground border-border/60'
-                      }`}
+                        }`}
                     >
                       {s}
                     </button>

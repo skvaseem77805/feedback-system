@@ -55,11 +55,8 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
       userId: s.id,
       name: s.name,
       registrationNo: s.registration_no,
-      uniqueId: s.unique_id,
       year: s.year,
-      course: s.course,
       email: s.email || '',
-      mobileNo: s.mobile_no || '',
       department: s.department || 'CSE',
       section: s.section || 'E',
       linkedinUrl: s.linkedin_url ?? undefined,
@@ -68,7 +65,7 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
       skills,
       avatar: s.avatar ?? undefined,
       academicYear: (() => {
-        const m: Record<number, string> = {1:'1st',2:'2nd',3:'3rd',4:'Final'};
+        const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' };
         return m[s.year] ?? `${s.year}th`;
       })(),
       projectsUploaded: Number(s.projects_uploaded) || 0,
@@ -91,11 +88,8 @@ export async function getStudentById(id: string) {
       id,
       name,
       registration_no,
-      unique_id,
       year,
-      course,
       email,
-      mobile_no,
       department,
       section,
       linkedin_url,
@@ -142,7 +136,7 @@ export async function getStudentById(id: string) {
     bio: row.bio ?? undefined,
     skills,
     avatar: row.avatar ?? undefined,
-    academicYear: (() => { const m: Record<number,string>={1:'1st',2:'2nd',3:'3rd',4:'Final'}; return m[row.year] ?? `${row.year}th` })(),
+    academicYear: (() => { const m: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: 'Final' }; return m[row.year] ?? `${row.year}th` })(),
   };
 
   cache.set(key, student, 60 * 1000);

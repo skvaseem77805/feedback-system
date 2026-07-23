@@ -14,7 +14,9 @@ export async function POST(request: NextRequest) {
 
     // 1. Validate Registration Number format
     const regNoPattern = /^2[0-9A-Z]B8[0-9A-Z]A05[0-9A-Z]{2}$/i;
+    console.log('[DEBUG LOGIN] Submitted Registration Number:', registrationNo);
     if (!regNoPattern.test(registrationNo)) {
+      console.log('[DEBUG LOGIN] HTTP 400 Reason: Registration number format invalid against regex.');
       return Response.json({ error: 'Invalid Registration Number.' }, { status: 400 });
     }
 
@@ -23,14 +25,24 @@ export async function POST(request: NextRequest) {
       'SELECT registration_no, name, email, password_hash FROM students WHERE registration_no = ? OR email = ? LIMIT 1',
       [registrationNo, registrationNo.toLowerCase()]
     );
+    console.log('[DEBUG LOGIN] SQL User Result:', JSON.stringify(user, null, 2));
 
-    if (!user || !user.password_hash) {
+    if (!user) {
+      console.log('[DEBUG LOGIN] HTTP 400 Reason: No student found matching registration_no or email.');
+      return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
+    }
+
+    console.log('[DEBUG LOGIN] password_hash exists?', !!(user.password_hash));
+    if (!user.password_hash) {
+      console.log('[DEBUG LOGIN] HTTP 400 Reason: Student exists but has no password_hash.');
       return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
     }
 
     // 3. Compare passwords
     const isValid = await comparePassword(password, user.password_hash);
+    console.log('[DEBUG LOGIN] bcrypt compare result:', isValid);
     if (!isValid) {
+      console.log('[DEBUG LOGIN] HTTP 400 Reason: password mismatch.');
       return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
     }
 

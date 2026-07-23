@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getPool, query, queryOne } from '@/lib/db';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { validateRegistrationNo } from '@/lib/validation';
+import { invalidateStudentsCache, invalidateStudent } from '@/lib/services/students';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdminAuthorized(request)) {
@@ -36,7 +37,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.year !== undefined) setField('year', Number(body.year));
     if (body.course !== undefined) setField('course', body.course);
     if (body.email !== undefined) setField('email', body.email);
-    if (body.mobileNo !== undefined) setField('mobile_no', body.mobileNo);
     if (body.department !== undefined) setField('department', body.department);
     if (body.section !== undefined) setField('section', body.section);
     if (body.linkedinUrl !== undefined) setField('linkedin_url', body.linkedinUrl || null);
@@ -54,6 +54,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await connection.beginTransaction();
       await connection.query(`UPDATE students SET ${updates.join(', ')} WHERE id = ?`, [...values, studentId]);
       await connection.commit();
+      
+      // Invalidate caches
+      invalidateStudentsCache();
+      invalidateStudent(studentId);
+      
       return Response.json({ success: true, message: 'Student updated' });
     } catch (error) {
       await connection.rollback();

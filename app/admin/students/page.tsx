@@ -71,7 +71,7 @@ export default function AdminStudentsPage() {
   const [showErrorsDetails, setShowErrorsDetails] = useState(false);
   const [error, setError] = useState('');
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '', mobileNo: '', department: '', year: '' });
+  const [editForm, setEditForm] = useState({ name: '', email: '', department: '', year: '' });
 
   useEffect(() => {
     const userType = localStorage.getItem('userType');
@@ -278,7 +278,7 @@ export default function AdminStudentsPage() {
 
   const startEdit = (student: StudentRow) => {
     setEditStudent(student);
-    setEditForm({ name: student.name, email: student.email, mobileNo: student.mobileNo, department: student.department, year: String(student.year) });
+    setEditForm({ name: student.name, email: student.email, department: student.department, year: String(student.year) });
   };
 
   const saveEdit = async () => {
@@ -294,16 +294,17 @@ export default function AdminStudentsPage() {
       body: JSON.stringify({
         name: editForm.name,
         email: editForm.email,
-        mobileNo: editForm.mobileNo,
         department: editForm.department,
         year: editForm.year,
       }),
     });
     const data = await res.json();
     if (!res.ok) {
+      toast.error(data.error || 'Update failed');
       setError(data.error || 'Update failed');
       return;
     }
+    toast.success('Student updated successfully.');
     setEditStudent(null);
     await loadStudents();
   };
@@ -317,9 +318,11 @@ export default function AdminStudentsPage() {
     const res = await fetch(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: 'DELETE', headers });
     const data = await res.json();
     if (!res.ok) {
+      toast.error(data.error || 'Delete failed');
       setError(data.error || 'Delete failed');
       return;
     }
+    toast.success('Student deleted successfully.');
     await loadStudents();
   };
 
@@ -731,7 +734,6 @@ export default function AdminStudentsPage() {
             <div className="space-y-3">
               <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Name" />
               <Input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" />
-              <Input value={editForm.mobileNo} onChange={(e) => setEditForm({ ...editForm, mobileNo: e.target.value })} placeholder="Phone" />
               <Input value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} placeholder="Branch" />
               <Input value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} placeholder="Year" />
               <div className="flex justify-end gap-2">

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getPool, query } from '@/lib/db';
 import { isAdminAuthorized } from '@/lib/admin-auth';
+import { validateRegistrationNo } from '@/lib/validation';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdminAuthorized(request)) {
@@ -25,7 +26,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     };
 
     if (body.name !== undefined) setField('name', body.name);
-    if (body.registrationNo !== undefined) setField('registration_no', body.registrationNo);
+    if (body.registrationNo !== undefined) {
+      const validation = validateRegistrationNo(body.registrationNo);
+      if (!validation.isValid) {
+        return Response.json({ error: validation.error }, { status: 400 });
+      }
+      setField('registration_no', validation.cleaned);
+    }
     if (body.year !== undefined) setField('year', Number(body.year));
     if (body.course !== undefined) setField('course', body.course);
     if (body.email !== undefined) setField('email', body.email);

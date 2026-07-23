@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateRegistrationNo } from '@/lib/validation';
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -20,17 +21,12 @@ export default function StudentLoginPage() {
     e.preventDefault();
     setError('');
 
-    const trimmedRegNo = registrationNo.trim().toUpperCase();
-    if (!trimmedRegNo) {
-      setError('Registration Number is required.');
+    const validation = validateRegistrationNo(registrationNo);
+    if (!validation.isValid) {
+      setError(validation.error || 'Invalid Registration Number.');
       return;
     }
-
-    const regNoPattern = /^2[0-9A-Z]B8[0-9A-Z]A05[0-9A-Z]{2}$/i;
-    if (!regNoPattern.test(trimmedRegNo)) {
-      setError('Invalid Registration Number.');
-      return;
-    }
+    const trimmedRegNo = validation.cleaned;
 
     if (!password) {
       setError('Password is required.');
@@ -92,7 +88,7 @@ export default function StudentLoginPage() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {error && (
-            <div className="bg-destructive/15 text-destructive p-3 rounded text-sm font-medium">
+            <div className="bg-destructive/15 text-destructive p-3 rounded text-sm font-medium whitespace-pre-line">
               {error}
             </div>
           )}

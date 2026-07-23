@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { queryOne } from '@/lib/db';
 import { comparePassword } from '@/lib/auth-utils';
+import { validateRegistrationNo } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,11 +14,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Validate Registration Number format
-    const regNoPattern = /^2[0-9A-Z]B8[0-9A-Z]A05[0-9A-Z]{2}$/i;
+    const validation = validateRegistrationNo(registrationNo);
     console.log('[DEBUG LOGIN] Submitted Registration Number:', registrationNo);
-    if (!regNoPattern.test(registrationNo)) {
+    if (!validation.isValid) {
       console.log('[DEBUG LOGIN] HTTP 400 Reason: Registration number format invalid against regex.');
-      return Response.json({ error: 'Invalid Registration Number.' }, { status: 400 });
+      return Response.json({ error: validation.error }, { status: 400 });
     }
 
     // 2. Fetch user from students

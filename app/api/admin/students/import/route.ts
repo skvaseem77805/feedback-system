@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getPool, query } from '@/lib/db';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { buildStudentImportPreviewRows, extractRowsFromPdfText, normalizeRowKeys, toYearLabel } from '@/lib/student-import';
+import { validateRegistrationNo } from '@/lib/validation';
 import * as XLSX from 'xlsx';
 
 function getFileType(fileName: string): 'excel' | 'csv' | 'pdf' | 'unknown' {
@@ -380,10 +381,14 @@ export async function POST(request: NextRequest) {
         const phone = String(normalizedRow.phone ?? '').trim();
         const section = String(normalizedRow.section ?? 'E').trim();
 
+        const validation = validateRegistrationNo(rollNo);
+
         // Determine structural/validation errors
         let errorReason = '';
         if (!rawRoll || !rollNo) {
           errorReason = 'Roll Number Missing';
+        } else if (!validation.isValid) {
+          errorReason = 'Invalid Registration Number';
         } else if (!name) {
           errorReason = 'Name Missing';
         } else if (normalizedRow.year === undefined || normalizedRow.year === null || String(normalizedRow.year).trim() === '') {

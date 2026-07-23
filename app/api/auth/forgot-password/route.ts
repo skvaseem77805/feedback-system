@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { queryOne, query } from '@/lib/db';
 import { sendOtpEmail } from '@/lib/services/brevo';
+import { validateRegistrationNo } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,9 +14,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Validate Registration Number format
-    const regNoPattern = /^2[0-9A-Z]B8[0-9A-Z]A05[0-9A-Z]{2}$/i;
-    if (!regNoPattern.test(registrationNo)) {
-      return Response.json({ error: 'Invalid Registration Number.' }, { status: 400 });
+    const validation = validateRegistrationNo(registrationNo);
+    if (!validation.isValid) {
+      return Response.json({ error: validation.error }, { status: 400 });
     }
 
     // 2. Look up user by registration number and email matching

@@ -1,3 +1,5 @@
+import { validateRegistrationNo } from './validation';
+
 export interface StudentImportPreviewRow {
   rowNumber: number;
   rollNumber: string;
@@ -150,7 +152,14 @@ export function buildStudentImportPreviewRows(
     const errors: string[] = [];
     const isExisting = student.rollNumber && existingRollNumbers.has(student.rollNumber);
 
-    if (!student.rollNumber) errors.push('Roll number is required');
+    if (!student.rollNumber) {
+      errors.push('Roll number is required');
+    } else {
+      const validation = validateRegistrationNo(student.rollNumber);
+      if (!validation.isValid) {
+        errors.push(validation.error || 'Invalid Registration Number format');
+      }
+    }
     if (!student.name) errors.push('Student name is required');
     if (!student.yearInfo.year) errors.push('Valid year is required');
     if (!student.department) errors.push('Branch is required');

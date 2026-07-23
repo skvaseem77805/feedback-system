@@ -3,9 +3,38 @@
  * Uses DATABASE_URL or MYSQL_* env vars. Create .env from .env.example.
  */
 import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
+
+function ensureEnvLoaded() {
+  if (process.env.MYSQL_HOST || process.env.MYSQLHOST || process.env.DATABASE_URL) {
+    return;
+  }
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split(/\r?\n/).forEach((line) => {
+        if (!line || line.trim().startsWith('#')) return;
+        const idx = line.indexOf('=');
+        if (idx > 0) {
+          const key = line.slice(0, idx).trim();
+          const val = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, '');
+          if (!process.env[key]) {
+            process.env[key] = val;
+          }
+        }
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function getConfig(): mysql.ConnectionOptions {
-  const rawUrl = process.env.DATABASE_URL?.trim();
+  ensureEnvLoaded();
+
+  const rawUrl = (process.env.DATABASE_URL || process.env.MYSQL_URL)?.trim();
   if (rawUrl && rawUrl.startsWith('mysql://')) {
     try {
       const u = new URL(rawUrl);
@@ -21,16 +50,20 @@ function getConfig(): mysql.ConnectionOptions {
     }
   }
 
-  const envOrDefault = (value: string | undefined, fallback: string) =>
-    value?.trim() || fallback;
+  const getEnv = (keyWithUnderscore: string, keyWithoutUnderscore: string, fallback: string) => {
+    const val = process.env[keyWithUnderscore] || process.env[keyWithoutUnderscore];
+    return val?.trim() || fallback;
+  };
 
-  const port = Number.parseInt(envOrDefault(process.env.MYSQL_PORT, '3306'), 10);
+  const portStr = getEnv('MYSQL_PORT', 'MYSQLPORT', '3306');
+  const port = Number.parseInt(portStr, 10);
+
   return {
-    host: envOrDefault(process.env.MYSQL_HOST, 'localhost'),
+    host: getEnv('MYSQL_HOST', 'MYSQLHOST', 'localhost'),
     port: Number.isNaN(port) ? 3306 : port,
-    user: envOrDefault(process.env.MYSQL_USER, 'root'),
-    password: process.env.MYSQL_PASSWORD?.trim() || '',
-    database: envOrDefault(process.env.MYSQL_DATABASE, 'feedback_system'),
+    user: getEnv('MYSQL_USER', 'MYSQLUSER', 'root'),
+    password: (process.env.MYSQL_PASSWORD || process.env.MYSQLPASSWORD || '').trim(),
+    database: getEnv('MYSQL_DATABASE', 'MYSQLDATABASE', 'feedback_system'),
   };
 }
 
@@ -39,6 +72,14 @@ let pool: mysql.Pool | null = null;
 export function getPool(): mysql.Pool {
   if (!pool) {
     const config = getConfig();
+    // Print resolved MySQL configuration (masking password)
+    console.log('Resolved MySQL Configuration:', {
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      hasPassword: Boolean(config.password),
+      database: config.database,
+    });
     pool = mysql.createPool({
       ...config,
       waitForConnections: true,

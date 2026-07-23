@@ -31,38 +31,55 @@ function ensureEnvLoaded() {
   }
 }
 
+function cleanValue(val: string | undefined): string {
+  if (!val) return '';
+  return val.trim().replace(/^<|>$/g, '');
+}
+
 function getConfig(): mysql.ConnectionOptions {
   ensureEnvLoaded();
 
-  const rawUrl = (process.env.DATABASE_URL || process.env.MYSQL_URL)?.trim();
-  if (rawUrl && rawUrl.startsWith('mysql://')) {
-    try {
-      const u = new URL(rawUrl);
-      return {
-        host: decodeURIComponent(u.hostname),
-        port: parseInt(u.port || '3306', 10),
-        user: decodeURIComponent(u.username),
-        password: decodeURIComponent(u.password),
-        database: decodeURIComponent(u.pathname?.replace(/^\//, '') || 'feedback_system'),
-      };
-    } catch {
-      // fall through to MYSQL_*
+  let rawUrl = (process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL)?.trim();
+  if (rawUrl) {
+    rawUrl = cleanValue(rawUrl);
+    if (rawUrl.startsWith('mysql://')) {
+      try {
+        const u = new URL(rawUrl);
+        let host = decodeURIComponent(u.hostname);
+        if (host === 'mysql.railway.internal') {
+          host = 'hayabusa.proxy.rlwy.net';
+        }
+        return {
+          host,
+          port: parseInt(u.port || '3306', 10),
+          user: decodeURIComponent(u.username),
+          password: decodeURIComponent(u.password),
+          database: decodeURIComponent(u.pathname?.replace(/^\//, '') || 'feedback_system'),
+        };
+      } catch {
+        // fall through to MYSQL_*
+      }
     }
   }
 
   const getEnv = (keyWithUnderscore: string, keyWithoutUnderscore: string, fallback: string) => {
     const val = process.env[keyWithUnderscore] || process.env[keyWithoutUnderscore];
-    return val?.trim() || fallback;
+    return cleanValue(val) || fallback;
   };
 
-  const portStr = getEnv('MYSQL_PORT', 'MYSQLPORT', '3306');
+  let host = getEnv('MYSQL_HOST', 'MYSQLHOST', 'hayabusa.proxy.rlwy.net');
+  if (host === 'mysql.railway.internal') {
+    host = 'hayabusa.proxy.rlwy.net';
+  }
+
+  const portStr = getEnv('MYSQL_PORT', 'MYSQLPORT', '47765');
   const port = Number.parseInt(portStr, 10);
 
   return {
-    host: getEnv('MYSQL_HOST', 'MYSQLHOST', 'localhost'),
-    port: Number.isNaN(port) ? 3306 : port,
+    host,
+    port: Number.isNaN(port) ? 47765 : port,
     user: getEnv('MYSQL_USER', 'MYSQLUSER', 'root'),
-    password: (process.env.MYSQL_PASSWORD || process.env.MYSQLPASSWORD || '').trim(),
+    password: cleanValue(process.env.MYSQL_PASSWORD || process.env.MYSQLPASSWORD),
     database: getEnv('MYSQL_DATABASE', 'MYSQLDATABASE', 'feedback_system'),
   };
 }
@@ -72,14 +89,17 @@ let pool: mysql.Pool | null = null;
 export function getPool(): mysql.Pool {
   if (!pool) {
     const config = getConfig();
-    // Print resolved MySQL configuration (masking password)
-    console.log('Resolved MySQL Configuration:', {
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      hasPassword: Boolean(config.password),
-      database: config.database,
-    });
+    console.log('--- Resolved MySQL Connection Configuration ---');
+    console.log('Host:', config.host);
+    console.log('Port:', config.port);
+    console.log('User:', config.user);
+    console.log('Database:', config.database);
+    console.log('------------------------------------------------');
+
+    if (config.host === 'localhost' || config.host === '127.0.0.1' || config.host === 'mysql.railway.internal') {
+      console.warn(`[WARNING] Host resolved to '${config.host}'. Ensure public proxy host 'hayabusa.proxy.rlwy.net' is used for remote connection.`);
+    }
+
     pool = mysql.createPool({
       ...config,
       waitForConnections: true,

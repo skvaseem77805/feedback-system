@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 function CompleteProfileForm() {
@@ -15,6 +16,7 @@ function CompleteProfileForm() {
   const [department, setDepartment] = useState('CSE');
   const [year, setYear] = useState('2nd Year');
   const [section, setSection] = useState('A');
+  const [sectionError, setSectionError] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,12 +33,28 @@ function CompleteProfileForm() {
     setRegistrationNo(activeReg);
   }, [searchParams, router]);
 
+  const handleSectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.toUpperCase();
+    val = val.replace(/[^A-Z]/g, '').slice(0, 1);
+    setSection(val);
+    if (val && !/^[A-F]$/.test(val)) {
+      setSectionError('Section must be A, B, C, D, E or F.');
+    } else {
+      setSectionError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!registrationNo) {
       setError('Registration Number is required.');
+      return;
+    }
+
+    if (!/^[A-F]$/.test(section)) {
+      setError('Section must be a single uppercase character from A to F.');
       return;
     }
 
@@ -140,18 +158,18 @@ function CompleteProfileForm() {
 
           <div className="space-y-2">
             <Label htmlFor="section">Section</Label>
-            <select
+            <Input
               id="section"
               value={section}
-              onChange={(e) => setSection(e.target.value)}
+              onChange={handleSectionChange}
               required
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-            </select>
+              maxLength={1}
+              placeholder="e.g. A"
+              className={`uppercase ${sectionError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+            />
+            {sectionError && (
+              <p className="text-xs text-destructive mt-1 font-medium">{sectionError}</p>
+            )}
           </div>
         </CardContent>
         <CardFooter>

@@ -76,7 +76,6 @@ export async function GET(request: NextRequest) {
         s.id,
         s.name,
         s.registration_no,
-        s.unique_id,
         s.year,
         s.course,
         s.email,

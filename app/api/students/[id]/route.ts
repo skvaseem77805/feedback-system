@@ -91,11 +91,11 @@ export async function GET(
       avatar: row.avatar ?? undefined,
       academicYear: formatYear(row.year),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
 
     return Response.json(
-      { error: 'Database error' },
+      { error: error.message || 'Database error', stack: error.stack },
       { status: 500 }
     );
   }

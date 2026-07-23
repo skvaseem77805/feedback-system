@@ -152,6 +152,41 @@ export async function PATCH(
     const updates: string[] = [];
     const values: any[] = [];
 
+    if (body.name !== undefined) {
+      const trimmedName = (body.name || '').trim();
+      if (!trimmedName) {
+        return Response.json({ error: 'Student Name is required.' }, { status: 400 });
+      }
+      if (!/^[a-zA-Z][a-zA-Z ]*$/.test(trimmedName)) {
+        return Response.json({ error: 'Student name can contain only letters and spaces.' }, { status: 400 });
+      }
+      const formattedName = trimmedName.toUpperCase().replace(/ {2,}/g, ' ');
+      if (formattedName.length > 20) {
+        return Response.json({ error: 'Student name cannot exceed 20 characters.' }, { status: 400 });
+      }
+      updates.push('name = ?');
+      values.push(formattedName);
+    }
+
+    if (body.department !== undefined) {
+      const allowedDepts = ['CSE', 'CSY', 'AI&ML', 'AI&DS', 'IT', 'ECE', 'EEE', 'Mechanical', 'Civil', 'Other'];
+      const dept = (body.department || '').trim();
+      if (!allowedDepts.includes(dept)) {
+        return Response.json({ error: 'Invalid department.' }, { status: 400 });
+      }
+      updates.push('department = ?');
+      values.push(dept);
+    }
+
+    if (body.section !== undefined) {
+      const sec = (body.section || '').trim().toUpperCase();
+      if (!/^[A-F]$/.test(sec)) {
+        return Response.json({ error: 'Section must be A, B, C, D, E or F.' }, { status: 400 });
+      }
+      updates.push('section = ?');
+      values.push(sec);
+    }
+
     if (body.email !== undefined) {
       updates.push('email = ?');
       values.push(body.email);

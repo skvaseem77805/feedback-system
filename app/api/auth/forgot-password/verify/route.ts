@@ -45,15 +45,9 @@ export async function POST(request: NextRequest) {
     // 5. Hash the new password using bcrypt
     const newPasswordHash = await hashPassword(newPassword);
 
-    // 6. Update password in users table
+    // 6. Update password in students table
     await query(
-      'UPDATE users SET password_hash = ? WHERE registration_no = ?',
-      [newPasswordHash, registrationNo]
-    );
-
-    // 7. Update password in legacy students table to maintain compatibility
-    await query(
-      'UPDATE students SET password_hash = ? WHERE id = ?',
+      'UPDATE students SET password_hash = ? WHERE registration_no = ?',
       [newPasswordHash, registrationNo]
     );
 

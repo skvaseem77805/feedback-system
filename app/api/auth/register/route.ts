@@ -6,7 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const registrationNo = (body.registrationNo || '').trim().toUpperCase();
-    const name = (body.name || '').trim();
+    const rawName = body.name || '';
+    const trimmedRawName = rawName.trim();
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
 
@@ -14,9 +15,19 @@ export async function POST(request: NextRequest) {
     if (!registrationNo) {
       return Response.json({ error: 'Registration Number is mandatory.' }, { status: 400 });
     }
-    if (!name) {
-      return Response.json({ error: 'Student Name is mandatory.' }, { status: 400 });
+    if (!trimmedRawName) {
+      return Response.json({ error: 'Student Name is required.' }, { status: 400 });
     }
+    if (!/^[a-zA-Z][a-zA-Z ]*$/.test(trimmedRawName)) {
+      return Response.json({ error: 'Student name can contain only letters and spaces.' }, { status: 400 });
+    }
+
+    const name = trimmedRawName.toUpperCase().replace(/ {2,}/g, ' ');
+
+    if (name.length > 20) {
+      return Response.json({ error: 'Student name cannot exceed 20 characters.' }, { status: 400 });
+    }
+
     if (!email) {
       return Response.json({ error: 'Email is mandatory.' }, { status: 400 });
     }
@@ -30,9 +41,9 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid Registration Number.' }, { status: 400 });
     }
 
-    // 3. Check Registration Number already exists in users table
+    // 3. Check Registration Number already exists in students table
     const existingUser = await queryOne<{ registration_no: string }>(
-      'SELECT registration_no FROM users WHERE registration_no = ? LIMIT 1',
+      'SELECT registration_no FROM students WHERE registration_no = ? AND password_hash IS NOT NULL LIMIT 1',
       [registrationNo]
     );
     if (existingUser) {
@@ -42,9 +53,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Check Email already exists in users table
+    // 4. Check Email already exists in students table
     const existingEmail = await queryOne<{ email: string }>(
-      'SELECT email FROM users WHERE email = ? LIMIT 1',
+      'SELECT email FROM students WHERE email = ? AND password_hash IS NOT NULL LIMIT 1',
       [email]
     );
     if (existingEmail) {

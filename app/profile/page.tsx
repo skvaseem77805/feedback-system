@@ -50,6 +50,7 @@ interface StudentData {
   linkedinUrl?: string;
   githubUrl?: string;
   skills?: string[];
+  bio?: string;
 }
 
 export default function ProfilePage() {
@@ -162,6 +163,7 @@ export default function ProfilePage() {
             githubUrl: dbStudent.githubUrl || '',
             profilePhoto: dbStudent.avatar || undefined,
             skills: dbStudent.skills || [],
+            bio: dbStudent.bio || '',
           };
           console.log("DB Student:", dbStudent);
           setStudentData(newStudent);
@@ -181,6 +183,7 @@ export default function ProfilePage() {
             linkedinUrl: '',
             githubUrl: '',
             skills: [],
+            bio: '',
           };
           setStudentData(fallback);
           localStorage.setItem(storageKey, JSON.stringify(fallback));
@@ -203,6 +206,8 @@ export default function ProfilePage() {
             email: localStorage.getItem('studentEmail') || 'your.email@campus.edu',
             linkedinUrl: '',
             githubUrl: '',
+            skills: [],
+            bio: '',
           };
           setStudentData(fallback);
           localStorage.setItem(storageKey, JSON.stringify(fallback));
@@ -289,30 +294,33 @@ export default function ProfilePage() {
     if (!studentData) return;
     if (isUploading) return;
 
-    const githubUrl = editData.githubUrl !== undefined ? editData.githubUrl : studentData.githubUrl;
-    const linkedinUrl = editData.linkedinUrl !== undefined ? editData.linkedinUrl : studentData.linkedinUrl;
+    const nameToValidate = editData.name !== undefined ? editData.name : studentData.name;
+    const trimmedName = (nameToValidate || '').trim();
 
-    let hasError = false;
-
-    if (linkedinUrl && !validateLinkedIn(linkedinUrl)) {
-      setLinkedinError("Please enter a valid LinkedIn profile URL.");
-      hasError = true;
-    } else {
-      setLinkedinError(null);
-    }
-
-    if (githubUrl && !validateGitHub(githubUrl)) {
-      setGithubError("Please enter a valid GitHub profile URL.");
-      hasError = true;
-    } else {
-      setGithubError(null);
-    }
-
-    if (hasError) {
-      toast.error("Please enter valid profile URLs.");
+    if (!trimmedName) {
+      toast.error('Student Name is required.');
       return;
     }
 
+    if (!/^[a-zA-Z][a-zA-Z ]*$/.test(trimmedName)) {
+      toast.error('Student name can contain only letters and spaces.');
+      return;
+    }
+
+    const formattedName = trimmedName.toUpperCase().replace(/ {2,}/g, ' ');
+
+    if (formattedName.length > 20) {
+      toast.error('Student name cannot exceed 20 characters.');
+      return;
+    }
+
+    const sectionToValidate = editData.section !== undefined ? editData.section : studentData.section;
+    const formattedSection = (sectionToValidate || '').trim().toUpperCase();
+
+    if (!/^[A-F]$/.test(formattedSection)) {
+      toast.error('Section must be A, B, C, D, E or F.');
+      return;
+    }
 
     let avatarUrl = studentData.profilePhoto;
     setIsUploading(true);
@@ -340,6 +348,18 @@ export default function ProfilePage() {
       // Build payload
       const payload: any = {};
 
+      if (editData.name !== undefined && formattedName !== studentData.name) {
+        payload.name = formattedName;
+      }
+
+      if (editData.department !== undefined && editData.department !== studentData.department) {
+        payload.department = editData.department;
+      }
+
+      if (editData.section !== undefined && formattedSection !== studentData.section) {
+        payload.section = formattedSection;
+      }
+
       if (editData.email !== undefined) {
         payload.email = editData.email;
       }
@@ -360,6 +380,10 @@ export default function ProfilePage() {
         payload.skills = editData.skills;
       }
 
+      if (editData.bio !== undefined) {
+        payload.bio = editData.bio;
+      }
+
       if (avatarUrl !== studentData.profilePhoto) {
         payload.avatar = avatarUrl;
       }
@@ -368,6 +392,8 @@ export default function ProfilePage() {
       const updated: StudentData = {
         ...studentData,
         ...editData,
+        name: formattedName,
+        section: formattedSection,
         profilePhoto: avatarUrl,
       };
 
@@ -525,14 +551,42 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Name (Read Only)</label>
-                  <Input value={studentData.name} disabled className="mt-1 bg-muted/40 rounded-xl" />
+                  <label className="text-xs font-semibold text-muted-foreground">Student Name</label>
+                  <Input
+                    value={editData.name !== undefined ? editData.name : (studentData.name || '')}
+                    onChange={(e) => {
+                      let val = e.target.value.toUpperCase();
+                      val = val.replace(/[^A-Z ]/g, '');
+                      val = val.replace(/^ /, '');
+                      val = val.replace(/ {2,}/g, ' ');
+                      if (val.length > 20) {
+                        val = val.substring(0, 20);
+                      }
+                      setEditData({ ...editData, name: val });
+                    }}
+                    className="mt-1 rounded-xl"
+                  />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">Department</label>
-                    <Input value={studentData.department} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                    <select
+                      value={editData.department !== undefined ? editData.department : studentData.department}
+                      onChange={(e) => setEditData({ ...editData, department: e.target.value })}
+                      className="mt-1 bg-muted/45 w-full p-2 rounded-xl text-xs h-9 border border-input focus:outline-none bg-background text-foreground"
+                    >
+                      <option value="CSE">CSE</option>
+                      <option value="CSY">CSY</option>
+                      <option value="AI&ML">AI&ML</option>
+                      <option value="AI&DS">AI&DS</option>
+                      <option value="IT">IT</option>
+                      <option value="ECE">ECE</option>
+                      <option value="EEE">EEE</option>
+                      <option value="Mechanical">Mechanical</option>
+                      <option value="Civil">Civil</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">Year</label>
@@ -549,12 +603,20 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">Section</label>
-                    <Input value={studentData.section || 'E'} disabled className="mt-1 bg-muted/40 rounded-xl text-xs h-9" />
+                    <Input
+                      value={editData.section !== undefined ? editData.section : (studentData.section || '')}
+                      onChange={(e) => {
+                        let val = e.target.value.toUpperCase();
+                        val = val.replace(/[^A-F]/g, '');
+                        if (val.length > 1) {
+                          val = val.substring(0, 1);
+                        }
+                        setEditData({ ...editData, section: val });
+                      }}
+                      className="mt-1 rounded-xl text-xs h-9"
+                    />
                   </div>
                 </div>
-                <p className="text-[9px] text-muted-foreground -mt-2">
-                  Section cannot be changed from official records.
-                </p>
                 
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground">Email</label>
@@ -679,6 +741,16 @@ export default function ProfilePage() {
                       Add
                     </Button>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">Bio</label>
+                  <textarea
+                    value={editData.bio !== undefined ? editData.bio : (studentData.bio || '')}
+                    onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                    placeholder="Tell us about yourself..."
+                    className="mt-1 w-full p-2.5 rounded-xl border border-input bg-background text-xs min-h-[80px] focus:outline-none"
+                  />
                 </div>
 
                 {/* Actions */}
@@ -1108,28 +1180,41 @@ export default function ProfilePage() {
             ) : (
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Student Name (Read Only)</label>
+                  <label className="text-sm font-medium">Student Name</label>
                   <Input
-                    value={studentData.name}
-                    disabled
-                    className="mt-1 bg-muted cursor-not-allowed"
-                    title="Name cannot be changed"
+                    value={editData.name !== undefined ? editData.name : (studentData.name || '')}
+                    onChange={(e) => {
+                      let val = e.target.value.toUpperCase();
+                      val = val.replace(/[^A-Z ]/g, '');
+                      val = val.replace(/^ /, '');
+                      val = val.replace(/ {2,}/g, ' ');
+                      if (val.length > 20) {
+                        val = val.substring(0, 20);
+                      }
+                      setEditData({ ...editData, name: val });
+                    }}
+                    className="mt-1"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Name cannot be changed from official records
-                  </p>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium">Department</label>
-                    <Input
-                      value={studentData.department}
-                      disabled
-                      className="mt-1 bg-muted cursor-not-allowed"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Cannot be changed - from official records
-                    </p>
+                    <select
+                      value={editData.department !== undefined ? editData.department : studentData.department}
+                      onChange={(e) => setEditData({ ...editData, department: e.target.value })}
+                      className="mt-1 bg-muted w-full p-2 rounded h-10 border border-input bg-background text-foreground text-sm"
+                    >
+                      <option value="CSE">CSE</option>
+                      <option value="CSY">CSY</option>
+                      <option value="AI&ML">AI&ML</option>
+                      <option value="AI&DS">AI&DS</option>
+                      <option value="IT">IT</option>
+                      <option value="ECE">ECE</option>
+                      <option value="EEE">EEE</option>
+                      <option value="Mechanical">Mechanical</option>
+                      <option value="Civil">Civil</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Year</label>
@@ -1150,13 +1235,17 @@ export default function ProfilePage() {
                   <div>
                     <label className="text-sm font-medium">Section</label>
                     <Input
-                      value={studentData.section || 'E'}
-                      disabled
-                      className="mt-1 bg-muted cursor-not-allowed"
+                      value={editData.section !== undefined ? editData.section : (studentData.section || '')}
+                      onChange={(e) => {
+                        let val = e.target.value.toUpperCase();
+                        val = val.replace(/[^A-F]/g, '');
+                        if (val.length > 1) {
+                          val = val.substring(0, 1);
+                        }
+                        setEditData({ ...editData, section: val });
+                      }}
+                      className="mt-1"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Section cannot be changed from official records.
-                    </p>
                   </div>
                 </div>
                 <div>
@@ -1287,6 +1376,16 @@ export default function ProfilePage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Add skills that represent your expertise (e.g., React, Python)</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Bio</label>
+                  <textarea
+                    value={editData.bio !== undefined ? editData.bio : (studentData.bio || '')}
+                    onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                    placeholder="Tell us about yourself..."
+                    className="mt-1 w-full p-2.5 rounded border border-input bg-background text-sm min-h-[80px] focus:outline-none"
+                  />
                 </div>
               </div>
             )}

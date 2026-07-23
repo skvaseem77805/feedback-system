@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const registrationNo = (body.registrationNo || '').trim().toUpperCase();
-    const name = (body.name || '').trim();
+    const name = (body.name || '').trim().toUpperCase().replace(/ {2,}/g, ' ');
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
     const otp = (body.otp || '').trim();
@@ -42,12 +42,16 @@ export async function POST(request: NextRequest) {
     // 5. Hash password using bcrypt
     const passwordHash = await hashPassword(password);
 
-    // 6. Insert student user
+    // 6. Insert student user directly into students table
     await query(
-      `INSERT INTO users (registration_no, name, email, password_hash, email_verified)
-       VALUES (?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), email = VALUES(email), password_hash = VALUES(password_hash), email_verified = VALUES(email_verified)`,
-      [registrationNo, name, email, passwordHash]
+      `INSERT INTO students (id, name, registration_no, email, password_hash, email_verified, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE 
+         name = VALUES(name), 
+         email = VALUES(email), 
+         password_hash = VALUES(password_hash), 
+         email_verified = VALUES(email_verified)`,
+      [registrationNo, name.toUpperCase(), registrationNo, email, passwordHash]
     );
 
     return Response.json({

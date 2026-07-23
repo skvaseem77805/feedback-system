@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Get user info
     const user = await queryOne<{ name: string; email: string; password_hash: string }>(
-      'SELECT name, email, password_hash FROM users WHERE registration_no = ? LIMIT 1',
+      'SELECT name, email, password_hash FROM students WHERE registration_no = ? LIMIT 1',
       [registrationNo]
     );
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'User is not registered.' }, { status: 400 });
     }
 
-    // 2. Map year dropdown values to numerical representation for legacy students table
+    // 2. Map year dropdown values to numerical representation for students table
     let numericYear = 2;
     if (year.includes('1')) numericYear = 1;
     else if (year.includes('2')) numericYear = 2;
@@ -32,38 +32,12 @@ export async function POST(request: NextRequest) {
 
     const courseName = `B.Tech- ${department}`;
 
-    // 3. Insert or update student_profiles table
+    // 3. Update the student record in students table
     await query(
-      `INSERT INTO student_profiles (registration_no, department, year, section)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE department = VALUES(department), year = VALUES(year), section = VALUES(section)`,
-      [registrationNo, department, year, section]
-    );
-
-    // 4. Dual-write/update the legacy students table for compatibility with existing modules
-    await query(
-      `INSERT INTO students (id, name, registration_no, year, course, email, department, section, password_hash, email_verified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE 
-         name = VALUES(name), 
-         year = VALUES(year), 
-         course = VALUES(course), 
-         email = VALUES(email), 
-         department = VALUES(department), 
-         section = VALUES(section), 
-         password_hash = VALUES(password_hash),
-         email_verified = 1`,
-      [
-        registrationNo, 
-        user.name, 
-        registrationNo, 
-        numericYear, 
-        courseName, 
-        user.email, 
-        department, 
-        section, 
-        user.password_hash
-      ]
+      `UPDATE students 
+       SET department = ?, year = ?, course = ?, section = ?, email_verified = 1 
+       WHERE registration_no = ?`,
+      [department, numericYear, courseName, section, registrationNo]
     );
 
     // 5. Initialize user stats

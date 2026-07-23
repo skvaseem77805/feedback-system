@@ -691,10 +691,10 @@ export default function ProjectDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 overflow-x-hidden w-full max-w-[100vw]">
       <Navbar />
       {isMobile ? (
-        <main className="px-4 py-4 space-y-4">
+        <main className="px-4 pt-4 pb-28 space-y-4 w-full max-w-full overflow-x-hidden">
           {/* Back Button */}
           <div>
             <Button
@@ -714,7 +714,7 @@ export default function ProjectDetailsPage() {
 
           {/* 2. Project Title */}
           <div className="space-y-0.5">
-            <h1 className="text-xl font-extrabold tracking-tight text-foreground leading-tight">
+            <h1 className="text-xl font-extrabold tracking-tight text-foreground leading-tight break-words">
               {project.title}
             </h1>
           </div>
@@ -749,7 +749,7 @@ export default function ProjectDetailsPage() {
             {project.collaboratorNames && project.collaboratorNames.length > 0 && (
               <div className="col-span-2 flex flex-col gap-0.5 border-t border-border/20 pt-2">
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Collaborators</span>
-                <span className="text-xs font-bold text-foreground">{project.collaboratorNames.join(', ')}</span>
+                <span className="text-xs font-bold text-foreground break-words">{project.collaboratorNames.join(', ')}</span>
               </div>
             )}
           </div>
@@ -757,7 +757,7 @@ export default function ProjectDetailsPage() {
           {/* 4. Description */}
           <div className="border-t border-border/40 pt-3 space-y-1">
             <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider block">Description</span>
-            <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed font-sans font-normal">
+            <p className="whitespace-pre-line text-sm text-foreground/80 leading-relaxed font-sans font-normal break-words">
               {cleanDescription || 'No description available.'}
             </p>
           </div>

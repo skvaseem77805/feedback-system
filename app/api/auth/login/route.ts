@@ -18,13 +18,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid Registration Number.' }, { status: 400 });
     }
 
-    // 2. Fetch user
-    const user = await queryOne<{ registration_no: string; name: string; email: string; password_hash: string }>(
-      'SELECT registration_no, name, email, password_hash FROM users WHERE registration_no = ? LIMIT 1',
-      [registrationNo]
+    // 2. Fetch user from students
+    const user = await queryOne<{ registration_no: string; name: string; email: string; password_hash: string | null }>(
+      'SELECT registration_no, name, email, password_hash FROM students WHERE registration_no = ? OR email = ? LIMIT 1',
+      [registrationNo, registrationNo.toLowerCase()]
     );
 
-    if (!user) {
+    if (!user || !user.password_hash) {
       return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
     }
 
@@ -34,11 +34,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
     }
 
-    // 4. Fetch user profile
-    const profile = await queryOne<{ department: string; year: string; section: string }>(
-      'SELECT department, year, section FROM student_profiles WHERE registration_no = ? LIMIT 1',
-      [registrationNo]
+    // 4. Fetch user profile from students
+    const profile = await queryOne<{ department: string; year: number; section: string }>(
+      'SELECT department, year, section FROM students WHERE registration_no = ? LIMIT 1',
+      [user.registration_no]
     );
+
+    let displayYear = '2nd Year';
+    if (profile) {
+      if (profile.year === 1) displayYear = '1st Year';
+      else if (profile.year === 2) displayYear = '2nd Year';
+      else if (profile.year === 3) displayYear = '3rd Year';
+      else if (profile.year === 4) displayYear = '4th Year';
+    }
 
     return Response.json({
       success: true,
@@ -47,7 +55,11 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email
       },
-      profile: profile || {
+      profile: profile ? {
+        department: profile.department || 'CSE',
+        year: displayYear,
+        section: profile.section || 'A'
+      } : {
         department: 'CSE',
         year: '2nd Year',
         section: 'A'

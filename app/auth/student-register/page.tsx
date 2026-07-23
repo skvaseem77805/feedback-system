@@ -60,7 +60,19 @@ export default function StudentRegisterPage() {
     }
 
     if (!trimmedName) {
-      setError('Student Name is mandatory.');
+      setError('Student Name is required.');
+      return;
+    }
+
+    if (!/^[a-zA-Z][a-zA-Z ]*$/.test(trimmedName)) {
+      setError('Student name can contain only letters and spaces.');
+      return;
+    }
+
+    const formattedName = trimmedName.toUpperCase().replace(/ {2,}/g, ' ');
+
+    if (formattedName.length > 20) {
+      setError('Student name cannot exceed 20 characters.');
       return;
     }
 
@@ -317,7 +329,14 @@ export default function StudentRegisterPage() {
               placeholder="Enter your full name"
               value={name}
               onChange={(e) => {
-                setName(e.target.value);
+                let val = e.target.value.toUpperCase();
+                val = val.replace(/[^A-Z ]/g, '');
+                val = val.replace(/^ /, '');
+                val = val.replace(/ {2,}/g, ' ');
+                if (val.length > 20) {
+                  val = val.substring(0, 20);
+                }
+                setName(val);
                 setError('');
               }}
               required

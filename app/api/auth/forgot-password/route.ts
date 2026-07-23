@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Look up user by registration number and email matching
     const user = await queryOne<{ name: string; email: string }>(
-      'SELECT name, email FROM users WHERE registration_no = ? AND email = ? LIMIT 1',
+      'SELECT name, email FROM students WHERE registration_no = ? AND email = ? LIMIT 1',
       [registrationNo, email]
     );
 

@@ -33,6 +33,10 @@ import {
   Bookmark,
   Github,
   Share2,
+  CheckCircle2,
+  Circle,
+  User,
+  Camera,
 } from 'lucide-react';
 import { getStudentStats, getCurrentStudentId, initializeStudentStats } from '@/lib/statsTracker';
 import type { StudentStats } from '@/lib/statsTracker';
@@ -55,8 +59,13 @@ interface StudentData {
 
 export default function ProfilePage() {
   const isMobile = useIsMobile();
+  const [mounted, setMounted] = useState(false);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [stats, setStats] = useState<StudentStats | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<StudentData>>({});
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -489,7 +498,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!studentData || !stats) {
+  if (!mounted || !studentData || !stats) {
     return (
       <div className="min-h-screen gradient-bg">
         <Navbar />
@@ -1157,24 +1166,6 @@ export default function ProfilePage() {
                   <Badge className="bg-accent/20 text-accent">
                     Section {studentData.section || 'E'}
                   </Badge>
-
-                  {/* Skills display */}
-                  {studentData.skills && studentData.skills.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-muted-foreground">Skills</p>
-                      <div className="flex flex-wrap gap-2">
-                        {studentData.skills.map((skill) => (
-                          <Badge
-                            key={skill}
-                            className="h-9 px-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm border-none select-none active:scale-95 transition-all duration-150"
-                          >
-                            <Code className="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>{skill}</span>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
@@ -1474,7 +1465,10 @@ export default function ProfilePage() {
               <div className="relative z-10 space-y-4">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                    <stat.icon className="w-6 h-6 text-white" />
+                    {(() => {
+                      const StatIcon = stat.icon;
+                      return <StatIcon className="w-6 h-6 text-white" />;
+                    })()}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">
@@ -1495,9 +1489,12 @@ export default function ProfilePage() {
 
         {/* Activity Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full md:w-fit grid-cols-3 gap-2 smooth-transition">
+          <TabsList className="grid w-full md:w-fit grid-cols-4 gap-2 smooth-transition">
             <TabsTrigger value="overview" className="smooth-transition">
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="skills" className="smooth-transition">
+              Skills
             </TabsTrigger>
             <TabsTrigger value="projects" className="smooth-transition">
               Projects
@@ -1511,32 +1508,112 @@ export default function ProfilePage() {
           <TabsContent value="overview" className="space-y-4">
             <h2 className="text-2xl font-bold">Your Profile Overview</h2>
             <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
-                <h3 className="font-bold mb-3">Profile Completeness</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Basic Info</span>
-                    <span className="text-xs text-accent">✓ Complete</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Profile Photo</span>
-                    <span
-                      className={`text-xs ${photoPreview ? 'text-accent' : 'text-muted-foreground'
-                        }`}
-                    >
-                      {photoPreview ? '✓ Added' : '○ Not Added'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">LinkedIn Profile</span>
-                    <span
-                      className={`text-xs ${studentData.linkedinUrl ? 'text-accent' : 'text-muted-foreground'
-                        }`}
-                    >
-                      {studentData.linkedinUrl ? '✓ Added' : '○ Not Added'}
-                    </span>
-                  </div>
-                </div>
+              <Card className="p-6 rounded-2xl bg-card border border-border/50 shadow-xs space-y-5">
+                {(() => {
+                  const isBasicInfoComplete = Boolean(
+                    studentData.name?.trim() &&
+                    studentData.studentId?.trim() &&
+                    studentData.department?.trim() &&
+                    studentData.year?.trim() &&
+                    studentData.section?.trim()
+                  );
+                  const isProfilePhotoComplete = Boolean(photoPreview || studentData.profilePhoto);
+                  const isLinkedinComplete = Boolean(studentData.linkedinUrl?.trim());
+                  const isGithubComplete = Boolean(studentData.githubUrl?.trim());
+                  const isEmailVerifiedComplete = Boolean(
+                    studentData.email?.trim() &&
+                    studentData.email !== 'Not provided' &&
+                    studentData.email.includes('@')
+                  );
+
+                  const checklistItems = [
+                    {
+                      id: 'basic-info',
+                      label: 'Basic Information',
+                      icon: User,
+                      isCompleted: isBasicInfoComplete,
+                    },
+                    {
+                      id: 'profile-photo',
+                      label: 'Profile Photo',
+                      icon: Camera,
+                      isCompleted: isProfilePhotoComplete,
+                    },
+                    {
+                      id: 'linkedin',
+                      label: 'LinkedIn',
+                      icon: Linkedin,
+                      isCompleted: isLinkedinComplete,
+                    },
+                    {
+                      id: 'github',
+                      label: 'GitHub',
+                      icon: Github,
+                      isCompleted: isGithubComplete,
+                    },
+                    {
+                      id: 'email-verified',
+                      label: 'Email Verified',
+                      icon: Mail,
+                      isCompleted: isEmailVerifiedComplete,
+                    },
+                  ];
+
+                  const completedCount = checklistItems.filter(item => item.isCompleted).length;
+                  const totalCount = checklistItems.length;
+                  const completionPercentage = Math.round((completedCount / totalCount) * 100);
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-base tracking-tight text-foreground">Profile Completion</h3>
+                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {completionPercentage}%
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {checklistItems.map((item) => {
+                          const ItemIcon = item.icon;
+                          return (
+                            <div key={item.id} className="flex items-center justify-between py-1 text-xs">
+                              <div className="flex items-center gap-2.5 text-foreground/80 font-medium">
+                                <ItemIcon className="w-4 h-4 text-muted-foreground/70" />
+                                <span>{item.label}</span>
+                              </div>
+                              {item.isCompleted ? (
+                                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  <span>Completed</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 text-muted-foreground/60 font-medium">
+                                  <Circle className="w-3.5 h-3.5 text-muted-foreground/40" />
+                                  <span>Not Added</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-3 border-t border-border/30 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="text-muted-foreground">Overall Progress</span>
+                          <span className="text-muted-foreground">
+                            {completedCount} / {totalCount} Completed
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${completionPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </Card>
 
               <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
@@ -1563,6 +1640,28 @@ export default function ProfilePage() {
                 </div>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Skills Tab */}
+          <TabsContent value="skills" className="space-y-4">
+            <h2 className="text-2xl font-bold">Your Skills</h2>
+            <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+              {studentData.skills && studentData.skills.length > 0 ? (
+                <div className="flex flex-wrap gap-2.5">
+                  {studentData.skills.map((skill) => (
+                    <Badge
+                      key={skill}
+                      className="h-9 px-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm border-none select-none"
+                    >
+                      <Code className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>{skill}</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No skills added yet.</p>
+              )}
+            </Card>
           </TabsContent>
 
           {/* Projects Tab */}

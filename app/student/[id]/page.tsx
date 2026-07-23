@@ -23,10 +23,15 @@ import {
     Github,
     MessageSquare,
     Share2,
+    Heart,
+    Bookmark,
+    ExternalLink,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import type { ApiStudent, ApiProject } from '@/lib/api';
+import { apiLikeProject, apiSaveProject } from '@/lib/api';
+import { getCurrentStudentId } from '@/lib/statsTracker';
 import { useSafeBack } from '@/hooks/useSafeBack';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
@@ -50,6 +55,43 @@ export default function PublicStudentProfile() {
     const [shareOpen, setShareOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState("");
     const [shareTitle, setShareTitle] = useState("");
+    const currentStudentId = getCurrentStudentId() ?? '';
+
+    const toggleLike = async (project: ApiProject) => {
+        if (!currentStudentId) return;
+        try {
+            const res = await apiLikeProject(project.id, currentStudentId);
+            setProjects((prev) =>
+                prev.map((q) =>
+                    q.id === project.id ? { ...q, likes: res.likes, userHasLiked: res.liked } : q
+                )
+            );
+        } catch (e) {
+            console.error('Like error:', e);
+        }
+    };
+
+    const toggleSave = async (project: ApiProject) => {
+        if (!currentStudentId) return;
+        try {
+            const res = await apiSaveProject(project.id, currentStudentId);
+            setProjects((prev) =>
+                prev.map((q) => {
+                    if (q.id !== project.id) return q;
+                    const alreadySaved = q.savedBy.includes(currentStudentId);
+                    let nextSavedBy = [...q.savedBy];
+                    if (alreadySaved && !res.saved) {
+                        nextSavedBy = nextSavedBy.filter(id => id !== currentStudentId);
+                    } else if (!alreadySaved && res.saved) {
+                        nextSavedBy.push(currentStudentId);
+                    }
+                    return { ...q, savedBy: nextSavedBy };
+                })
+            );
+        } catch (e) {
+            console.error('Save error:', e);
+        }
+    };
 
     const handleShareProject = (project: ApiProject) => {
         if (typeof window !== "undefined") {
@@ -567,25 +609,92 @@ export default function PublicStudentProfile() {
                         <h2 className="text-xl font-bold mb-4">Uploaded Projects</h2>
                         {projects.length > 0 ? (
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {projects.map((project) => (
-                                    <Card key={project.id} className="p-4 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/50 transition-colors flex flex-col h-full">
-                                        <div className="flex justify-end items-start mb-2">
-                                            <span className="text-xs text-muted-foreground">{new Date(project.uploadedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <h3 className="font-bold text-lg mb-2 line-clamp-1">{project.title}</h3>
-                                        <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">{project.description}</p>
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border/50">
-                                            <div className="flex gap-3">
-                                                <span className="flex items-center gap-1">
-                                                    Size: {project.fileSize ? (project.fileSize / 1024).toFixed(1) + ' KB' : 'N/A'}
-                                                </span>
+                                {projects.map((project) => {
+                                    const isLiked = !!project.userHasLiked;
+                                    const isSaved = currentStudentId ? project.savedBy?.includes(currentStudentId) : false;
+
+                                    return (
+                                        <Card key={project.id} className="p-5 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group flex flex-col">
+                                            <div className="flex-1 space-y-3 mb-4">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-lg group-hover:text-primary smooth-transition line-clamp-2">
+                                                            {project.title}
+                                                        </h3>
+                                                        <p className="text-sm text-muted-foreground mt-1">By {project.studentName}</p>
+                                                    </div>
+                                                    <div className="flex gap-1 flex-shrink-0">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => toggleLike(project)}
+                                                            className={`smooth-transition ${isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'}`}
+                                                        >
+                                                            <Heart className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => toggleSave(project)}
+                                                            className={`smooth-transition ${isSaved ? 'text-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`}
+                                                        >
+                                                            <Bookmark className="w-5 h-5" fill={isSaved ? 'currentColor' : 'none'} />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-sm text-muted-foreground line-clamp-3">{project.description}</p>
+
+                                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground font-semibold">
+                                                    <span>{project.academicYear === 'final' ? 'Final' : project.academicYear} Year • {project.studentDepartment || 'CSE'} • Section {project.studentSection || 'E'}</span>
+                                                </div>
                                             </div>
-                                            <span className="flex items-center gap-1">
-                                                👍 {project.likes}
-                                            </span>
-                                        </div>
-                                    </Card>
-                                ))}
+
+                                            {project.thumbnailUrl && (
+                                                <div className="w-full h-48 mb-4 rounded-md overflow-hidden bg-muted/20 border border-border/50">
+                                                    <img
+                                                        src={project.thumbnailUrl}
+                                                        alt={project.title}
+                                                        className="w-full h-full object-cover hover:scale-105 smooth-transition duration-500"
+                                                        loading="lazy"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground py-3 border-t border-b border-border/50 mb-4">
+                                                <div>
+                                                    <div className="font-bold text-foreground">{project.likes}</div>
+                                                    Likes
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-foreground">{project.views ?? 0}</div>
+                                                    Views
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-foreground">{project.savedBy?.length ?? 0}</div>
+                                                    Saved
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Link href={`/projects/${encodeURIComponent(project.id)}?from=student`} className="flex-1">
+                                                    <Button variant="outline" size="sm" className="w-full smooth-button gap-2 bg-transparent">
+                                                        <ExternalLink className="w-4 h-4" />
+                                                        View Project
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => handleShareProject(project)}
+                                                    className="smooth-button text-muted-foreground hover:text-foreground h-9 w-9 border border-border/40 rounded-xl shrink-0"
+                                                >
+                                                    <Share2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-lg">

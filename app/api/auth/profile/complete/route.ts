@@ -19,9 +19,18 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Section must be a single uppercase character from A to F.' }, { status: 400 });
     }
 
+    // Fetch existing columns in students table dynamically to avoid schema mismatch exceptions
+    const [dbCols] = await query<any>('DESCRIBE students');
+    const existingCols = new Set((dbCols || []).map(c => (c as any).Field));
+
+    const colsToSelect = ['id', 'name', 'email', 'password_hash', 'registration_no'].filter(c => existingCols.has(c));
+    if (colsToSelect.length === 0) {
+      return Response.json({ error: 'Database schema mismatch.' }, { status: 500 });
+    }
+
     // 1. Get user info
-    const user = await queryOne<{ id: string; name: string; email: string; password_hash: string }>(
-      'SELECT id, name, email, password_hash FROM students WHERE registration_no = ? LIMIT 1',
+    const user = await queryOne<any>(
+      `SELECT ${colsToSelect.join(', ')} FROM students WHERE registration_no = ? LIMIT 1`,
       [registrationNo]
     );
 
@@ -38,24 +47,55 @@ export async function POST(request: NextRequest) {
 
     const courseName = `B.Tech- ${department}`;
 
-    // 3. Update the student record in students table
-    await query(
-      `UPDATE students 
-       SET department = ?, year = ?, course = ?, section = ?, email_verified = 1 
-       WHERE registration_no = ?`,
-      [department, numericYear, courseName, section, registrationNo]
-    );
+    // 3. Update the student record dynamically
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (existingCols.has('department')) {
+      updates.push('department = ?');
+      values.push(department);
+    }
+    if (existingCols.has('year')) {
+      updates.push('year = ?');
+      values.push(numericYear);
+    }
+    if (existingCols.has('course')) {
+      updates.push('course = ?');
+      values.push(courseName);
+    }
+    if (existingCols.has('section')) {
+      updates.push('section = ?');
+      values.push(section);
+    }
+    if (existingCols.has('email_verified')) {
+      updates.push('email_verified = ?');
+      values.push(1);
+    }
+
+    if (updates.length > 0) {
+      values.push(registrationNo);
+      await query(
+        `UPDATE students 
+         SET ${updates.join(', ')} 
+         WHERE registration_no = ?`,
+        values
+      );
+    }
 
     // 4. Initialize user stats using the user ID retrieved in step 1
-    await query(
-      `INSERT IGNORE INTO student_stats (student_id, projects_uploaded, connections, collaborations)
-       VALUES (?, 0, 0, 0)`,
-      [user.id]
-    );
+    if (user.id) {
+      await query(
+        `INSERT IGNORE INTO student_stats (student_id, projects_uploaded, connections, collaborations)
+         VALUES (?, 0, 0, 0)`,
+        [user.id]
+      );
+    }
 
     // 5. Invalidate caches immediately so the updated profile data is loaded on the next page
-    invalidateStudentsCache();
-    invalidateStudent(user.id);
+    if (user.id) {
+      invalidateStudentsCache();
+      invalidateStudent(user.id);
+    }
 
     return Response.json({
       success: true,

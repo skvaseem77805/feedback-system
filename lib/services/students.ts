@@ -124,7 +124,6 @@ export async function getStudentById(id: string) {
     userId: row.id,
     name: row.name,
     registrationNo: row.registration_no,
-    uniqueId: row.unique_id,
     year: row.year,
     course: row.course,
     email: row.email || '',

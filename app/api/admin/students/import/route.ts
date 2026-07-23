@@ -537,7 +537,6 @@ export async function POST(request: NextRequest) {
             item.rawValues.rollNumber,
             item.rawValues.name,
             item.rawValues.rollNumber,
-            item.rawValues.rollNumber,
             item.rawValues.year,
             item.rawValues.branch,
             item.rawValues.email || '',
@@ -550,7 +549,7 @@ export async function POST(request: NextRequest) {
           await connection.query(
             `
             INSERT INTO students (
-              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, password_hash
+              id, name, registration_no, year, course, email, mobile_no, department, section, password_hash
             ) VALUES ?
             ON DUPLICATE KEY UPDATE
               name = VALUES(name),

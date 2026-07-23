@@ -117,7 +117,6 @@ export async function GET(request: NextRequest) {
                 userId: row.id,
                 name: row.name,
                 registrationNo: row.registration_no,
-                uniqueId: row.unique_id,
                 year: Number(row.year),
                 course: row.course,
                 email: row.email || '',
@@ -207,10 +206,10 @@ export async function POST(request: NextRequest) {
                 await connection.query(
                     `
             INSERT INTO students (
-              id, name, registration_no, unique_id, year, course, email, mobile_no, department, section, linkedin_url, github_url, bio, skills, avatar
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              id, name, registration_no, year, course, email, mobile_no, department, section, linkedin_url, github_url, bio, skills, avatar
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-                    [studentId, name, registrationNo, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null]
+                    [studentId, name, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null]
                 );
             }
 

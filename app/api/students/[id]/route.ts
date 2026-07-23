@@ -27,24 +27,46 @@ export async function GET(
       );
     }
 
+    // Fetch existing columns in students table
+    const [dbCols] = await query<any>('DESCRIBE students');
+    const existingCols = new Set((dbCols || []).map(c => (c as any).Field));
+
+    const optionalColumns = [
+      'course',
+      'mobile_no',
+      'linkedin_url',
+      'github_url',
+      'bio',
+      'skills',
+      'avatar'
+    ];
+
+    const columnsToSelect = [
+      'id',
+      'name',
+      'registration_no',
+      'year',
+      'email',
+      'department',
+      'section'
+    ].filter(col => existingCols.has(col));
+
+    for (const col of optionalColumns) {
+      if (existingCols.has(col)) {
+        columnsToSelect.push(col);
+      }
+    }
+
+    if (columnsToSelect.length === 0) {
+      return Response.json(
+        { error: 'No valid columns to query' },
+        { status: 500 }
+      );
+    }
+
     const row = await queryOne<any>(
       `
-      SELECT
-        id,
-        name,
-        registration_no,
-        unique_id,
-        year,
-        course,
-        email,
-        mobile_no,
-        department,
-        section,
-        linkedin_url,
-        github_url,
-        bio,
-        skills,
-        avatar
+      SELECT ${columnsToSelect.join(', ')}
       FROM students
       WHERE id = ?
       LIMIT 1
@@ -77,9 +99,8 @@ export async function GET(
       userId: row.id,
       name: row.name,
       registrationNo: row.registration_no,
-      uniqueId: row.unique_id,
       year: row.year,
-      course: row.course,
+      course: row.course ?? undefined,
       email: row.email || '',
       mobileNo: row.mobile_no || '',
       department: row.department || 'CSE',

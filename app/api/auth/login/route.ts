@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Fetch user from students
-    const user = await queryOne<{ registration_no: string; name: string; email: string; password_hash: string | null }>(
-      'SELECT registration_no, name, email, password_hash FROM students WHERE registration_no = ? OR email = ? LIMIT 1',
+    const user = await queryOne<{ registration_no: string; name: string; email: string; password_hash: string | null; email_verified: number }>(
+      'SELECT registration_no, name, email, password_hash, email_verified FROM students WHERE registration_no = ? OR email = ? LIMIT 1',
       [registrationNo, registrationNo.toLowerCase()]
     );
     console.log('[DEBUG LOGIN] SQL User Result:', JSON.stringify(user, null, 2));
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[DEBUG LOGIN] password_hash exists?', !!(user.password_hash));
+    console.log('[DEBUG LOGIN] email_verified:', user.email_verified);
     if (!user.password_hash) {
       console.log('[DEBUG LOGIN] HTTP 400 Reason: Student exists but has no password_hash.');
       return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });

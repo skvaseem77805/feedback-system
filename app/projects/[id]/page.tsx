@@ -1243,14 +1243,27 @@ export default function ProjectDetailsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                    Description *
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                      Description *
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      {editDescription.length} / 500
+                    </span>
+                  </div>
                   <Textarea
                     placeholder="Description"
                     value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    className="text-sm rounded-xl min-h-[100px] focus-visible:ring-primary focus-visible:border-primary border-border"
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 500);
+                      setEditDescription(val);
+                    }}
+                    onInput={(e) => {
+                      const target = e.currentTarget;
+                      target.style.height = 'auto';
+                      target.style.height = `${Math.max(100, target.scrollHeight)}px`;
+                    }}
+                    className="text-sm rounded-xl min-h-[100px] resize-none overflow-hidden focus-visible:ring-primary focus-visible:border-primary border-border leading-relaxed"
                     required
                   />
                 </div>

@@ -177,19 +177,30 @@ export function ProjectUpload({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Project Description</Label>
+            <div className="flex justify-between items-center">
+              <Label htmlFor="description">Project Description</Label>
+              <span className="text-xs text-muted-foreground">
+                {formData.description.length} / 500
+              </span>
+            </div>
             <Textarea
               id="description"
               placeholder="Describe what your project does, key features, technology stack, and learning outcomes..."
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e) => {
+                const val = e.target.value.slice(0, 500);
                 setFormData((prev) => ({
                   ...prev,
-                  description: e.target.value,
-                }))
-              }
+                  description: val,
+                }));
+              }}
+              onInput={(e) => {
+                const target = e.currentTarget;
+                target.style.height = 'auto';
+                target.style.height = `${Math.max(128, target.scrollHeight)}px`;
+              }}
               disabled={isLoading}
-              className="min-h-32 smooth-transition"
+              className="min-h-32 resize-none overflow-hidden smooth-transition leading-relaxed"
             />
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -24,11 +24,25 @@ function UploadPageContent() {
 
   const isMobile = useIsMobile();
 
+  const mobileDescRef = useRef<HTMLTextAreaElement | null>(null);
+  const desktopDescRef = useRef<HTMLTextAreaElement | null>(null);
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     projectUrl: '',
   });
+
+  useEffect(() => {
+    if (mobileDescRef.current) {
+      mobileDescRef.current.style.height = 'auto';
+      mobileDescRef.current.style.height = `${Math.max(128, mobileDescRef.current.scrollHeight)}px`;
+    }
+    if (desktopDescRef.current) {
+      desktopDescRef.current.style.height = 'auto';
+      desktopDescRef.current.style.height = `${Math.max(128, desktopDescRef.current.scrollHeight)}px`;
+    }
+  }, [formData.description]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -375,14 +389,19 @@ function UploadPageContent() {
 
                 <div className="relative">
                   <textarea
+                    ref={mobileDescRef}
                     placeholder="Describe your project in detail. Explain the problem, technologies used and features."
                     value={formData.description}
                     onChange={(e) => {
-                      if (e.target.value.length <= 500) {
-                        handleChange('description', e.target.value);
-                      }
+                      const val = e.target.value.slice(0, 500);
+                      handleChange('description', val);
                     }}
-                    className="w-full px-3 py-2.5 border border-border/60 rounded-2xl bg-muted/30 text-foreground text-xs resize-none h-32 focus:bg-background focus:ring-2 focus:ring-primary/20 leading-relaxed"
+                    onInput={(e) => {
+                      const target = e.currentTarget;
+                      target.style.height = 'auto';
+                      target.style.height = `${Math.max(128, target.scrollHeight)}px`;
+                    }}
+                    className="w-full px-3 py-2.5 border border-border/60 rounded-2xl bg-muted/30 text-foreground text-xs resize-none min-h-[128px] overflow-hidden focus:bg-background focus:ring-2 focus:ring-primary/20 leading-relaxed transition-[height] duration-75"
                     required
                   />
                 </div>
@@ -628,14 +647,28 @@ function UploadPageContent() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Project Description *
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium block">
+                      Project Description *
+                    </label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.description.length} / 500
+                    </span>
+                  </div>
                   <textarea
+                    ref={desktopDescRef}
                     placeholder="Describe your project in detail. What problem does it solve? What technologies did you use?"
                     value={formData.description}
-                    onChange={(e) => handleChange('description', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground resize-none h-32"
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 500);
+                      handleChange('description', val);
+                    }}
+                    onInput={(e) => {
+                      const target = e.currentTarget;
+                      target.style.height = 'auto';
+                      target.style.height = `${Math.max(128, target.scrollHeight)}px`;
+                    }}
+                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground resize-none min-h-[128px] overflow-hidden leading-relaxed focus:ring-2 focus:ring-primary/20 transition-[height] duration-75"
                     required
                   />
                 </div>

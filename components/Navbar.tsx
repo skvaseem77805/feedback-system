@@ -455,6 +455,15 @@ export function Navbar() {
                     </Link>
 
                     <Link
+                      href={isLoggedIn ? "/my-projects" : "/auth"}
+                      onClick={() => setIsDrawerOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                    >
+                      <span className="text-lg">📁</span>
+                      <span>My Projects</span>
+                    </Link>
+
+                    <Link
                       href={isLoggedIn ? "/saved-projects" : "/auth"}
                       onClick={() => setIsDrawerOpen(false)}
                       className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"

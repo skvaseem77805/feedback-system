@@ -26,6 +26,7 @@ import {
     Heart,
     Bookmark,
     ExternalLink,
+    ChevronRight,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
@@ -276,61 +277,34 @@ export default function PublicStudentProfile() {
                         )}
                     </div>
 
-                    {/* My Projects Scroll List */}
-                    <div className="space-y-3 text-left">
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-extrabold text-base tracking-tight text-foreground">Projects</h3>
-                            <Badge className="bg-primary/10 text-primary border-none shadow-none font-bold text-[10px] px-2.5 py-0.5 rounded-full">
-                                {projects.length}
-                            </Badge>
-                        </div>
-                        
-                        {projects.length > 0 ? (
-                            <div className="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 scrollbar-none snap-x snap-mandatory">
-                                {projects.map((project) => (
-                                    <Card
-                                        key={project.id}
-                                        className="w-[280px] p-4 flex-shrink-0 bg-card/50 border border-border/45 rounded-2xl shadow-sm space-y-3.5 snap-start flex flex-col justify-between"
-                                    >
-                                        <div className="space-y-1.5">
-                                            <h4 className="font-bold text-sm truncate text-foreground leading-snug">{project.title}</h4>
-                                            <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
-                                                {project.description}
-                                            </p>
-                                        </div>
-                                        
-                                        <div className="space-y-2.5 pt-2 border-t border-border/20">
-                                            <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold">
-                                                <span>{project.category || 'Development'}</span>
-                                                <span className="flex items-center gap-0.5">
-                                                    👍 {project.likes}
-                                                </span>
-                                            </div>
-
-                                             <div className="flex gap-2">
-                                                 <Link href={`/projects/${encodeURIComponent(project.id)}?from=profile`} className="flex-1">
-                                                     <Button size="sm" className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-[10px] py-3.5 rounded-xl border-none shadow-none h-8.5">
-                                                         View Project
-                                                     </Button>
-                                                 </Link>
-                                                 <Button
-                                                     onClick={() => handleShareProject(project)}
-                                                     variant="outline"
-                                                     size="icon"
-                                                     className="h-8.5 w-8.5 rounded-xl border-border/50 text-muted-foreground animate-none shrink-0"
-                                                 >
-                                                     <Share2 className="w-3.5 h-3.5" />
-                                                 </Button>
-                                             </div>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
+                    {/* Bio Section */}
+                    <div className="space-y-2.5 text-left max-w-full min-w-0">
+                        <h3 className="font-extrabold text-base tracking-tight text-foreground">Bio</h3>
+                        {student.bio && student.bio.trim() ? (
+                            <Card className="p-4 bg-card/45 border-border/40 rounded-2xl overflow-hidden max-w-full min-w-0">
+                                <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full min-w-0">
+                                    {student.bio.trim()}
+                                </p>
+                            </Card>
                         ) : (
-                            <Card className="p-6 text-center bg-card/45 border-border/40 rounded-2xl">
-                                <p className="text-xs text-muted-foreground">No projects uploaded yet.</p>
+                            <Card className="p-4 text-center bg-card/45 border-border/40 rounded-2xl">
+                                <p className="text-xs text-muted-foreground">No bio added yet.</p>
                             </Card>
                         )}
+                    </div>
+
+                    {/* Projects Section Header */}
+                    <div className="space-y-3 text-left">
+                        <button
+                            type="button"
+                            onClick={() => router.push(`/student/${encodeURIComponent(id)}/projects`)}
+                            className="w-full flex justify-between items-center p-4 bg-card/50 hover:bg-card/80 border border-border/45 rounded-2xl shadow-sm active:scale-[0.99] transition-all cursor-pointer group"
+                        >
+                            <h3 className="font-extrabold text-base tracking-tight text-foreground flex items-center gap-2">
+                                Projects
+                            </h3>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                        </button>
                     </div>
 
                     {/* Connect Section */}

@@ -600,7 +600,7 @@ export function Navbar() {
             <button
               onClick={() => {
                 setIsUploadSheetOpen(false);
-                router.push(isLoggedIn ? "/profile" : "/auth");
+                router.push(isLoggedIn ? "/my-projects" : "/auth");
               }}
               className="w-full flex items-center justify-between p-4 bg-muted/30 active:bg-muted/70 rounded-xl transition-colors text-left"
             >

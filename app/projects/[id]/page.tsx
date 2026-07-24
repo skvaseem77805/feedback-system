@@ -691,7 +691,7 @@ export default function ProjectDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 overflow-x-hidden w-full max-w-[100vw]">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 w-full">
       <Navbar />
       {isMobile ? (
         <main className="px-4 pt-4 pb-28 space-y-4 w-full max-w-full overflow-x-hidden">
@@ -974,14 +974,14 @@ export default function ProjectDetailsPage() {
           {/* Two Column Layout (60% Left, 40% Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-10 gap-12 lg:gap-16 items-start">
             {/* LEFT (60%) */}
-            <div className="lg:col-span-6 space-y-6">
+            <div className="lg:col-span-6 space-y-6 lg:sticky lg:top-24 self-start">
               {renderGallery(false)}
             </div>
 
             {/* RIGHT (40%) */}
             <div className="lg:col-span-4 space-y-8">
-              {/* Project Title */}
-              <div className="space-y-3">
+              {/* Project Title (Sticky Header on Scroll) */}
+              <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-sm border-b border-border/40 py-3 -mx-2 px-2">
                 <h1 className={getTitleClass(project.title)}>
                   {project.title}
                 </h1>

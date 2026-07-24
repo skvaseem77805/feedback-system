@@ -286,7 +286,7 @@ export default function StudentRegisterPage() {
           <div>
             <CardTitle className="text-xl font-bold text-foreground">Student Registration</CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Create your account on Project Hub
+              Create Your Student Account
             </CardDescription>
           </div>
         </div>
@@ -304,7 +304,7 @@ export default function StudentRegisterPage() {
             <Input
               id="registrationNo"
               type="text"
-              placeholder="e.g. 24B81A05R2"
+              placeholder="Enter Registration Number"
               value={registrationNo}
               onChange={(e) => {
                 setRegistrationNo(e.target.value);
@@ -357,7 +357,7 @@ export default function StudentRegisterPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Minimum 6 characters"
+              placeholder="Create a strong password "
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -372,7 +372,7 @@ export default function StudentRegisterPage() {
             <Input
               id="confirmPassword"
               type="password"
-              placeholder="Confirm password"
+              placeholder="Re-enter the password"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value);

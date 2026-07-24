@@ -98,7 +98,7 @@ export default function StudentLoginPage() {
             <Input
               id="registrationNo"
               type="text"
-              placeholder="e.g. 24B81A05R2"
+              placeholder="Enter Registration Number"
               value={registrationNo}
               onChange={(e) => {
                 setRegistrationNo(e.target.value);
@@ -114,7 +114,7 @@ export default function StudentLoginPage() {
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Enter Password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);

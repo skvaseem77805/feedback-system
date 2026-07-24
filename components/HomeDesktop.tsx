@@ -454,36 +454,7 @@ export function HomeDesktop() {
         </div>
       </section>
 
-      {/* SECTION 3: BROWSE BY CATEGORY */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="mb-10 space-y-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Discover Topics</h2>
-            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Browse By Category</p>
-          </div>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              { name: 'Web Development', icon: Globe, color: 'text-cyan-400', bg: 'hover:bg-cyan-500/10 hover:border-cyan-500/30' },
-              { name: 'Mobile App', icon: Smartphone, color: 'text-purple-400', bg: 'hover:bg-purple-500/10 hover:border-purple-500/30' },
-              { name: 'AI / ML', icon: Brain, color: 'text-orange-400', bg: 'hover:bg-orange-500/10 hover:border-orange-500/30' },
-              { name: 'IoT', icon: Cpu, color: 'text-pink-400', bg: 'hover:bg-pink-500/10 hover:border-pink-500/30' },
-              { name: 'Cyber Security', icon: Shield, color: 'text-rose-400', bg: 'hover:bg-rose-500/10 hover:border-rose-500/30' },
-              { name: 'Data Science', icon: Database, color: 'text-green-400', bg: 'hover:bg-green-500/10 hover:border-green-500/30' },
-              { name: 'Others', icon: FolderOpen, color: 'text-indigo-400', bg: 'hover:bg-indigo-500/10 hover:border-indigo-500/30' },
-            ].map((cat) => (
-              <Link
-                key={cat.name}
-                href={`/projects?category=${encodeURIComponent(cat.name)}`}
-                className={`flex items-center gap-3 px-5 py-3 rounded-xl bg-card/30 backdrop-blur-sm border border-white/5 transition-all duration-300 hover:scale-105 ${cat.bg} group`}
-              >
-                <cat.icon className={`w-4 h-4 ${cat.color} group-hover:scale-110 transition-transform duration-300`} />
-                <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">{cat.name}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* SECTION 4: TOP CONTRIBUTORS */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-accent/5 to-transparent relative">
@@ -547,78 +518,7 @@ export function HomeDesktop() {
         </div>
       </section>
 
-      {/* SECTION 5: QUICK ACTIONS */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10 space-y-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Get Started</h2>
-            <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Quick Actions</p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                title: 'Upload Project',
-                desc: 'Share your work with files or live demo links',
-                href: '/upload',
-                icon: Upload,
-                color: 'from-cyan-500 to-blue-600',
-              },
-              {
-                title: 'Explore Projects',
-                desc: 'Discover cutting-edge student projects',
-                href: '/projects',
-                icon: Compass,
-                color: 'from-purple-500 to-indigo-600',
-              },
-              {
-                title: 'Connect Students',
-                desc: 'Connect with peers or invite collaboration',
-                href: '/select-student',
-                icon: Users,
-                color: 'from-pink-500 to-rose-600',
-              },
-              {
-                title: 'Give Feedback',
-                desc: 'Suggest recommendations or report platform issues',
-                href: '/feedback',
-                icon: MessageSquare,
-                color: 'from-orange-500 to-amber-600',
-              },
-              ...(typeof window !== 'undefined' && localStorage.getItem('userType') === 'admin'
-                ? [{
-                    title: 'Student Management',
-                    desc: 'Import, review, edit, export and manage student records',
-                    href: '/admin/students',
-                    icon: GraduationCap,
-                    color: 'from-emerald-500 to-teal-600',
-                  }]
-                : []),
-            ].map((action) => (
-              <Link href={action.href} key={action.title} className="block group">
-                <Card className="p-6 bg-card/40 backdrop-blur-md border border-white/6 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl h-full flex flex-col justify-between relative overflow-hidden rounded-2xl min-h-[180px]">
-                  <div className="space-y-4">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                      <action.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                        {action.title}
-                        <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-primary" />
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{action.desc}</p>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <hr className="my-12 border-t border-white/6" />
-      </div>
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary via-primary/90 to-accent text-primary-foreground relative overflow-hidden">

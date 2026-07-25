@@ -491,10 +491,30 @@ export function Navbar() {
                       <span className="text-lg">ℹ️</span>
                       <span>About Project Hub</span>
                     </button>
+
+                    {!isLoggedIn && (
+                      <Link
+                        href="/developers"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                      >
+                        <span className="text-lg">💻</span>
+                        <span>Developers</span>
+                      </Link>
+                    )}
                   </div>
 
                   {isLoggedIn && (
-                    <div className="p-4 border-t border-border/40">
+                    <div className="p-4 border-t border-border/40 space-y-1">
+                      <Link
+                        href="/developers"
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                      >
+                        <span className="text-lg">💻</span>
+                        <span>Developers</span>
+                      </Link>
+
                       <Button
                         variant="ghost"
                         onClick={() => {

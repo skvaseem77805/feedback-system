@@ -520,30 +520,92 @@ export function HomeDesktop() {
 
 
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary via-primary/90 to-accent text-primary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="max-w-3xl mx-auto text-center space-y-8 relative z-10">
-          <div className="space-y-4">
-            <h2 className="text-4xl font-bold">Ready to Showcase Your Work?</h2>
-            <p className="text-lg opacity-95 max-w-2xl mx-auto">
-              Join hundreds of students who are already sharing their projects,
-              connecting with peers, and growing their skills every day.
-            </p>
-          </div>
-
-          <Button
-            onClick={handleStartUploading}
-            size="lg"
-            className="smooth-button bg-primary-foreground text-primary hover:bg-white gap-2"
+      {/* Developers CTA Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-background">
+        <div className="max-w-6xl mx-auto rounded-[32px] bg-gradient-to-br from-white via-slate-50/70 to-blue-50/30 border border-slate-200/80 shadow-xl shadow-blue-500/5 p-8 sm:p-12 lg:p-14 relative overflow-hidden">
+          {/* Subtle Background Decorative SVG Lines */}
+          <svg
+            className="absolute inset-0 w-full h-full text-primary/15 pointer-events-none"
+            viewBox="0 0 600 400"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            Start Uploading Now
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+            <path
+              d="M -100 280 C 150 420, 350 80, 700 200"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+            />
+            <path
+              d="M 50 80 C 250 250, 450 -50, 650 250"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+          </svg>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            {/* LEFT SIDE */}
+            <div className="lg:col-span-7 space-y-6 text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wider uppercase">
+                <Users className="w-3.5 h-3.5 text-primary" />
+                <span>OUR DEVELOPERS</span>
+              </div>
+
+              <div className="space-y-4">
+                <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-extrabold text-foreground tracking-tight leading-[1.25]">
+                  Behind every feature,<br />
+                  there is a <span className="text-primary">passionate team.</span>
+                </h2>
+                <div className="w-12 h-1 bg-primary rounded-full" />
+              </div>
+
+              <p className="text-muted-foreground text-sm sm:text-base max-w-md leading-relaxed font-medium">
+                The minds that designed, built and continue to improve Project Hub for students like you.
+              </p>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => router.push("/developers")}
+                  size="lg"
+                  className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 pl-7 pr-2.5 py-6 text-base font-semibold shadow-lg shadow-primary/20 gap-3 group transition-all"
+                >
+                  <span>Meet our Developers</span>
+                  <span className="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center transition-transform group-hover:translate-x-0.5 shadow-sm">
+                    <ArrowRight className="w-4 h-4 text-primary" />
+                  </span>
+                </Button>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE - ABSTRACT UI ILLUSTRATION */}
+            <div className="lg:col-span-5 flex items-center justify-center relative min-h-[280px]">
+              {/* Dotted Grid Pattern - Top Left */}
+              <div className="absolute top-2 left-6 grid grid-cols-6 gap-2 opacity-25 pointer-events-none">
+                {Array.from({ length: 18 }).map((_, i) => (
+                  <div key={`dot-1-${i}`} className="w-1.5 h-1.5 rounded-full bg-primary" />
+                ))}
+              </div>
+
+              {/* Dotted Grid Pattern - Bottom Right */}
+              <div className="absolute bottom-2 right-6 grid grid-cols-6 gap-2 opacity-25 pointer-events-none">
+                {Array.from({ length: 18 }).map((_, i) => (
+                  <div key={`dot-2-${i}`} className="w-1.5 h-1.5 rounded-full bg-primary" />
+                ))}
+              </div>
+
+              {/* Concentric Circle Illustration */}
+              <div className="relative w-72 h-72 rounded-full border border-primary/20 border-dashed flex items-center justify-center">
+                {/* Decorative dot on circle border */}
+                <div className="absolute -top-1.5 right-16 w-3 h-3 rounded-full bg-primary/70 shadow-sm" />
+                <div className="absolute bottom-6 -left-1 w-2 h-2 rounded-full bg-primary/40" />
+
+                {/* Inner Glowing Gradient Circle */}
+                <div className="w-56 h-56 rounded-full bg-gradient-to-tr from-primary/10 via-primary/15 to-indigo-100/50 flex items-center justify-center shadow-inner border border-primary/10">
+                  <Users className="w-20 h-20 text-primary/80 stroke-[1.5]" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       <ShareBottomSheet

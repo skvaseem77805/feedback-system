@@ -291,7 +291,7 @@ export default function ForgotPasswordPage() {
             <Input
               id="registrationNo"
               type="text"
-              placeholder="e.g. 24B81A05R2"
+              placeholder="Enter your Registration Number"
               value={registrationNo}
               onChange={(e) => {
                 setRegistrationNo(e.target.value);
@@ -307,7 +307,7 @@ export default function ForgotPasswordPage() {
             <Input
               id="email"
               type="email"
-              placeholder="name@email.com"
+              placeholder="Enter your registered email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -323,7 +323,7 @@ export default function ForgotPasswordPage() {
             className="w-full h-11 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground"
             disabled={isLoading}
           >
-            {isLoading ? 'Verifying...' : 'Send Verification OTP'}
+            {isLoading ? 'Verifying...' : 'Send Verification OTP via Email'}
           </Button>
         </CardFooter>
       </form>

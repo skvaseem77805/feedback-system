@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { queryOne, query } from '@/lib/db';
-import { sendOtpEmail } from '@/lib/services/brevo';
+import { sendOtpEmail } from '@/lib/services/email';
 import { validateRegistrationNo } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Send email using Brevo service
+    // 6. Send email using Gmail SMTP service
     try {
-      console.log(`[DEBUG FORGOT PASSWORD] Starting Brevo dispatch to: ${email}`);
+      console.log(`[DEBUG FORGOT PASSWORD] Starting Gmail SMTP dispatch to: ${email}`);
       await sendOtpEmail(email, otp, user.name);
-      console.log('[DEBUG FORGOT PASSWORD] Brevo dispatch successful.');
-    } catch (brevoErr: any) {
-      console.error('[DEBUG FORGOT PASSWORD] Brevo email dispatch failed! Stack trace:', brevoErr.stack || brevoErr);
+      console.log('[DEBUG FORGOT PASSWORD] Gmail SMTP dispatch successful.');
+    } catch (smtpErr: any) {
+      console.error('[DEBUG FORGOT PASSWORD] Gmail SMTP email dispatch failed! Stack trace:', smtpErr.stack || smtpErr);
       return Response.json(
-        { error: `Failed to send OTP email: ${brevoErr.message || 'Unknown Brevo Error'}` },
+        { error: `Failed to send OTP email: ${smtpErr.message || 'Unknown SMTP Error'}` },
         { status: 500 }
       );
     }

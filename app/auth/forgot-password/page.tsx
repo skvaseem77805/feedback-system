@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success('OTP Sent Successfully.');
+        toast.success('OTP Sent Successfully via Email.');
         setStep('verify');
         setResendTimer(30);
       } else {
@@ -140,7 +140,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success('OTP Sent Successfully.');
+        toast.success('OTP Sent Successfully via Email.');
         setResendTimer(30);
       } else {
         setOtpError(data.error || 'Failed to resend OTP.');

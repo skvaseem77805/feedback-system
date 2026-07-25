@@ -114,7 +114,7 @@ export default function StudentLoginPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Enter Password"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);

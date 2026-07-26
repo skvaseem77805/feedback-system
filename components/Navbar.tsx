@@ -27,6 +27,7 @@ import {
   Plus,
   ChevronRight,
   Info,
+  FolderKanban,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
@@ -230,6 +231,16 @@ export function Navbar() {
       href: '/admin/students',
       label: 'Student Management',
       icon: GraduationCap,
+    },
+    {
+      href: '/admin/import-export',
+      label: 'Import / Export',
+      icon: Upload,
+    },
+    {
+      href: '/admin/projects',
+      label: 'Projects Management',
+      icon: FolderKanban,
     },
     {
       href: '/admin/feedback',
@@ -443,77 +454,108 @@ export function Navbar() {
                     </div>
                   </SheetHeader>
 
-                  {/* Drawer Links - NO DUPLICATION of bottom nav items */}
+                  {/* Drawer Links */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                    <Link
-                      href={isLoggedIn ? "/select-student" : "/auth"}
-                      onClick={() => setIsDrawerOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                    >
-                      <span className="text-lg">👥</span>
-                      <span>Connect Student</span>
-                    </Link>
+                    {userType === 'admin' ? (
+                      <>
+                        <div className="px-4 py-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Admin Management Modules
+                        </div>
+                        {adminNavItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setIsDrawerOpen(false)}
+                              className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-colors ${
+                                isActive
+                                  ? 'bg-primary/10 text-primary font-bold'
+                                  : 'hover:bg-muted/40 active:bg-muted text-foreground'
+                              }`}
+                            >
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                              <span>{item.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href={isLoggedIn ? "/select-student" : "/auth"}
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                        >
+                          <span className="text-lg">👥</span>
+                          <span>Connect Student</span>
+                        </Link>
 
-                    <Link
-                      href={isLoggedIn ? "/my-projects" : "/auth"}
-                      onClick={() => setIsDrawerOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                    >
-                      <span className="text-lg">📁</span>
-                      <span>My Projects</span>
-                    </Link>
+                        <Link
+                          href={isLoggedIn ? "/my-projects" : "/auth"}
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                        >
+                          <span className="text-lg">📁</span>
+                          <span>My Projects</span>
+                        </Link>
 
-                    <Link
-                      href={isLoggedIn ? "/saved-projects" : "/auth"}
-                      onClick={() => setIsDrawerOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                    >
-                      <span className="text-lg">⭐</span>
-                      <span>Saved Projects</span>
-                    </Link>
+                        <Link
+                          href={isLoggedIn ? "/saved-projects" : "/auth"}
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                        >
+                          <span className="text-lg">⭐</span>
+                          <span>Saved Projects</span>
+                        </Link>
 
-                    <Link
-                      href="/feedback"
-                      onClick={() => setIsDrawerOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                    >
-                      <span className="text-lg">💬</span>
-                      <span>Feedback</span>
-                    </Link>
+                        <Link
+                          href="/feedback"
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                        >
+                          <span className="text-lg">💬</span>
+                          <span>Feedback</span>
+                        </Link>
 
-                    <button
-                      onClick={() => {
-                        setIsDrawerOpen(false);
-                        setIsAboutOpen(true);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium text-left"
-                    >
-                      <span className="text-lg">ℹ️</span>
-                      <span>About Project Hub</span>
-                    </button>
+                        <button
+                          onClick={() => {
+                            setIsDrawerOpen(false);
+                            setIsAboutOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium text-left"
+                        >
+                          <span className="text-lg">ℹ️</span>
+                          <span>About Project Hub</span>
+                        </button>
 
-                    {!isLoggedIn && (
-                      <Link
-                        href="/developers"
-                        onClick={() => setIsDrawerOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                      >
-                        <span className="text-lg">💻</span>
-                        <span>Developers</span>
-                      </Link>
+                        {!isLoggedIn && (
+                          <Link
+                            href="/developers"
+                            onClick={() => setIsDrawerOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                          >
+                            <span className="text-lg">💻</span>
+                            <span>Developers</span>
+                          </Link>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {isLoggedIn && (
+                  {(isLoggedIn || userType === 'admin') && (
                     <div className="p-4 border-t border-border/40 space-y-1">
-                      <Link
-                        href="/developers"
-                        onClick={() => setIsDrawerOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
-                      >
-                        <span className="text-lg">💻</span>
-                        <span>Developers</span>
-                      </Link>
+                      {userType !== 'admin' && (
+                        <Link
+                          href="/developers"
+                          onClick={() => setIsDrawerOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 active:bg-muted rounded-xl transition-colors text-foreground text-sm font-medium"
+                        >
+                          <span className="text-lg">💻</span>
+                          <span>Developers</span>
+                        </Link>
+                      )}
 
                       <Button
                         variant="ghost"
@@ -536,61 +578,107 @@ export function Navbar() {
       </nav>
 
       {/* Mobile Bottom Navigation (fixed bottom) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-md border-t border-border/40 pb-safe shadow-lg flex justify-between items-center px-6 md:hidden">
-        <button
-          onClick={() => router.push('/')}
-          className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
-            pathname === '/' ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        >
-          <Home className="w-5 h-5" />
-          <span className="text-[9px] font-bold tracking-tight">Home</span>
-        </button>
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-md border-t border-border/40 pb-safe shadow-lg flex justify-between items-center px-4 sm:px-6 md:hidden">
+        {userType === 'admin' ? (
+          <>
+            <button
+              onClick={() => router.push('/admin/students')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity flex-1 ${
+                pathname === '/admin/students' ? 'text-primary font-bold' : 'text-muted-foreground'
+              }`}
+            >
+              <GraduationCap className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Students</span>
+            </button>
 
-        <button
-          onClick={() => router.push('/projects')}
-          className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
-            pathname === '/projects' || pathname.startsWith('/projects/') ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        >
-          <Compass className="w-5 h-5" />
-          <span className="text-[9px] font-bold tracking-tight">Projects</span>
-        </button>
+            <button
+              onClick={() => router.push('/admin/import-export')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity flex-1 ${
+                pathname === '/admin/import-export' ? 'text-primary font-bold' : 'text-muted-foreground'
+              }`}
+            >
+              <Upload className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Import/Export</span>
+            </button>
 
-        {/* Center Upload Button */}
-        <div className="relative -top-3">
-          <button 
-            onClick={() => setIsUploadSheetOpen(true)}
-            className="flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full shadow-lg shadow-primary/20 active:scale-95 transition-transform"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
+            <button
+              onClick={() => router.push('/admin/projects')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity flex-1 ${
+                pathname === '/admin/projects' ? 'text-primary font-bold' : 'text-muted-foreground'
+              }`}
+            >
+              <FolderKanban className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Projects</span>
+            </button>
 
-        <button
-          onClick={() => router.push(isLoggedIn ? '/notifications' : '/auth')}
-          className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity relative ${
-            pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        >
-          <div className="relative">
-            <Bell className="w-5 h-5" />
-            {hasUnread && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-background"></span>
-            )}
-          </div>
-          <span className="text-[9px] font-bold tracking-tight">Notifications</span>
-        </button>
+            <button
+              onClick={() => router.push('/admin/feedback')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity flex-1 ${
+                pathname === '/admin/feedback' ? 'text-primary font-bold' : 'text-muted-foreground'
+              }`}
+            >
+              <Send className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Feedback</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => router.push('/')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
+                pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <Home className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Home</span>
+            </button>
 
-        <button
-          onClick={() => router.push(isLoggedIn ? '/profile' : '/auth')}
-          className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
-            pathname === '/profile' ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        >
-          <User className="w-5 h-5" />
-          <span className="text-[9px] font-bold tracking-tight">Profile</span>
-        </button>
+            <button
+              onClick={() => router.push('/projects')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
+                pathname === '/projects' || pathname.startsWith('/projects/') ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <Compass className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Projects</span>
+            </button>
+
+            {/* Center Upload Button */}
+            <div className="relative -top-3">
+              <button 
+                onClick={() => setIsUploadSheetOpen(true)}
+                className="flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+              >
+                <Plus className="w-6 h-6 stroke-[3]" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => router.push(isLoggedIn ? '/notifications' : '/auth')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity relative ${
+                pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <div className="relative">
+                <Bell className="w-5 h-5" />
+                {hasUnread && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-background"></span>
+                )}
+              </div>
+              <span className="text-[9px] font-bold tracking-tight">Notifications</span>
+            </button>
+
+            <button
+              onClick={() => router.push(isLoggedIn ? '/profile' : '/auth')}
+              className={`flex flex-col items-center gap-1 active:opacity-75 transition-opacity ${
+                pathname === '/profile' ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-[9px] font-bold tracking-tight">Profile</span>
+            </button>
+          </>
+        )}
       </nav>
 
       {/* Floating Upload Bottom Sheet (Drawer) */}

@@ -6,10 +6,9 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ChevronLeft, Upload, Download, Search, Pencil, Trash2, Eye, FileSpreadsheet, FileText, FileUp, Plus } from 'lucide-react';
+import { ChevronLeft, Search, Pencil, Trash2, Eye, X, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -22,36 +21,18 @@ interface StudentRow {
   year: number;
   academicYear: string;
   department: string;
+  section?: string;
   email: string;
   mobileNo: string;
   createdAt?: string;
 }
 
-interface PreviewRow {
-  rowNumber: number;
-  rollNumber: string;
-  name: string;
-  year: number | null;
-  yearLabel: string;
-  branch: string;
-  email: string;
-  phone: string;
-  status: 'new' | 'update' | 'updated' | 'UPDATED' | 'invalid';
-  existing: boolean;
-  errors: string[];
-  valid: boolean;
-}
-
 export default function AdminStudentsPage() {
   const router = useRouter();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [search, setSearch] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ rollNumber: '', name: '', department: '', year: '', email: '' });
-  const [addLoading, setAddLoading] = useState(false);
   const [yearFilter, setYearFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [sortField, setSortField] = useState('name');
@@ -59,19 +40,35 @@ export default function AdminStudentsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [report, setReport] = useState<any>(null);
-  const [showImportedDetails, setShowImportedDetails] = useState(false);
-  const [showUpdatedDetails, setShowUpdatedDetails] = useState(false);
-  const [showSkippedDetails, setShowSkippedDetails] = useState(false);
-  const [showErrorsDetails, setShowErrorsDetails] = useState(false);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [error, setError] = useState('');
+
+  // Bulk Selection
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+
+  // Single Edit
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', department: '', year: '' });
+
+  // Bulk Delete Modal
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Bulk Modify Modal
+  const [showBulkModifyModal, setShowBulkModifyModal] = useState(false);
+  const [bulkModifyForm, setBulkModifyForm] = useState({
+    branch: 'KEEP_EXISTING',
+    year: 'KEEP_EXISTING',
+    section: 'KEEP_EXISTING'
+  });
+
+  const getAdminHeaders = () => {
+    return {
+      'x-admin-auth': 'true',
+      'x-admin-email': localStorage.getItem('adminEmail') || '',
+      'x-admin-id': localStorage.getItem('adminId') || '',
+    };
+  };
 
   useEffect(() => {
     const userType = localStorage.getItem('userType');
@@ -87,20 +84,24 @@ export default function AdminStudentsPage() {
   const loadStudents = async () => {
     setLoading(true);
     try {
-      const headers = {
-        'x-admin-auth': 'true',
-        'x-admin-email': localStorage.getItem('adminEmail') || '',
-        'x-admin-id': localStorage.getItem('adminId') || '',
-      };
-      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), search, sortField, sortDirection });
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        search,
+        sortField,
+        sortDirection
+      });
       if (yearFilter) params.set('year', yearFilter);
       if (branchFilter) params.set('branch', branchFilter);
+
       const url = `/api/admin/students?${params.toString()}`;
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, { headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load students');
+
       setStudents(data.students || []);
       setTotalPages(data.totalPages || 1);
+      setTotalStudents(data.total || data.students?.length || 0);
     } catch (err: any) {
       setError(err.message || 'Failed to load students');
     } finally {
@@ -116,166 +117,24 @@ export default function AdminStudentsPage() {
 
   const filteredStudents = useMemo(() => students, [students]);
 
-  const handleFile = async (file: File | null) => {
-    if (!file) return;
-    setSelectedFile(file);
-    setError('');
-    const formData = new FormData();
-    formData.append('file', file);
-    const headers = {
-      'x-admin-auth': 'true',
-      'x-admin-email': localStorage.getItem('adminEmail') || '',
-      'x-admin-id': localStorage.getItem('adminId') || '',
-    };
-    const res = await fetch('/api/admin/students/import', { method: 'POST', body: formData, headers });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Import failed');
-      return;
-    }
-    setPreviewRows(data.preview || []);
-    setShowPreview(true);
-  };
-
-  const confirmImport = async () => {
-    if (!selectedFile) return;
-    setImporting(true);
-    setError('');
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('confirm', 'true');
-    const headers = {
-      'x-admin-auth': 'true',
-      'x-admin-email': localStorage.getItem('adminEmail') || '',
-      'x-admin-id': localStorage.getItem('adminId') || '',
-    };
-    const res = await fetch('/api/admin/students/import', { method: 'POST', body: formData, headers });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Import failed');
-      setImporting(false);
-      return;
-    }
-    setReport(data);
-    setShowPreview(false);
-    await loadStudents();
-    setImporting(false);
-  };
-
-  const downloadTemplate = () => {
-    const rows = [
-      ['RollNo', 'Name', 'Department', 'Year', 'Email'],
-      ['24B81A05Q5', 'NALLA NEELIMA', 'CSE', '3rd', 'neelima@example.com'],
-      ['24B81A05Q6', 'SANTHOSH KUMAR', 'CSE', '2nd', 'santhosh@example.com'],
-    ];
-    const csv = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'student-import-template.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportStudents = async () => {
-    try {
-      const headers = {
-        'x-admin-auth': 'true',
-        'x-admin-email': localStorage.getItem('adminEmail') || '',
-        'x-admin-id': localStorage.getItem('adminId') || '',
-      };
-      const params = new URLSearchParams({ page: '1', pageSize: '100000', search, sortField, sortDirection });
-      if (yearFilter) params.set('year', yearFilter);
-      if (branchFilter) params.set('branch', branchFilter);
-      const res = await fetch(`/api/admin/students?${params.toString()}`, { headers });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Export failed');
-      
-      const allStudents = data.students || [];
-      const rows = [
-        ['RollNo', 'Name', 'Department', 'Year', 'Email'],
-        ...allStudents.map((s: any) => [s.id, s.name, s.department, s.academicYear, s.email]),
-      ];
-      const csv = rows.map((row) => row.map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'students-export.csv';
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || 'Export failed');
+  // Selection Handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const pageIds = filteredStudents.map((s) => s.id);
+      setSelectedStudents((prev) => Array.from(new Set([...prev, ...pageIds])));
+    } else {
+      const pageIds = new Set(filteredStudents.map((s) => s.id));
+      setSelectedStudents((prev) => prev.filter((id) => !pageIds.has(id)));
     }
   };
 
-  const downloadCategoryCSV = (category: 'imported' | 'updated' | 'skipped' | 'errors') => {
-    if (!report || !report[category]) return;
-    const data = report[category];
-    let headers: string[] = [];
-    let rows: string[][] = [];
-
-    if (category === 'imported') {
-      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Imported At'];
-      rows = data.map((s: any) => [
-        s.rollNo || '',
-        s.name || '',
-        s.email || '',
-        s.branch || '',
-        s.year || '',
-        s.importedAt ? new Date(s.importedAt).toISOString() : ''
-      ]);
-    } else if (category === 'updated') {
-      headers = ['Roll Number', 'Student Name', 'Updated Field', 'Old Value', 'New Value', 'Updated At'];
-      data.forEach((s: any) => {
-        (s.changes || []).forEach((c: any) => {
-          rows.push([
-            s.rollNo || '',
-            s.name || '',
-            c.field || '',
-            c.oldValue || '',
-            c.newValue || '',
-            s.updatedAt ? new Date(s.updatedAt).toISOString() : ''
-          ]);
-        });
-      });
-    } else if (category === 'skipped') {
-      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Reason'];
-      rows = data.map((s: any) => [
-        s.rollNo || '',
-        s.name || '',
-        s.email || '',
-        s.branch || '',
-        s.year || '',
-        s.reason || ''
-      ]);
-    } else if (category === 'errors') {
-      headers = ['Roll Number', 'Student Name', 'Email', 'Branch', 'Year', 'Reason'];
-      rows = data.map((s: any) => [
-        s.rollNo || '',
-        s.name || '',
-        s.email || '',
-        s.branch || '',
-        s.year || '',
-        s.reason || ''
-      ]);
-    }
-
-    const csvContent = [
-      headers,
-      ...rows
-    ].map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `student-import-${category}-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleSelectStudent = (id: string) => {
+    setSelectedStudents((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
+  // Single Edit
   const startEdit = (student: StudentRow) => {
     setEditStudent(student);
     setEditForm({ name: student.name, email: student.email, department: student.department, year: String(student.year) });
@@ -283,460 +142,264 @@ export default function AdminStudentsPage() {
 
   const saveEdit = async () => {
     if (!editStudent) return;
-    const headers = {
-      'x-admin-auth': 'true',
-      'x-admin-email': localStorage.getItem('adminEmail') || '',
-      'x-admin-id': localStorage.getItem('adminId') || '',
-    };
-    const res = await fetch(`/api/admin/students/${encodeURIComponent(editStudent.id)}`, {
-      method: 'PATCH',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editForm.name,
-        email: editForm.email,
-        department: editForm.department,
-        year: editForm.year,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error || 'Update failed');
-      setError(data.error || 'Update failed');
-      return;
-    }
-    toast.success('Student updated successfully.');
-    setEditStudent(null);
-    await loadStudents();
-  };
-
-  const deleteStudent = async (studentId: string) => {
-    const headers = {
-      'x-admin-auth': 'true',
-      'x-admin-email': localStorage.getItem('adminEmail') || '',
-      'x-admin-id': localStorage.getItem('adminId') || '',
-    };
-    const res = await fetch(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: 'DELETE', headers });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error || 'Delete failed');
-      setError(data.error || 'Delete failed');
-      return;
-    }
-    toast.success('Student deleted successfully.');
-    await loadStudents();
-  };
-
-  const handleAddStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddLoading(true);
     try {
-      const headers = {
-        'x-admin-auth': 'true',
-        'x-admin-email': localStorage.getItem('adminEmail') || '',
-        'x-admin-id': localStorage.getItem('adminId') || '',
-        'Content-Type': 'application/json',
-      };
-      const res = await fetch('/api/admin/students/import', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          rollNumber: addForm.rollNumber,
-          name: addForm.name,
-          department: addForm.department,
-          year: addForm.year,
-          email: addForm.email || null,
-          confirm: true
-        })
+      const res = await fetch(`/api/admin/students/${encodeURIComponent(editStudent.id)}`, {
+        method: 'PATCH',
+        headers: { ...getAdminHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.message || data.error || 'Failed to add student');
-        setAddLoading(false);
-        return;
-      }
+      if (!res.ok) throw new Error(data.error || 'Update failed');
 
-      toast.success('Student added successfully.');
-      setShowAddModal(false);
-      setAddForm({ rollNumber: '', name: '', department: '', year: '', email: '' });
+      toast.success('Student updated successfully.');
+      setEditStudent(null);
       await loadStudents();
     } catch (err: any) {
-      toast.error(err.message || 'An error occurred');
+      toast.error(err.message || 'Update failed');
+    }
+  };
+
+  // Single Delete
+  const deleteStudent = async (studentId: string) => {
+    if (!confirm('Are you sure you want to delete this student?')) return;
+    try {
+      const res = await fetch(`/api/admin/students/${encodeURIComponent(studentId)}`, {
+        method: 'DELETE',
+        headers: getAdminHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      toast.success('Student deleted successfully.');
+      setSelectedStudents((prev) => prev.filter((id) => id !== studentId));
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Delete failed');
+    }
+  };
+
+  // Bulk Delete
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/students/bulk-delete', {
+        method: 'POST',
+        headers: { ...getAdminHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: selectedStudents })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+
+      toast.success(`Successfully deleted ${data.deletedCount} student account(s).`);
+      setSelectedStudents([]);
+      setShowBulkDeleteModal(false);
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk delete failed');
     } finally {
-      setAddLoading(false);
+      setActionLoading(false);
+    }
+  };
+
+  // Bulk Modify
+  const handleBulkModify = async () => {
+    if (selectedStudents.length === 0) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/students/bulk-modify', {
+        method: 'POST',
+        headers: { ...getAdminHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentIds: selectedStudents,
+          branch: bulkModifyForm.branch,
+          year: bulkModifyForm.year,
+          section: bulkModifyForm.section
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bulk modify failed');
+
+      toast.success(`Successfully updated ${data.updatedCount} student record(s).`);
+      setSelectedStudents([]);
+      setShowBulkModifyModal(false);
+      setBulkModifyForm({ branch: 'KEEP_EXISTING', year: 'KEEP_EXISTING', section: 'KEEP_EXISTING' });
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk modify failed');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   if (!authorized) return null;
 
+  const allOnPageSelected = filteredStudents.length > 0 && filteredStudents.every((s) => selectedStudents.includes(s.id));
+
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
       <Toaster />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8 space-y-6">
+        {/* Top Header */}
+        <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-8">
           <Link href="/">
             <Button variant="ghost" size="icon"><ChevronLeft className="w-5 h-5" /></Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Student Management</h1>
-            <p className="text-muted-foreground">Import, review, manage, and export college students</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">Review, manage, and view college students</p>
           </div>
         </div>
 
-        {error ? <Card className="p-4 mb-4 border-red-200 text-red-600">{error}</Card> : null}
+        {error ? <Card className="p-4 mb-4 border-red-200 text-red-600 text-xs sm:text-sm">{error}</Card> : null}
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <Card className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={downloadTemplate}><Download className="w-4 h-4 mr-2" />Download Template</Button>
-                <Button variant="outline" onClick={exportStudents}><FileSpreadsheet className="w-4 h-4 mr-2" />Export Students</Button>
-                <Button variant="outline" onClick={() => setShowAddModal(true)}><Plus className="w-4 h-4 mr-2" />Add Student</Button>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,.pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  if (file) {
-                    console.log("Selected filename:", file.name);
-                    console.log("File type:", file.type);
-                    console.log("File size:", file.size);
-                  }
-                  handleFile(file);
-                }}
-              />
-              <Button
-                variant="default"
-                onClick={() => {
-                  console.log("Import Students clicked");
-                  console.log(fileInputRef.current);
-                  fileInputRef.current?.click();
-                }}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Import Students
+        {/* FLOATING BULK ACTION TOOLBAR */}
+        {selectedStudents.length > 0 && (
+          <div className="sticky top-20 z-30 bg-slate-900 text-white p-3.5 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700 animate-in fade-in">
+            <div className="flex items-center gap-3 font-semibold text-sm pl-2">
+              <span className="bg-primary/20 text-teal-400 px-2.5 py-1 rounded-lg text-xs font-mono font-bold">
+                {selectedStudents.length} Students Selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="destructive" onClick={() => setShowBulkDeleteModal(true)} className="h-8 text-xs font-semibold">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Selected
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowBulkModifyModal(true)} className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+                <Pencil className="w-3.5 h-3.5 mr-1" /> Bulk Modify
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedStudents([])} className="h-8 text-xs text-slate-400 hover:text-white">
+                <X className="w-3.5 h-3.5 mr-1" /> Cancel Selection
               </Button>
             </div>
-            <div
-              className={`mb-4 rounded-xl border border-dashed p-4 text-sm transition ${dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragActive(false);
-                const file = event.dataTransfer.files?.[0] || null;
-                handleFile(file);
-              }}
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">Drop student files here or browse manually</p>
-                  <p className="text-muted-foreground">Supports CSV, Excel and structured PDF files.</p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log("Browse Files clicked");
-                    console.log(fileInputRef.current);
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Browse Files
-                </Button>
-              </div>
-            </div>
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name, roll, email" className="pl-10" />
-            </div>
-            <div className="mb-4 grid gap-3 md:grid-cols-3">
-              <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">All Years</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">Final Year</option>
-              </select>
-              <Input value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }} placeholder="Filter by branch" />
-              <select value={`${sortField}:${sortDirection}`} onChange={(e) => { const [field, direction] = e.target.value.split(':'); setSortField(field); setSortDirection(direction); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="name:ASC">Name (A-Z)</option>
-                <option value="name:DESC">Name (Z-A)</option>
-                <option value="year:ASC">Year (Low-High)</option>
-                <option value="year:DESC">Year (High-Low)</option>
-                <option value="department:ASC">Branch (A-Z)</option>
-              </select>
-            </div>
-            {loading ? <div className="text-sm text-muted-foreground">Loading students...</div> : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Roll No</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.id}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.academicYear}</TableCell>
-                        <TableCell>{student.department}</TableCell>
-                        <TableCell>{student.email}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => startEdit(student)}><Pencil className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteStudent(student.id)}><Trash2 className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => router.push(`/student/${encodeURIComponent(student.id)}`)}><Eye className="w-4 h-4" /></Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            <div className="flex justify-between mt-4">
-              <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-              <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
-              <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
-            </div>
-          </Card>
+          </div>
+        )}
 
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2"><FileUp className="w-5 h-5" /> <h2 className="text-xl font-semibold">Import Report</h2></div>
-            {report ? (
-              <div className="space-y-4 text-sm">
-                <div>Total Records: <strong>{report.totalRecords}</strong></div>
-                
-                {(() => {
-                  const count = Array.isArray(report.imported) ? report.imported.length : Number(report.imported || 0);
-                  return (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
-                      <div className="flex items-center gap-1">Imported : <strong>{count}</strong></div>
-                      {count > 0 && (
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setShowImportedDetails(true)} className="h-7 text-xs flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5" /> View Details
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('imported')} className="h-7 text-xs flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5" /> Download CSV
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+        <Card className="p-4 sm:p-6 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name, roll, email" className="pl-10 text-xs sm:text-sm h-10" />
+          </div>
 
-                {(() => {
-                  const count = Array.isArray(report.updated) ? report.updated.length : Number(report.updated || 0);
-                  return (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
-                      <div className="flex items-center gap-1">Updated : <strong>{count}</strong></div>
-                      {count > 0 && (
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setShowUpdatedDetails(true)} className="h-7 text-xs flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5" /> View Details
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('updated')} className="h-7 text-xs flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5" /> Download CSV
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+          {/* Filters & Sorting */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-xs sm:text-sm">
+              <option value="">All Years</option>
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">Final Year</option>
+            </select>
+            <Input value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }} placeholder="Filter by branch" className="text-xs sm:text-sm h-10" />
+            <select value={`${sortField}:${sortDirection}`} onChange={(e) => { const [field, direction] = e.target.value.split(':'); setSortField(field); setSortDirection(direction); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-xs sm:text-sm">
+              <option value="name:ASC">Name (A-Z)</option>
+              <option value="name:DESC">Name (Z-A)</option>
+              <option value="year:ASC">Year (Low-High)</option>
+              <option value="year:DESC">Year (High-Low)</option>
+              <option value="department:ASC">Branch (A-Z)</option>
+            </select>
+          </div>
 
-                {(() => {
-                  const count = Array.isArray(report.skipped) ? report.skipped.length : Number(report.skipped || 0);
-                  return (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
-                      <div className="flex items-center gap-1">Skipped : <strong>{count}</strong></div>
-                      {count > 0 && (
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setShowSkippedDetails(true)} className="h-7 text-xs flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5" /> View Details
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('skipped')} className="h-7 text-xs flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5" /> Download CSV
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {(() => {
-                  const count = Array.isArray(report.errors) ? report.errors.length : Number(report.errors || 0);
-                  return (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-2">
-                      <div className="flex items-center gap-1">Errors : <strong>{count}</strong></div>
-                      {count > 0 && (
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setShowErrorsDetails(true)} className="h-7 text-xs flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5" /> View Details
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => downloadCategoryCSV('errors')} className="h-7 text-xs flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5" /> Download CSV
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                <div>Time Taken: <strong>{report.timeTakenMs} ms</strong></div>
-              </div>
-            ) : <p className="text-sm text-muted-foreground">No import yet. Upload a file to preview and import students.</p>}
-            <div className="rounded-lg border p-4">
-              <h3 className="font-semibold mb-3">Upload Requirements</h3>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Excel (.xlsx/.xls), CSV, or structured PDF</li>
-                <li>• Drag and drop or browse files</li>
-                <li>• Validations run before insert</li>
-              </ul>
-            </div>
-          </Card>
-        </div>
-
-        <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-6xl">
-            <DialogHeader>
-              <DialogTitle>Preview Student Import</DialogTitle>
-              <DialogDescription>Confirm the records before database changes take effect.</DialogDescription>
-            </DialogHeader>
-            <div className="max-h-[60vh] overflow-auto rounded-md border">
+          {/* Students Table */}
+          {loading ? <div className="text-sm text-muted-foreground py-8 text-center">Loading students...</div> : (
+            <div className="rounded-xl border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Row</TableHead>
-                    <TableHead>Roll No</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Branch</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Errors</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        onChange={handleSelectAll}
+                        className="rounded border-slate-300"
+                        title="Select all currently listed students"
+                      />
+                    </TableHead>
+                    <TableHead className="font-bold">Roll No</TableHead>
+                    <TableHead className="font-bold">Name</TableHead>
+                    <TableHead className="font-bold">Year</TableHead>
+                    <TableHead className="font-bold">Branch</TableHead>
+                    <TableHead className="font-bold">Email</TableHead>
+                    <TableHead className="font-bold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewRows.map((row) => (
-                    <TableRow key={row.rowNumber}>
-                      <TableCell>{row.rowNumber}</TableCell>
-                      <TableCell>{row.rollNumber}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.yearLabel || '-'}</TableCell>
-                      <TableCell>{row.branch}</TableCell>
-                      <TableCell>{row.email}</TableCell>
-                      <TableCell><Badge variant={row.valid ? 'default' : 'secondary'}>{row.status}</Badge></TableCell>
-                      <TableCell>{row.errors.join(', ') || 'None'}</TableCell>
+                  {filteredStudents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-8">
+                        No students found.
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredStudents.map((student) => {
+                      const isSelected = selectedStudents.includes(student.id);
+
+                      return (
+                        <TableRow key={student.id} className={isSelected ? 'bg-primary/5' : ''}>
+                          <TableCell className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleSelectStudent(student.id)}
+                              className="rounded border-slate-300"
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-xs font-mono">{student.id}</TableCell>
+                          <TableCell className="text-xs font-semibold">{student.name}</TableCell>
+                          <TableCell className="text-xs">{student.academicYear}</TableCell>
+                          <TableCell className="text-xs">{student.department}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{student.email}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => startEdit(student)} title="Edit Student" className="h-8 w-8"><Pencil className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => deleteStudent(student.id)} title="Delete Student" className="h-8 w-8 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => router.push(`/student/${encodeURIComponent(student.id)}`)} title="View Student" className="h-8 w-8 text-blue-600"><Eye className="w-3.5 h-3.5" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowPreview(false)}>Cancel</Button>
-              <Button onClick={confirmImport} disabled={importing}>{importing ? 'Importing...' : 'Confirm Import'}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          )}
 
-        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-          <DialogContent className="max-w-md w-full p-6">
-            <DialogHeader>
-              <DialogTitle>Add Student</DialogTitle>
-              <DialogDescription>
-                Fill in the details below to add a new student.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddStudent} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Roll Number *</label>
-                <Input
-                  required
-                  value={addForm.rollNumber}
-                  onChange={(e) => setAddForm({ ...addForm, rollNumber: e.target.value })}
-                  placeholder="e.g. 24B81A05Q5"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Student Name *</label>
-                <Input
-                  required
-                  value={addForm.name}
-                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                  placeholder="e.g. NALLA NEELIMA"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Department *</label>
-                <Input
-                  required
-                  value={addForm.department}
-                  onChange={(e) => setAddForm({ ...addForm, department: e.target.value })}
-                  placeholder="e.g. CSE"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Year *</label>
-                <select
-                  required
-                  value={addForm.year}
-                  onChange={(e) => setAddForm({ ...addForm, year: e.target.value })}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">Select Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">Final Year</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Email (Optional)</label>
-                <Input
-                  value={addForm.email}
-                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-                  placeholder="e.g. student@example.com"
-                  type="email"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={addLoading}>
-                  {addLoading ? 'Saving...' : 'Add Student'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+          {/* Pagination */}
+          <div className="flex justify-between items-center mt-4 pt-2 border-t">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+            <span className="text-xs text-muted-foreground font-medium">Page {page} of {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+          </div>
+        </Card>
 
+        {/* MODAL 1: SINGLE EDIT DIALOG */}
         <Dialog open={!!editStudent} onOpenChange={(open) => !open && setEditStudent(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-md w-[95vw] rounded-2xl p-4 sm:p-6">
             <DialogHeader>
-              <DialogTitle>Edit Student</DialogTitle>
+              <DialogTitle className="text-lg font-bold">Edit Student</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
-              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Name" />
-              <Input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" />
-              <Input value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} placeholder="Branch" />
-              <Input value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} placeholder="Year" />
-              <div className="flex justify-end gap-2">
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Name</label>
+                <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Name" className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Email</label>
+                <Input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Branch</label>
+                <Input value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} placeholder="Branch" className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Year</label>
+                <Input value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} placeholder="Year" className="h-9 text-xs" />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t">
                 <Button variant="outline" onClick={() => setEditStudent(null)}>Cancel</Button>
                 <Button onClick={saveEdit}>Save</Button>
               </div>
@@ -744,177 +407,101 @@ export default function AdminStudentsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showImportedDetails} onOpenChange={setShowImportedDetails}>
-          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        {/* MODAL 2: BULK DELETE CONFIRMATION */}
+        <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+          <DialogContent className="max-w-md p-6">
             <DialogHeader>
-              <DialogTitle>Imported Students (New)</DialogTitle>
-              <DialogDescription>A list of newly inserted student records.</DialogDescription>
+              <DialogTitle className="text-lg font-bold text-rose-600 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" /> Delete Selected Students?
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                You are about to permanently delete {selectedStudents.length} selected student account(s).
+              </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-auto rounded-md border my-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Branch</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Imported At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report?.imported?.map((s: any, idx: number) => (
-                    <TableRow key={s.rollNo || idx}>
-                      <TableCell className="font-medium">{s.rollNo}</TableCell>
-                      <TableCell>{s.name}</TableCell>
-                      <TableCell>{s.email || '-'}</TableCell>
-                      <TableCell>{s.branch}</TableCell>
-                      <TableCell>{s.year}</TableCell>
-                      <TableCell>{s.importedAt ? new Date(s.importedAt).toLocaleString() : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowImportedDetails(false)}>Close</Button>
+
+            <p className="text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 p-3 rounded-xl border border-rose-200 dark:border-rose-900 font-semibold my-2">
+              This action cannot be undone. All selected student accounts, profile data, project references, and permissions will be permanently removed.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowBulkDeleteModal(false)} disabled={actionLoading}>Cancel</Button>
+              <Button variant="destructive" onClick={handleBulkDelete} disabled={actionLoading}>
+                {actionLoading ? 'Deleting...' : 'Delete Students'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showUpdatedDetails} onOpenChange={setShowUpdatedDetails}>
-          <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+        {/* MODAL 3: BULK MODIFY */}
+        <Dialog open={showBulkModifyModal} onOpenChange={setShowBulkModifyModal}>
+          <DialogContent className="max-w-md p-6">
             <DialogHeader>
-              <DialogTitle>Updated Students</DialogTitle>
-              <DialogDescription>A log of student profiles that were modified with their changes.</DialogDescription>
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-blue-600" /> Bulk Modify Students
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Update attributes for {selectedStudents.length} selected student(s).
+              </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-auto rounded-md border my-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Updated Field</TableHead>
-                    <TableHead>Old Value</TableHead>
-                    <TableHead>New Value</TableHead>
-                    <TableHead>Updated At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const rows: any[] = [];
-                    if (report?.updated) {
-                      report.updated.forEach((s: any) => {
-                        (s.changes || []).forEach((change: any, changeIdx: number) => {
-                          rows.push({
-                            key: `${s.rollNo}-${change.field}-${changeIdx}`,
-                            rollNo: s.rollNo,
-                            name: s.name,
-                            field: change.field,
-                            oldValue: change.oldValue,
-                            newValue: change.newValue,
-                            updatedAt: s.updatedAt
-                          });
-                        });
-                      });
-                    }
-                    if (rows.length === 0) {
-                      return (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-4">No changes detected.</TableCell>
-                        </TableRow>
-                      );
-                    }
-                    return rows.map((row) => (
-                      <TableRow key={row.key}>
-                        <TableCell className="font-medium">{row.rollNo}</TableCell>
-                        <TableCell>{row.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{row.field}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground line-through">{row.oldValue || '-'}</TableCell>
-                        <TableCell className="text-green-600 font-medium">{row.newValue || '-'}</TableCell>
-                        <TableCell>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-'}</TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowUpdatedDetails(false)}>Close</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
-        <Dialog open={showSkippedDetails} onOpenChange={setShowSkippedDetails}>
-          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Skipped Records</DialogTitle>
-              <DialogDescription>Records that were bypassed during the import process.</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-auto rounded-md border my-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Reason</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report?.skipped?.map((s: any, idx: number) => (
-                    <TableRow key={s.rollNo || idx}>
-                      <TableCell className="font-medium">{s.rollNo || 'N/A'}</TableCell>
-                      <TableCell>{s.name || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
-                          {s.reason}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowSkippedDetails(false)}>Close</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-3.5 py-2 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground block">Branch</label>
+                <select
+                  value={bulkModifyForm.branch}
+                  onChange={(e) => setBulkModifyForm({ ...bulkModifyForm, branch: e.target.value })}
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="KEEP_EXISTING">Keep Existing</option>
+                  <option value="CSE">CSE</option>
+                  <option value="ECE">ECE</option>
+                  <option value="AIML">AIML</option>
+                  <option value="CSM">CSM</option>
+                  <option value="CSD">CSD</option>
+                  <option value="EEE">EEE</option>
+                  <option value="MECH">MECH</option>
+                  <option value="CIVIL">CIVIL</option>
+                </select>
+              </div>
 
-        <Dialog open={showErrorsDetails} onOpenChange={setShowErrorsDetails}>
-          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Failed / Error Records</DialogTitle>
-              <DialogDescription>Records containing errors or validation failures that need correction.</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-auto rounded-md border my-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Reason</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report?.errors?.map((s: any, idx: number) => (
-                    <TableRow key={s.rollNo || idx}>
-                      <TableCell className="font-medium text-destructive">{s.rollNo || 'N/A'}</TableCell>
-                      <TableCell>{s.name || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">
-                          {s.reason}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground block">Year</label>
+                <select
+                  value={bulkModifyForm.year}
+                  onChange={(e) => setBulkModifyForm({ ...bulkModifyForm, year: e.target.value })}
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="KEEP_EXISTING">Keep Existing</option>
+                  <option value="1st">1st Year</option>
+                  <option value="2nd">2nd Year</option>
+                  <option value="3rd">3rd Year</option>
+                  <option value="Final">Final Year</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground block">Section</label>
+                <select
+                  value={bulkModifyForm.section}
+                  onChange={(e) => setBulkModifyForm({ ...bulkModifyForm, section: e.target.value })}
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="KEEP_EXISTING">Keep Existing</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                  <option value="C">Section C</option>
+                  <option value="D">Section D</option>
+                  <option value="E">Section E</option>
+                  <option value="F">Section F</option>
+                </select>
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowErrorsDetails(false)}>Close</Button>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowBulkModifyModal(false)} disabled={actionLoading}>Cancel</Button>
+              <Button onClick={handleBulkModify} disabled={actionLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {actionLoading ? 'Updating...' : 'Update Selected Students'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

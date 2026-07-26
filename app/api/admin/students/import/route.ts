@@ -3,6 +3,7 @@ import { getPool, query } from '@/lib/db';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { buildStudentImportPreviewRows, extractRowsFromPdfText, normalizeRowKeys, toYearLabel } from '@/lib/student-import';
 import { validateRegistrationNo } from '@/lib/validation';
+import { generateBatchId, recordImportBatch } from '@/lib/services/import-batches';
 import * as XLSX from 'xlsx';
 
 function getFileType(fileName: string): 'excel' | 'csv' | 'pdf' | 'unknown' {
@@ -528,6 +529,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Generate unique Batch ID for this import session
+      const batchId = await generateBatchId();
+      const importType = isJson ? 'manual' : 'import';
+
       // Execute SQL operations inside transaction
       if (importedList.length > 0) {
         const chunkSize = 1000;
@@ -543,13 +548,15 @@ export async function POST(request: NextRequest) {
             item.rawValues.phone || '',
             item.rawValues.branch,
             item.rawValues.section || 'E',
-            null
+            null,
+            batchId,
+            importType
           ]);
 
           await connection.query(
             `
             INSERT INTO students (
-              id, name, registration_no, year, course, email, mobile_no, department, section, password_hash
+              id, name, registration_no, year, course, email, mobile_no, department, section, password_hash, batch_id, import_type
             ) VALUES ?
             ON DUPLICATE KEY UPDATE
               name = VALUES(name),
@@ -559,6 +566,8 @@ export async function POST(request: NextRequest) {
               mobile_no = VALUES(mobile_no),
               department = VALUES(department),
               section = VALUES(section),
+              batch_id = VALUES(batch_id),
+              import_type = VALUES(import_type),
               updated_at = CURRENT_TIMESTAMP
             `,
             [studentValues]
@@ -610,6 +619,7 @@ export async function POST(request: NextRequest) {
             mobile_no = ?,
             department = ?,
             section = ?,
+            batch_id = ?,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
           `,
@@ -621,6 +631,7 @@ export async function POST(request: NextRequest) {
             item.rawValues.phone || '',
             item.rawValues.branch,
             item.rawValues.section || 'E',
+            batchId,
             item.rawValues.rollNumber
           ]
         );
@@ -635,9 +646,31 @@ export async function POST(request: NextRequest) {
       const cleanUpdated = updatedList.map(({ rawValues, ...rest }) => rest);
       const cleanSkipped = skippedList;
       const cleanErrors = errorsList;
+      const durationMs = Date.now() - startedAt;
+
+      // Record batch in import_batches table
+      await recordImportBatch({
+        id: batchId,
+        file_name: file ? file.name : (isJson ? 'Manual Entry' : 'Student Import'),
+        imported_by: request.headers.get('x-admin-email') || 'Admin',
+        total_records: rows.length,
+        imported_count: cleanImported.length,
+        updated_count: cleanUpdated.length,
+        skipped_count: cleanSkipped.length,
+        failed_count: cleanErrors.length,
+        duration_ms: durationMs,
+        status: cleanErrors.length > 0 ? (cleanImported.length > 0 ? 'Partial' : 'Failed') : 'Completed',
+        import_details: {
+          imported: cleanImported,
+          updated: cleanUpdated,
+          skipped: cleanSkipped,
+          errors: cleanErrors
+        }
+      });
 
       return Response.json({
         success: true,
+        batchId,
         totalRecords: rows.length,
         importedCount: cleanImported.length,
         updatedCount: cleanUpdated.length,
@@ -647,7 +680,7 @@ export async function POST(request: NextRequest) {
         updated: cleanUpdated,
         skipped: cleanSkipped,
         errors: cleanErrors,
-        timeTakenMs: Date.now() - startedAt,
+        timeTakenMs: durationMs,
       });
     } catch (error: any) {
       console.log("Transaction committed? NO");

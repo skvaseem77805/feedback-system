@@ -109,7 +109,7 @@ export default function StudentRegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success(data.message || 'OTP Sent Successfully.');
+        toast.success(data.message || 'OTP Sent Successfully via Email.');
         setStep('otp');
         setResendTimer(30);
       } else {
@@ -186,7 +186,7 @@ export default function StudentRegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success('OTP Sent Successfully.');
+        toast.success('OTP Sent Successfully via Email.');
         setResendTimer(30);
       } else {
         setOtpError(data.error || 'Failed to resend OTP.');
@@ -355,7 +355,7 @@ export default function StudentRegisterPage() {
               <input
                 id="registrationNo"
                 type="text"
-                placeholder="E.g. 24B81A05R2"
+                placeholder="Enter your Registration Number"
                 value={registrationNo}
                 onChange={(e) => {
                   setRegistrationNo(e.target.value);

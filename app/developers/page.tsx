@@ -223,12 +223,12 @@ export default function DevelopersPage() {
         </section>
 
         {/* SECTION 2: OUR DEVELOPERS */}
-        <section className="relative rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-white via-slate-50/70 to-blue-50/20 border border-slate-200/80 shadow-xl shadow-blue-500/5 p-4 sm:p-10 md:p-14 overflow-hidden">
-          <div className="relative z-10 space-y-6 sm:space-y-8">
+        <section className="relative rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-white via-slate-50/70 to-blue-50/20 border border-slate-200/80 shadow-xl shadow-blue-500/5 px-3 py-3 sm:p-10 md:p-14 overflow-hidden">
+          <div className="relative z-10 space-y-3 sm:space-y-8">
             {/* Header */}
-            <div className="text-center max-w-3xl mx-auto space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center mx-auto shadow-xs">
-                <Code2 className="w-6 h-6 sm:w-7 sm:h-7 text-primary" strokeWidth={1.75} />
+            <div className="text-center max-w-3xl mx-auto space-y-1.5 sm:space-y-3">
+              <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center mx-auto shadow-xs">
+                <Code2 className="w-5 h-5 sm:w-7 sm:h-7 text-primary" strokeWidth={1.75} />
               </div>
 
               <h2 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase">
@@ -239,40 +239,42 @@ export default function DevelopersPage() {
                 Meet the passionate team behind CRR Project Hub.
               </p>
 
-              <div className="w-10 sm:w-12 h-1 bg-primary rounded-full mx-auto mt-2 sm:mt-4" />
+              <div className="w-10 sm:w-12 h-1 bg-primary rounded-full mx-auto mt-1.5 sm:mt-4" />
             </div>
 
             {/* Interactive Group Photo */}
-            <div className="max-w-4xl mx-auto rounded-[20px] sm:rounded-[28px] overflow-hidden border border-slate-200 shadow-2xl relative bg-slate-100 group">
-              <img
-                src="/developers-team.jpg"
-                alt="CRR Project Hub Developers Team"
-                className="w-full h-auto block select-none pointer-events-none"
-              />
+            <div className="max-w-4xl mx-auto space-y-2.5 sm:space-y-6">
+              <div className="rounded-[20px] sm:rounded-[28px] overflow-hidden border border-slate-200 shadow-2xl relative bg-slate-100 group">
+                <img
+                  src="/developers-team.jpg"
+                  alt="CRR Project Hub Developers Team"
+                  className="w-full h-auto block select-none pointer-events-none"
+                />
 
-              {/* 4 Clickable Overlay Regions (Mapped left to right 1..4) */}
-              <div className="absolute inset-0 grid grid-cols-4">
-                {DEVELOPERS.map((dev) => (
-                  <button
-                    key={dev.id}
-                    onClick={() => setSelectedDev(dev)}
-                    className="h-full w-full relative focus:outline-none group/dev cursor-pointer hover:bg-primary/10 transition-colors flex flex-col justify-end p-2 sm:p-4"
-                    title={`Click to view ${dev.name}'s profile`}
-                  >
-                    {/* Hover Badge */}
-                    <div className="opacity-0 group-hover/dev:opacity-100 transition-all duration-200 bg-slate-900/90 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold shadow-lg text-center flex items-center justify-center gap-1 transform translate-y-2 group-hover/dev:translate-y-0">
-                      <span className="truncate max-w-[90px] sm:max-w-none">{dev.name}</span>
-                      <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                    </div>
-                  </button>
-                ))}
+                {/* 4 Clickable Overlay Regions (Mapped left to right 1..4) */}
+                <div className="absolute inset-0 grid grid-cols-4">
+                  {DEVELOPERS.map((dev) => (
+                    <button
+                      key={dev.id}
+                      onClick={() => setSelectedDev(dev)}
+                      className="h-full w-full relative focus:outline-none group/dev cursor-pointer hover:bg-primary/10 transition-colors flex flex-col justify-end p-2 sm:p-4"
+                      title={`Click to view ${dev.name}'s profile`}
+                    >
+                      {/* Hover Badge */}
+                      <div className="opacity-0 group-hover/dev:opacity-100 transition-all duration-200 bg-slate-900/90 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold shadow-lg text-center flex items-center justify-center gap-1 transform translate-y-2 group-hover/dev:translate-y-0">
+                        <span className="truncate max-w-[90px] sm:max-w-none">{dev.name}</span>
+                        <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Subtle Hint Text Below Image */}
-            <p className="text-center text-xs sm:text-sm font-medium text-muted-foreground tracking-wide">
-              Tap any team member to explore their profile.
-            </p>
+              {/* Subtle Hint Text Immediately Below Image */}
+              <p className="text-center text-xs sm:text-sm font-medium text-slate-500 sm:text-muted-foreground tracking-wide">
+                Tap any team member to explore their profile.
+              </p>
+            </div>
           </div>
         </section>
       </main>

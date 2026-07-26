@@ -15,6 +15,8 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from '@/compone
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import Link from 'next/link';
 
+import { smartFilterItems } from '@/lib/smart-search';
+
 function toRecord(s: ApiStudent) {
   return {
     userId: s.userId,
@@ -122,14 +124,9 @@ export default function SelectStudentPage() {
 
   // Filter logic (combining search, year, department, and section)
   useEffect(() => {
-    const q = searchQuery.toLowerCase().trim();
-    const filtered = students.filter((student) => {
-      const matchSearch =
-        !q ||
-        student.name.toLowerCase().includes(q) ||
-        student.userId.toLowerCase().includes(q) ||
-        (student.email && student.email.toLowerCase().includes(q));
+    const q = searchQuery.trim();
 
+    const categoryFiltered = students.filter((student) => {
       const matchYear =
         !filterYear ||
         (student.year !== undefined && student.year !== null && (
@@ -164,9 +161,23 @@ export default function SelectStudentPage() {
         !filterSection ||
         (student.section || '').toLowerCase().trim() === filterSection.toLowerCase().trim();
 
-      return matchSearch && matchYear && matchDept && matchSection;
+      return matchYear && matchDept && matchSection;
     });
-    setFilteredStudents(filtered);
+
+    if (!q) {
+      setFilteredStudents(categoryFiltered);
+    } else {
+      const searched = smartFilterItems(categoryFiltered, q, [
+        { field: 'name', weight: 2.0 },
+        { field: 'userId', weight: 1.8 },
+        { field: 'registrationNo', weight: 1.8 },
+        { field: 'email', weight: 1.5 },
+        { field: 'department', weight: 1.2 },
+        { field: 'section', weight: 1.0 },
+        { field: (s) => (s as any).skills, weight: 1.2 },
+      ]);
+      setFilteredStudents(searched);
+    }
   }, [searchQuery, filterYear, filterDept, filterSection, students]);
 
   if (isLoading) {

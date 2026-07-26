@@ -8,6 +8,8 @@ import { apiProjects, apiStudents } from '@/lib/api';
 import type { ApiProject, ApiStudent } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
+import { smartFilterItems } from '@/lib/smart-search';
+
 export const GlobalSearch = forwardRef<HTMLInputElement, { className?: string; inputClassName?: string }>(
   ({ className = '', inputClassName = '' }, ref) => {
   const router = useRouter();
@@ -49,40 +51,27 @@ export const GlobalSearch = forwardRef<HTMLInputElement, { className?: string; i
   };
 
   const getFilteredSuggestions = () => {
-    const q = debouncedQuery.toLowerCase().trim();
+    const q = debouncedQuery.trim();
     if (!q) return { students: [], projects: [] };
 
-    const matchedStudents = students
-      .filter((s) => {
-        const name = (s.name || '').toLowerCase();
-        const regNo = (s.registrationNo || '').toLowerCase();
-        const sid = (s.id || '').toLowerCase();
-        const uniq = (s.uniqueId || '').toLowerCase();
+    const matchedStudents = smartFilterItems(students, q, [
+      { field: 'name', weight: 2.0 },
+      { field: 'registrationNo', weight: 1.8 },
+      { field: 'id', weight: 1.8 },
+      { field: 'uniqueId', weight: 1.8 },
+      { field: 'email', weight: 1.5 },
+      { field: 'department', weight: 1.0 },
+      { field: 'skills', weight: 1.2 },
+    ]).slice(0, 8);
 
-        return (
-          name.includes(q) ||
-          regNo.includes(q) ||
-          sid.includes(q) ||
-          uniq.includes(q)
-        );
-      })
-      .slice(0, 8);
-
-    const matchedProjects = projects
-      .filter((p) => {
-        const title = (p.title || '').toLowerCase();
-        const desc = (p.description || '').toLowerCase();
-        const cat = (p.category || '').toLowerCase();
-        const dept = (p.studentDepartment || '').toLowerCase();
-
-        return (
-          title.includes(q) ||
-          desc.includes(q) ||
-          cat.includes(q) ||
-          dept.includes(q)
-        );
-      })
-      .slice(0, 8);
+    const matchedProjects = smartFilterItems(projects, q, [
+      { field: 'title', weight: 2.0 },
+      { field: 'studentName', weight: 1.8 },
+      { field: 'studentId', weight: 1.5 },
+      { field: 'category', weight: 1.3 },
+      { field: 'studentDepartment', weight: 1.0 },
+      { field: 'description', weight: 0.8 },
+    ]).slice(0, 8);
 
     return { students: matchedStudents, projects: matchedProjects };
   };

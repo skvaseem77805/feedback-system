@@ -21,6 +21,7 @@ import {
   Loader2,
   Bookmark,
 } from 'lucide-react';
+import { smartFilterItems } from '@/lib/smart-search';
 
 interface CollaborationsModalProps {
   studentId: string;
@@ -71,19 +72,17 @@ export function CollaborationsModal({
     loadCollaborations();
   }, [isOpen, studentId]);
 
-  // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
     let result = [...projects];
 
     // Filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(query) ||
-          p.ownerName.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
-      );
+      result = smartFilterItems(result, searchQuery.trim(), [
+        { field: 'title', weight: 2.0 },
+        { field: 'ownerName', weight: 1.8 },
+        { field: 'category', weight: 1.5 },
+        { field: 'description', weight: 1.0 },
+      ]);
     }
 
     // Sort

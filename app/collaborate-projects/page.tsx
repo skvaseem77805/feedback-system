@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { smartFilterItems } from '@/lib/smart-search';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -58,18 +59,24 @@ export default function CollaborateProjectsPage() {
     load();
   }, [currentStudentId]);
 
-  const filteredProjects = projects.filter((p) => {
-    const q = searchQuery.toLowerCase();
-    const matchSearch =
-      !q ||
-      p.title.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q);
-    const matchStatus =
-      selectedStatus === 'all' ||
-      (selectedStatus === 'open' && !p.collaborators.includes(currentStudentId)) ||
-      (selectedStatus === 'active' && p.collaborators.includes(currentStudentId));
-    return matchSearch && matchStatus;
-  });
+  const filteredProjects = useMemo(() => {
+    const statusFiltered = projects.filter((p) => {
+      const matchStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'open' && !p.collaborators.includes(currentStudentId)) ||
+        (selectedStatus === 'active' && p.collaborators.includes(currentStudentId));
+      return matchStatus;
+    });
+
+    if (!searchQuery.trim()) return statusFiltered;
+
+    return smartFilterItems(statusFiltered, searchQuery.trim(), [
+      { field: 'title', weight: 2.0 },
+      { field: 'description', weight: 1.5 },
+      { field: 'category', weight: 1.2 },
+      { field: 'studentName', weight: 1.2 },
+    ]);
+  }, [projects, searchQuery, selectedStatus, currentStudentId]);
 
   const handleJoinProject = async (project: ApiProject) => {
     if (!currentStudentId) return;

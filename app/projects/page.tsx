@@ -19,6 +19,8 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 
 
+import { scoreTextMatch } from '@/lib/smart-search';
+
 const yearsList = [
   { value: '', label: 'All' },
   { value: '1st', label: '1st Year' },
@@ -196,28 +198,17 @@ function ProjectsPageContent() {
   }, [filterBranch, availableSections, filterSection]);
 
   const getRelevanceScore = (project: ApiProject, query: string) => {
-    if (!query) return 0;
-    const q = query.toLowerCase().trim();
-    const title = (project.title || '').toLowerCase().trim();
-    const name = (project.studentName || '').toLowerCase().trim();
-    const sid = (project.studentId || '').toLowerCase().trim();
-    const desc = (project.description || '').toLowerCase().trim();
-    const cat = (project.category || '').toLowerCase().trim();
-    const dept = (project.studentDepartment || '').toLowerCase().trim();
-    const year = (project.academicYear || '').toLowerCase().trim();
+    if (!query || !query.trim()) return 0;
 
-    if (title === q) return 1000;
-    if (title.startsWith(q)) return 500;
-    if (title.includes(q)) return 400;
-    if (name.startsWith(q)) return 300;
-    if (name.includes(q)) return 250;
-    if (sid.startsWith(q)) return 200;
-    if (sid.includes(q)) return 150;
-    if (desc.includes(q)) return 100;
-    if (cat.includes(q)) return 80;
-    if (dept.includes(q)) return 60;
-    if (year.includes(q)) return 40;
-    return 0;
+    const titleScore = scoreTextMatch(project.title, query) * 2.0;
+    const nameScore = scoreTextMatch(project.studentName, query) * 1.8;
+    const sidScore = scoreTextMatch(project.studentId, query) * 1.5;
+    const catScore = scoreTextMatch(project.category, query) * 1.3;
+    const deptScore = scoreTextMatch(project.studentDepartment, query) * 1.0;
+    const descScore = scoreTextMatch(project.description, query) * 0.8;
+    const yearScore = scoreTextMatch(project.academicYear, query) * 0.5;
+
+    return Math.max(titleScore, nameScore, sidScore, catScore, deptScore, descScore, yearScore);
   };
 
   const filteredProjects = useMemo(() => {
@@ -248,30 +239,17 @@ function ProjectsPageContent() {
 
         if (!matchYear || !matchBranch || !matchSection) return false;
 
-        const q = debouncedSearch.toLowerCase().trim();
+        const q = debouncedSearch.trim();
         if (!q) return true;
 
-        const title = (p.title || '').toLowerCase();
-        const desc = (p.description || '').toLowerCase();
-        const name = (p.studentName || '').toLowerCase();
-        const sid = (p.studentId || '').toLowerCase();
-
-        return (
-          title.includes(q) ||
-          desc.includes(q) ||
-          name.includes(q) ||
-          sid.includes(q) ||
-          title.startsWith(q) || title.endsWith(q) ||
-          name.startsWith(q) || name.endsWith(q) ||
-          sid.startsWith(q) || sid.endsWith(q)
-        );
+        return getRelevanceScore(p, q) > 0;
       })
       .sort((a, b) => {
         const scoreA = getRelevanceScore(a, debouncedSearch);
         const scoreB = getRelevanceScore(b, debouncedSearch);
         return scoreB - scoreA;
       });
-  }, [projects, filterYear, filterBranch, debouncedSearch]);
+  }, [projects, filterYear, filterBranch, filterSection, debouncedSearch]);
 
   const toggleLike = async (project: ApiProject) => {
     if (!currentStudentId) return;

@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ChevronLeft } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowLeft, ArrowRight, User, Mail, Lock, Eye, EyeOff, ShieldCheck, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateRegistrationNo } from '@/lib/validation';
 
@@ -20,6 +17,8 @@ export default function StudentRegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // OTP state
   const [otp, setOtp] = useState('');
@@ -29,6 +28,10 @@ export default function StudentRegisterPage() {
   // General errors
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Validation helper for reg number check icon
+  const regNoValidation = validateRegistrationNo(registrationNo);
+  const isRegNoValid = regNoValidation.isValid;
 
   // Resend OTP countdown
   useEffect(() => {
@@ -197,37 +200,55 @@ export default function StudentRegisterPage() {
 
   if (step === 'otp') {
     return (
-      <Card className="w-full max-w-md mx-auto bg-background/95 border border-border shadow-md rounded-lg">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setStep('form')}
-              className="h-8 w-8 hover:bg-accent p-0"
-              disabled={isLoading}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <CardTitle className="text-xl font-bold text-foreground">Email Verification</CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Enter the code sent to {email}
-              </CardDescription>
-            </div>
+      <div className="min-h-screen w-full flex flex-col justify-between items-center py-6 px-4 sm:px-6 relative z-10">
+        {/* Top Header */}
+        <div className="w-full max-w-md flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => setStep('form')}
+            className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md text-white border border-white/20 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-md cursor-pointer"
+            disabled={isLoading}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
+          <div className="w-11 h-11 rounded-full border-2 border-white/40 shadow-xl bg-white p-0.5 flex items-center justify-center">
+            <Image
+              src="/crrprojecthublogo.png"
+              alt="CRR Project Hub Logo"
+              width={40}
+              height={40}
+              className="rounded-full object-cover"
+            />
           </div>
-        </CardHeader>
-        <form onSubmit={handleVerifyOtp}>
-          <CardContent className="space-y-4">
+
+          <div className="w-10" />
+        </div>
+
+        <div className="text-center my-3 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Email <span className="text-[#00D2A0]">Verification</span>
+          </h1>
+          <p className="text-xs sm:text-sm font-medium text-slate-200">
+            Enter the 6-digit code sent to {email}
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="w-full max-w-md bg-white text-slate-900 border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 space-y-5 my-auto">
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
             {otpError && (
-              <div className="bg-destructive/15 text-destructive p-3 rounded text-sm font-medium">
+              <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-xl text-xs font-medium">
                 {otpError}
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="otp">Verification Code (OTP)</Label>
-              <Input
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="otp" className="text-xs font-semibold text-slate-700 block">
+                Verification Code (OTP)
+              </label>
+              <input
                 id="otp"
                 type="text"
                 maxLength={6}
@@ -238,171 +259,266 @@ export default function StudentRegisterPage() {
                   setOtpError('');
                 }}
                 required
-                className="font-mono text-center text-lg tracking-widest"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-center text-lg font-mono tracking-widest focus:outline-none transition-colors"
               />
             </div>
 
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-muted-foreground">
+            <div className="flex justify-between items-center text-xs pt-1">
+              <span className="text-slate-500 font-medium">
                 {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Did not receive code?'}
               </span>
-              <Button
-                variant="link"
+              <button
                 type="button"
                 onClick={handleResendOtp}
                 disabled={resendTimer > 0 || isLoading}
-                className="text-xs text-primary hover:underline p-0 h-auto font-semibold"
+                className="text-xs text-[#00D2A0] hover:underline font-bold disabled:opacity-50 cursor-pointer"
               >
                 Resend OTP
-              </Button>
+              </button>
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button
+
+            <button
               type="submit"
-              className="w-full h-11 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground"
               disabled={isLoading || otp.length !== 6}
+              className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-[#00D2A0] hover:from-blue-700 hover:to-[#00B88C] text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 mt-2"
             >
-              {isLoading ? 'Verifying...' : 'Verify & Continue'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+              {isLoading ? (
+                <span>Verifying...</span>
+              ) : (
+                <>
+                  <span>Verify & Continue</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        <div className="pb-2" />
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-background/95 border border-border shadow-md rounded-lg">
-      <CardHeader className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/auth')}
-            className="h-8 w-8 hover:bg-accent p-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <CardTitle className="text-xl font-bold text-foreground">Student Registration</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Create Your Student Account
-            </CardDescription>
-          </div>
+    <div className="min-h-screen w-full flex flex-col justify-between items-center py-6 px-4 sm:px-6 relative z-10">
+      {/* Top Header */}
+      <div className="w-full max-w-md flex items-center justify-between pt-2">
+        <button
+          type="button"
+          onClick={() => router.push('/auth')}
+          className="w-10 h-10 rounded-full bg-slate-900/60 backdrop-blur-md text-white border border-white/20 flex items-center justify-center hover:bg-slate-800 transition-colors shadow-md cursor-pointer"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        <div className="w-11 h-11 rounded-full border-2 border-white/40 shadow-xl bg-white p-0.5 flex items-center justify-center">
+          <Image
+            src="/crrprojecthublogo.png"
+            alt="CRR Project Hub Logo"
+            width={40}
+            height={40}
+            className="rounded-full object-cover"
+          />
         </div>
-      </CardHeader>
-      <form onSubmit={handleSendOtp}>
-        <CardContent className="space-y-4">
+
+        <div className="w-10" />
+      </div>
+
+      <div className="text-center my-3 space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Create your <span className="text-[#00D2A0]">account</span>
+        </h1>
+        <p className="text-xs sm:text-sm font-medium text-slate-600">
+          Join Project Hub and start exploring
+        </p>
+      </div>
+
+      {/* Light Card Form */}
+      <div className="w-full max-w-md bg-white border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 space-y-4 text-slate-900 my-auto">
+        <form onSubmit={handleSendOtp} className="space-y-3.5">
           {error && (
-            <div className="bg-destructive/15 text-destructive p-3 rounded text-sm font-medium whitespace-pre-line">
+            <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-xl text-xs font-medium whitespace-pre-line">
               {error}
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="registrationNo">Registration Number *</Label>
-            <Input
-              id="registrationNo"
-              type="text"
-              placeholder="Enter Registration Number"
-              value={registrationNo}
-              onChange={(e) => {
-                setRegistrationNo(e.target.value);
-                setError('');
-              }}
-              required
-              className="font-mono uppercase"
-            />
+          {/* Registration Number Field */}
+          <div className="space-y-1 text-left">
+            <label htmlFor="registrationNo" className="text-xs font-semibold text-slate-700 block">
+              Registration Number *
+            </label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="registrationNo"
+                type="text"
+                placeholder="E.g. 24B81A05R2"
+                value={registrationNo}
+                onChange={(e) => {
+                  setRegistrationNo(e.target.value);
+                  setError('');
+                }}
+                required
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-sm font-mono uppercase focus:outline-none transition-colors"
+              />
+              {isRegNoValid && (
+                <Check className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Student Name *</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Enter your full name"
-              value={name}
-              onChange={(e) => {
-                let val = e.target.value.toUpperCase();
-                val = val.replace(/[^A-Z ]/g, '');
-                val = val.replace(/^ /, '');
-                val = val.replace(/ {2,}/g, ' ');
-                if (val.length > 20) {
-                  val = val.substring(0, 20);
-                }
-                setName(val);
-                setError('');
-              }}
-              required
-            />
+          {/* Student Name Field */}
+          <div className="space-y-1 text-left">
+            <label htmlFor="name" className="text-xs font-semibold text-slate-700 block">
+              Full Name *
+            </label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="name"
+                type="text"
+                placeholder="Enter your full name"
+                value={name}
+                onChange={(e) => {
+                  let val = e.target.value.toUpperCase();
+                  val = val.replace(/[^A-Z ]/g, '');
+                  val = val.replace(/^ /, '');
+                  val = val.replace(/ {2,}/g, ' ');
+                  if (val.length > 20) {
+                    val = val.substring(0, 20);
+                  }
+                  setName(val);
+                  setError('');
+                }}
+                required
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none transition-colors"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@email.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError('');
-              }}
-              required
-            />
+          {/* Email Address Field */}
+          <div className="space-y-1 text-left">
+            <label htmlFor="email" className="text-xs font-semibold text-slate-700 block">
+              Email Address *
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="email"
+                type="email"
+                placeholder="name@email.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                }}
+                required
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none transition-colors"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Create a strong password "
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError('');
-              }}
-              required
-            />
+          {/* Password Field */}
+          <div className="space-y-1 text-left">
+            <label htmlFor="password" className="text-xs font-semibold text-slate-700 block">
+              Password *
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Minimum 6 characters"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError('');
+                }}
+                required
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password *</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Re-enter the password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setError('');
-              }}
-              required
-            />
+          {/* Confirm Password Field */}
+          <div className="space-y-1 text-left">
+            <label htmlFor="confirmPassword" className="text-xs font-semibold text-slate-700 block">
+              Confirm Password *
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setError('');
+                }}
+                required
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-slate-200 focus:border-[#00D2A0] text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label="Toggle confirm password visibility"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-3">
-          <Button
+
+          {/* Secure Registration Note Box */}
+          <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-3 flex gap-2.5 text-xs text-blue-900 text-left my-2">
+            <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className="font-bold text-blue-950">Secure Registration</div>
+              <div className="text-blue-700/90 text-[11px] leading-tight">
+                We'll send a One Time Password (OTP) to your email for verification.
+              </div>
+            </div>
+          </div>
+
+          {/* Send OTP Button */}
+          <button
             type="submit"
-            className="w-full h-11 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground"
             disabled={isLoading}
+            className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-[#00D2A0] hover:from-blue-700 hover:to-[#00B88C] text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 mt-2"
           >
-            {isLoading ? 'Processing...' : 'Send OTP'}
-          </Button>
-          <div className="text-xs text-center text-muted-foreground">
-            Already have an account?{' '}
-            <Button
-              variant="link"
-              type="button"
-              onClick={() => router.push('/auth/student-login')}
-              className="text-xs text-primary hover:underline p-0 h-auto font-semibold"
-            >
-              Login here
-            </Button>
-          </div>
-        </CardFooter>
-      </form>
-    </Card>
+            {isLoading ? (
+              <span>Processing...</span>
+            ) : (
+              <>
+                <span>Send OTP</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Bottom Link */}
+      <div className="text-xs text-center text-slate-200 pb-2">
+        Already have an account?{' '}
+        <button
+          type="button"
+          onClick={() => router.push('/auth/student-login')}
+          className="font-bold text-[#00D2A0] hover:underline cursor-pointer"
+        >
+          Login here
+        </button>
+      </div>
+    </div>
   );
 }

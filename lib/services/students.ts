@@ -1,5 +1,6 @@
 import { cache, cacheKey } from '@/lib/cache';
 import { query } from '@/lib/db';
+import { smartFilterItems, tokenizeText } from '@/lib/smart-search';
 
 export async function getStudents(opts: { limit?: number; search?: string } = {}) {
   const key = cacheKey('students', opts);
@@ -21,13 +22,23 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
   const params: any[] = [];
 
   if (opts.search) {
-    sql += ` AND (s.name LIKE ? OR s.department LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.registration_no LIKE ?)`;
-    const likeValue = `%${opts.search}%`;
-    params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
+    const tokens = tokenizeText(opts.search);
+    if (tokens.length > 0) {
+      const searchConditions = tokens.map(() => `(s.name LIKE ? OR s.department LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.registration_no LIKE ?)`).join(' OR ');
+      sql += ` AND (${searchConditions})`;
+      for (const t of tokens) {
+        const likeValue = `%${t}%`;
+        params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
+      }
+    } else {
+      sql += ` AND (s.name LIKE ? OR s.department LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.registration_no LIKE ?)`;
+      const likeValue = `%${opts.search}%`;
+      params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
+    }
   }
 
   sql += ` ORDER BY s.name`;
-  if (limit > 0) sql += ` LIMIT ${Number(limit)}`;
+  if (limit > 0 && !opts.search) sql += ` LIMIT ${Number(limit)}`;
 
   let rows: any[] = [];
   try {
@@ -39,7 +50,7 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
     return [];
   }
 
-  const students = rows.map((s: any) => {
+  let students = rows.map((s: any) => {
     let skills: string[] = [];
 
     if (s.skills) {
@@ -73,6 +84,20 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
       collaborationsCount: Number(s.collaborations) || 0,
     };
   });
+
+  if (opts.search && opts.search.trim()) {
+    students = smartFilterItems(students, opts.search.trim(), [
+      { field: 'name', weight: 2.0 },
+      { field: 'registrationNo', weight: 1.8 },
+      { field: 'id', weight: 1.8 },
+      { field: 'email', weight: 1.5 },
+      { field: 'department', weight: 1.2 },
+      { field: 'skills', weight: 1.2 },
+    ]);
+    if (limit > 0) {
+      students = students.slice(0, limit);
+    }
+  }
 
   cache.set(key, students, 30 * 1000);
   return students;

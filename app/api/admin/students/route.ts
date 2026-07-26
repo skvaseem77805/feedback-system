@@ -24,6 +24,8 @@ function parseSortDirection(value: string | null): 'ASC' | 'DESC' {
     return value?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 }
 
+import { tokenizeText, smartFilterItems } from '@/lib/smart-search';
+
 export async function GET(request: NextRequest) {
 
     if (!isAdminAuthorized(request)) {
@@ -47,8 +49,18 @@ export async function GET(request: NextRequest) {
         const values: Array<string | number | null> = [];
 
         if (search) {
-            whereClauses.push('(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ?)');
-            values.push(like, like, like, like);
+            const tokens = tokenizeText(search);
+            if (tokens.length > 0) {
+                const tokenClauses = tokens.map(() => '(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ?)').join(' OR ');
+                whereClauses.push(`(${tokenClauses})`);
+                for (const t of tokens) {
+                    const tLike = `%${t}%`;
+                    values.push(tLike, tLike, tLike, tLike);
+                }
+            } else {
+                whereClauses.push('(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ?)');
+                values.push(like, like, like, like);
+            }
         }
 
         if (yearParam) {

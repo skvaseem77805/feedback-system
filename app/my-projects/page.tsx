@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
@@ -24,6 +24,7 @@ import { apiProjects, apiLikeProject, apiSaveProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
+import { smartFilterItems } from '@/lib/smart-search';
 
 export default function MyProjectsPage() {
   const router = useRouter();
@@ -122,20 +123,25 @@ export default function MyProjectsPage() {
     }
   };
 
-  // Filter projects by Title (case-insensitive)
-  const filteredProjects = projects.filter((project) =>
-    project.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  );
+  // Filter projects by Title, Description, Category, Tech, Tags, etc.
+  const filteredProjects = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return projects;
+    return smartFilterItems(projects, q, [
+      { field: 'title', weight: 2.0 },
+      { field: 'description', weight: 1.5 },
+      { field: 'category', weight: 1.2 },
+      { field: 'studentDepartment', weight: 1.0 },
+      { field: (p) => (p as any).technologies || (p as any).techStack, weight: 1.2 },
+      { field: (p) => (p as any).tags, weight: 1.2 },
+    ]);
+  }, [projects, searchQuery]);
 
   // Suggestions for autocomplete (titles matching searchQuery)
   const titleSuggestions = searchQuery.trim()
     ? Array.from(
         new Set(
-          projects
-            .filter((p) =>
-              p.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
-            )
-            .map((p) => p.title)
+          filteredProjects.map((p) => p.title)
         )
       ).slice(0, 5)
     : [];

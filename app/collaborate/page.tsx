@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Users, MessageSquare, User, Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Loading from './loading';
+import { smartFilterItems } from '@/lib/smart-search';
 
 interface Peer {
   id: string;
@@ -87,16 +88,25 @@ export default function CollaboratePage() {
   const years = ['2025', '2024', '2023', '2022'];
   const departments = ['CSE', 'IT', 'ECE', 'Mechanical', 'Civil'];
 
-  const filteredPeers = samplePeers.filter(peer => {
-    const matchSearch =
-      peer.name.toLowerCase().includes(search.toLowerCase()) ||
-      peer.projectTitle.toLowerCase().includes(search.toLowerCase()) ||
-      peer.interests.some(i => i.toLowerCase().includes(search.toLowerCase()));
-    const matchYear = !filterYear || peer.year === filterYear;
-    const matchDept = !filterDept || peer.department === filterDept;
-    const matchLooking = !onlyLooking || peer.lookingForCollaborators;
-    return matchSearch && matchYear && matchDept && matchLooking;
-  });
+  const filteredPeers = useMemo(() => {
+    const categoryFiltered = samplePeers.filter(peer => {
+      const matchYear = !filterYear || peer.year === filterYear;
+      const matchDept = !filterDept || peer.department === filterDept;
+      const matchLooking = !onlyLooking || peer.lookingForCollaborators;
+      return matchYear && matchDept && matchLooking;
+    });
+
+    const q = search.trim();
+    if (!q) return categoryFiltered;
+
+    return smartFilterItems(categoryFiltered, q, [
+      { field: 'name', weight: 2.0 },
+      { field: 'projectTitle', weight: 1.8 },
+      { field: 'department', weight: 1.2 },
+      { field: 'year', weight: 1.0 },
+      { field: (p) => p.interests, weight: 1.5 },
+    ]);
+  }, [search, filterYear, filterDept, onlyLooking]);
 
   return (
     <Suspense fallback={<Loading />}>

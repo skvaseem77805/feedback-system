@@ -245,10 +245,10 @@ export async function getAdminProjects(filter: AdminProjectFilter) {
   let where = 'WHERE 1=1';
   const params: any[] = [];
 
-  if (filter.search) {
-    where += ' AND (p.title LIKE ? OR p.description LIKE ? OR s.name LIKE ? OR s.registration_no LIKE ? OR p.id LIKE ?)';
-    const s = `%${filter.search}%`;
-    params.push(s, s, s, s, s);
+  if (filter.search && filter.search.trim()) {
+    where += ' AND (p.title LIKE ? OR p.description LIKE ? OR s.name LIKE ? OR s.registration_no LIKE ? OR p.id LIKE ? OR p.category LIKE ? OR p.tech_stack LIKE ? OR s.department LIKE ? OR s.section LIKE ?)';
+    const s = `%${filter.search.trim()}%`;
+    params.push(s, s, s, s, s, s, s, s, s);
   }
 
   if (filter.fromDate) {

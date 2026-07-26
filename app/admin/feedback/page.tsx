@@ -6,8 +6,10 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Trash2, CheckCircle2, Eye, EyeOff, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronLeft, Trash2, CheckCircle2, Eye, EyeOff, Clock, Search } from 'lucide-react';
 import Link from 'next/link';
+import { smartFilterItems } from '@/lib/smart-search';
 
 interface FeedbackSubmission {
   id: string;
@@ -24,6 +26,7 @@ export default function AdminFeedbackPage() {
   const router = useRouter();
   const [feedbackList, setFeedbackList] = useState<FeedbackSubmission[]>([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'resolved' | 'pending'>('all');
   const [loading, setLoading] = useState(true);
 
@@ -70,12 +73,24 @@ export default function AdminFeedbackPage() {
     localStorage.setItem('allFeedback', JSON.stringify(updated));
   };
 
-  const filteredFeedback = feedbackList.filter((f) => {
-    if (filter === 'unread') return !f.read;
-    if (filter === 'resolved') return f.resolved;
-    if (filter === 'pending') return !f.resolved;
-    return true;
-  });
+  const filteredFeedback = (() => {
+    const categoryFiltered = feedbackList.filter((f) => {
+      if (filter === 'unread') return !f.read;
+      if (filter === 'resolved') return f.resolved;
+      if (filter === 'pending') return !f.resolved;
+      return true;
+    });
+
+    const q = searchQuery.trim();
+    if (!q) return categoryFiltered;
+
+    return smartFilterItems(categoryFiltered, q, [
+      { field: 'subject', weight: 2.0 },
+      { field: 'message', weight: 1.8 },
+      { field: 'userId', weight: 1.5 },
+      { field: 'userRole', weight: 1.2 },
+    ]);
+  })();
 
   if (!isAuthorized) {
     return null;
@@ -146,18 +161,29 @@ export default function AdminFeedbackPage() {
           </Card>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {(['all', 'unread', 'resolved', 'pending'] as const).map((f) => (
-            <Button
-              key={f}
-              variant={filter === f ? 'default' : 'outline'}
-              onClick={() => setFilter(f)}
-              className="capitalize"
-            >
-              {f === 'all' ? 'All Feedback' : f.charAt(0).toUpperCase() + f.slice(1)}
-            </Button>
-          ))}
+        {/* Search Bar & Filter Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center justify-between">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search feedback by subject, message, user ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 text-xs sm:text-sm"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            {(['all', 'unread', 'resolved', 'pending'] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? 'default' : 'outline'}
+                onClick={() => setFilter(f)}
+                className="capitalize text-xs sm:text-sm"
+              >
+                {f === 'all' ? 'All Feedback' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Feedback List */}

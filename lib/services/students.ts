@@ -92,6 +92,9 @@ export async function getStudents(opts: { limit?: number; search?: string } = {}
       { field: 'id', weight: 1.8 },
       { field: 'email', weight: 1.5 },
       { field: 'department', weight: 1.2 },
+      { field: 'section', weight: 1.0 },
+      { field: (s) => (s.year ? `${s.year} year` : ''), weight: 1.0 },
+      { field: 'academicYear', weight: 1.0 },
       { field: 'skills', weight: 1.2 },
     ]);
     if (limit > 0) {

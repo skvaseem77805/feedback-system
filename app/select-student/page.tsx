@@ -174,6 +174,8 @@ export default function SelectStudentPage() {
         { field: 'email', weight: 1.5 },
         { field: 'department', weight: 1.2 },
         { field: 'section', weight: 1.0 },
+        { field: (s) => (s.year ? `${s.year} year` : ''), weight: 1.0 },
+        { field: (s) => (s as any).academicYear, weight: 1.0 },
         { field: (s) => (s as any).skills, weight: 1.2 },
       ]);
       setFilteredStudents(searched);

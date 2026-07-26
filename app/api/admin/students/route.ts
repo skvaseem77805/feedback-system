@@ -51,15 +51,15 @@ export async function GET(request: NextRequest) {
         if (search) {
             const tokens = tokenizeText(search);
             if (tokens.length > 0) {
-                const tokenClauses = tokens.map(() => '(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ?)').join(' OR ');
+                const tokenClauses = tokens.map(() => '(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.department LIKE ? OR s.section LIKE ?)').join(' OR ');
                 whereClauses.push(`(${tokenClauses})`);
                 for (const t of tokens) {
                     const tLike = `%${t}%`;
-                    values.push(tLike, tLike, tLike, tLike);
+                    values.push(tLike, tLike, tLike, tLike, tLike, tLike);
                 }
             } else {
-                whereClauses.push('(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ?)');
-                values.push(like, like, like, like);
+                whereClauses.push('(s.name LIKE ? OR s.registration_no LIKE ? OR s.email LIKE ? OR s.id LIKE ? OR s.department LIKE ? OR s.section LIKE ?)');
+                values.push(like, like, like, like, like, like);
             }
         }
 

@@ -75,6 +75,9 @@ export default function CollaborateProjectsPage() {
       { field: 'description', weight: 1.5 },
       { field: 'category', weight: 1.2 },
       { field: 'studentName', weight: 1.2 },
+      { field: 'studentDepartment', weight: 1.0 },
+      { field: (p) => (p as any).technologies || (p as any).techStack, weight: 1.2 },
+      { field: (p) => (p as any).tags, weight: 1.2 },
     ]);
   }, [projects, searchQuery, selectedStatus, currentStudentId]);
 

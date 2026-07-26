@@ -61,6 +61,9 @@ export const GlobalSearch = forwardRef<HTMLInputElement, { className?: string; i
       { field: 'uniqueId', weight: 1.8 },
       { field: 'email', weight: 1.5 },
       { field: 'department', weight: 1.0 },
+      { field: (s) => (s.year ? `${s.year} year` : ''), weight: 1.0 },
+      { field: 'academicYear', weight: 1.0 },
+      { field: 'section', weight: 1.0 },
       { field: 'skills', weight: 1.2 },
     ]).slice(0, 8);
 
@@ -71,6 +74,10 @@ export const GlobalSearch = forwardRef<HTMLInputElement, { className?: string; i
       { field: 'category', weight: 1.3 },
       { field: 'studentDepartment', weight: 1.0 },
       { field: 'description', weight: 0.8 },
+      { field: (p) => (p as any).technologies || (p as any).techStack, weight: 1.2 },
+      { field: (p) => (p as any).tags, weight: 1.2 },
+      { field: 'fileName', weight: 1.0 },
+      { field: (p) => p.collaboratorNames || [], weight: 1.2 },
     ]).slice(0, 8);
 
     return { students: matchedStudents, projects: matchedProjects };

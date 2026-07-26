@@ -1,20 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ExternalLink, Trash2, Bookmark, Share2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ExternalLink, Trash2, Bookmark, Share2, Search } from 'lucide-react';
 import { apiProjects, apiSaveProject } from '@/lib/api';
 import type { ApiProject } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
+import { smartFilterItems } from '@/lib/smart-search';
 
 export default function SavedProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const currentStudentId = getCurrentStudentId() ?? '';
 
@@ -29,8 +32,6 @@ export default function SavedProjectsPage() {
       setShareOpen(true);
     }
   };
-
-
 
   useEffect(() => {
     if (!currentStudentId) {
@@ -52,6 +53,20 @@ export default function SavedProjectsPage() {
 
     loadSavedProjects();
   }, [currentStudentId, router]);
+
+  const filteredProjects = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return projects;
+    return smartFilterItems(projects, q, [
+      { field: 'title', weight: 2.0 },
+      { field: 'description', weight: 1.5 },
+      { field: 'category', weight: 1.2 },
+      { field: 'studentName', weight: 1.2 },
+      { field: 'studentDepartment', weight: 1.0 },
+      { field: (p) => (p as any).technologies || (p as any).techStack, weight: 1.2 },
+      { field: (p) => (p as any).tags, weight: 1.2 },
+    ]);
+  }, [projects, searchQuery]);
 
   const handleRemoveFromSaved = async (projectId: string) => {
     try {
@@ -77,13 +92,26 @@ export default function SavedProjectsPage() {
           </p>
         </div>
 
+        {/* Search Bar */}
+        {projects.length > 0 && (
+          <div className="relative max-w-md mb-8">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search saved projects by title, desc, student..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10 text-xs sm:text-sm rounded-xl bg-card/60 border-border/60"
+            />
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12 text-muted-foreground animate-pulse">
             Loading saved projects...
           </div>
-        ) : projects.length > 0 ? (
+        ) : filteredProjects.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <Card key={project.id} className="p-5 bg-card/50 backdrop-blur-sm border-primary/20 hover-lift smooth-transition group flex flex-col justify-between">
                 <div className="space-y-4">
                   {project.thumbnailUrl && (
@@ -146,6 +174,18 @@ export default function SavedProjectsPage() {
               </Card>
             ))}
           </div>
+        ) : searchQuery ? (
+          <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20 max-w-md mx-auto">
+            <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+            <p className="text-muted-foreground mb-2 text-lg font-semibold">No saved projects found</p>
+            <p className="text-muted-foreground text-sm mb-6">Try searching with a different keyword.</p>
+            <Button
+              className="smooth-button bg-primary text-primary-foreground font-bold text-xs"
+              onClick={() => setSearchQuery('')}
+            >
+              Clear Search
+            </Button>
+          </Card>
         ) : (
           <Card className="p-12 text-center bg-card/50 backdrop-blur-sm border-primary/20 max-w-md mx-auto">
             <Bookmark className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

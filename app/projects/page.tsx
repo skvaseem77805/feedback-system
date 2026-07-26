@@ -208,7 +208,24 @@ function ProjectsPageContent() {
     const descScore = scoreTextMatch(project.description, query) * 0.8;
     const yearScore = scoreTextMatch(project.academicYear, query) * 0.5;
 
-    return Math.max(titleScore, nameScore, sidScore, catScore, deptScore, descScore, yearScore);
+    const techVal = (project as any).technologies || (project as any).techStack || '';
+    const techScore = Array.isArray(techVal)
+      ? Math.max(...techVal.map((t: string) => scoreTextMatch(t, query)), 0) * 1.5
+      : scoreTextMatch(String(techVal), query) * 1.5;
+
+    const tagsVal = (project as any).tags || '';
+    const tagsScore = Array.isArray(tagsVal)
+      ? Math.max(...tagsVal.map((t: string) => scoreTextMatch(t, query)), 0) * 1.5
+      : scoreTextMatch(String(tagsVal), query) * 1.5;
+
+    const fileScore = scoreTextMatch(project.fileName || '', query) * 1.0;
+
+    const collabNames = project.collaboratorNames || [];
+    const collabScore = collabNames.length > 0
+      ? Math.max(...collabNames.map((c: string) => scoreTextMatch(c, query)), 0) * 1.5
+      : 0;
+
+    return Math.max(titleScore, nameScore, sidScore, catScore, deptScore, descScore, yearScore, techScore, tagsScore, fileScore, collabScore);
   };
 
   const filteredProjects = useMemo(() => {

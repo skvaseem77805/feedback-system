@@ -16,6 +16,7 @@ import { apiStudents, apiConnections, apiConnectionRequest, apiConnectionAccept 
 import type { ApiStudent } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
 import ConnectLoading from './loading';
+import { smartFilterItems } from '@/lib/smart-search';
 
 function ConnectContent() {
   const [students, setStudents] = useState<ApiStudent[]>([]);
@@ -46,17 +47,27 @@ function ConnectContent() {
   }, [currentStudentId]);
 
   useEffect(() => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.trim();
     const me = currentStudentId;
-    const filtered = students.filter(
-      (s) =>
-        (!me || s.id !== me) &&
-        (q === '' ||
-          s.name.toLowerCase().includes(q) ||
-          (s.bio && s.bio.toLowerCase().includes(q)) ||
-          (s.skills && s.skills.some((sk) => sk.toLowerCase().includes(q))))
-    );
-    setFilteredStudents(filtered);
+    const baseList = students.filter((s) => !me || s.id !== me);
+
+    if (!q) {
+      setFilteredStudents(baseList);
+    } else {
+      const filtered = smartFilterItems(baseList, q, [
+        { field: 'name', weight: 2.0 },
+        { field: 'registrationNo', weight: 1.8 },
+        { field: 'id', weight: 1.8 },
+        { field: 'email', weight: 1.5 },
+        { field: 'department', weight: 1.2 },
+        { field: 'section', weight: 1.0 },
+        { field: 'academicYear', weight: 1.0 },
+        { field: (s) => (s.year ? `${s.year} year` : ''), weight: 1.0 },
+        { field: 'bio', weight: 1.0 },
+        { field: (s) => s.skills || [], weight: 1.2 },
+      ]);
+      setFilteredStudents(filtered);
+    }
   }, [searchQuery, students, currentStudentId]);
 
   const handleSearch = (query: string) => setSearchQuery(query);

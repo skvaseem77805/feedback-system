@@ -200,9 +200,9 @@ export default function StudentRegisterPage() {
 
   if (step === 'otp') {
     return (
-      <div className="min-h-screen w-full flex flex-col justify-between items-center py-6 px-4 sm:px-6 relative z-10">
+      <div className="min-h-screen w-full flex flex-col justify-center items-center py-6 px-4 sm:px-6 relative z-10">
         {/* Top Header */}
-        <div className="w-full max-w-md flex items-center justify-between pt-2">
+        <div className="w-full max-w-md flex items-center justify-between mb-3">
           <button
             type="button"
             onClick={() => setStep('form')}
@@ -212,32 +212,34 @@ export default function StudentRegisterPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-
-          <div className="w-11 h-11 rounded-full border-2 border-white/40 shadow-xl bg-white p-0.5 flex items-center justify-center">
-            <Image
-              src="/crrprojecthublogo.png"
-              alt="CRR Project Hub Logo"
-              width={40}
-              height={40}
-              className="rounded-full object-cover"
-            />
-          </div>
-
-          <div className="w-10" />
-        </div>
-
-        <div className="text-center my-3 space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Email <span className="text-[#00D2A0]">Verification</span>
-          </h1>
-          <p className="text-xs sm:text-sm font-medium text-slate-200">
-            Enter the 6-digit code sent to {email}
-          </p>
         </div>
 
         {/* Card */}
-        <div className="w-full max-w-md bg-white text-slate-900 border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 space-y-5 my-auto">
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
+        <div className="w-full max-w-md bg-white text-slate-900 border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 pt-8 sm:pt-10 space-y-6 my-auto">
+          {/* Centered Logo Inside Card */}
+          <div className="flex justify-center">
+            <div className="w-14 h-14 rounded-full border-2 border-slate-100 shadow-md bg-white p-0.5 flex items-center justify-center">
+              <Image
+                src="/crrprojecthublogo.png"
+                alt="CRR Project Hub Logo"
+                width={48}
+                height={48}
+                className="rounded-full object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Heading */}
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Email <span className="text-[#00D2A0]">Verification</span>
+            </h1>
+            <p className="text-xs sm:text-sm font-medium text-slate-600">
+              Enter the 6-digit code sent to {email}
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyOtp} className="space-y-4 pt-2">
             {otpError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-xl text-xs font-medium">
                 {otpError}
@@ -293,16 +295,14 @@ export default function StudentRegisterPage() {
             </button>
           </form>
         </div>
-
-        <div className="pb-2" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between items-center py-6 px-4 sm:px-6 relative z-10">
+    <div className="min-h-screen w-full flex flex-col justify-center items-center py-6 px-4 sm:px-6 relative z-10">
       {/* Top Header */}
-      <div className="w-full max-w-md flex items-center justify-between pt-2">
+      <div className="w-full max-w-md flex items-center justify-between mb-3">
         <button
           type="button"
           onClick={() => router.push('/auth')}
@@ -311,32 +311,34 @@ export default function StudentRegisterPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-
-        <div className="w-11 h-11 rounded-full border-2 border-white/40 shadow-xl bg-white p-0.5 flex items-center justify-center">
-          <Image
-            src="/crrprojecthublogo.png"
-            alt="CRR Project Hub Logo"
-            width={40}
-            height={40}
-            className="rounded-full object-cover"
-          />
-        </div>
-
-        <div className="w-10" />
-      </div>
-
-      <div className="text-center my-3 space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Create your <span className="text-[#00D2A0]">account</span>
-        </h1>
-        <p className="text-xs sm:text-sm font-medium text-slate-600">
-          Join Project Hub and start exploring
-        </p>
       </div>
 
       {/* Light Card Form */}
-      <div className="w-full max-w-md bg-white border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 space-y-4 text-slate-900 my-auto">
-        <form onSubmit={handleSendOtp} className="space-y-3.5">
+      <div className="w-full max-w-md bg-white border border-slate-200/80 shadow-2xl rounded-[28px] p-6 sm:p-8 pt-8 sm:pt-10 space-y-5 text-slate-900 my-auto">
+        {/* Centered Logo Inside Card */}
+        <div className="flex justify-center">
+          <div className="w-14 h-14 rounded-full border-2 border-slate-100 shadow-md bg-white p-0.5 flex items-center justify-center">
+            <Image
+              src="/crrprojecthublogo.png"
+              alt="CRR Project Hub Logo"
+              width={48}
+              height={48}
+              className="rounded-full object-cover"
+            />
+          </div>
+        </div>
+
+        {/* Heading Inside Card */}
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Create your <span className="text-[#00D2A0]">account</span>
+          </h1>
+          <p className="text-xs sm:text-sm font-medium text-slate-600">
+            Join Project Hub and start exploring
+          </p>
+        </div>
+
+        <form onSubmit={handleSendOtp} className="space-y-3.5 pt-2">
           {error && (
             <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-xl text-xs font-medium whitespace-pre-line">
               {error}
@@ -509,7 +511,7 @@ export default function StudentRegisterPage() {
       </div>
 
       {/* Bottom Link */}
-      <div className="text-xs text-center text-slate-200 pb-2">
+      <div className="text-xs text-center text-slate-200 mt-4 pb-2">
         Already have an account?{' '}
         <button
           type="button"

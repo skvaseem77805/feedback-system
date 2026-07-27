@@ -367,8 +367,7 @@ export async function bulkModifyStudents(params: {
 
   if (branch && branch !== 'KEEP_EXISTING') {
     updates.push('department = ?');
-    updates.push('course = ?');
-    sqlParams.push(branch, branch);
+    sqlParams.push(branch);
   }
 
   if (updates.length === 0) {

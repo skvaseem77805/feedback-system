@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
 
     if (branch && branch !== 'KEEP_EXISTING') {
       updates.push('department = ?');
-      updates.push('course = ?');
-      params.push(branch, branch);
+      params.push(branch);
     }
 
     if (year && year !== 'KEEP_EXISTING') {

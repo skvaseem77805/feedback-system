@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
       let existingStudents: any[] = [];
       if (rollNumbersToQuery.length > 0) {
         const [dbRows] = await connection.query(
-          'SELECT id, name, year, course, email, mobile_no, department, section FROM students WHERE id IN (?)',
+          'SELECT id, name, year, email, mobile_no, department, section FROM students WHERE id IN (?)',
           [rollNumbersToQuery]
         );
         existingStudents = dbRows as any[];
@@ -543,7 +543,6 @@ export async function POST(request: NextRequest) {
             item.rawValues.name,
             item.rawValues.rollNumber,
             item.rawValues.year,
-            item.rawValues.branch,
             item.rawValues.email || '',
             item.rawValues.phone || '',
             item.rawValues.branch,
@@ -556,12 +555,11 @@ export async function POST(request: NextRequest) {
           await connection.query(
             `
             INSERT INTO students (
-              id, name, registration_no, year, course, email, mobile_no, department, section, password_hash, batch_id, import_type
+              id, name, registration_no, year, email, mobile_no, department, section, password_hash, batch_id, import_type
             ) VALUES ?
             ON DUPLICATE KEY UPDATE
               name = VALUES(name),
               year = VALUES(year),
-              course = VALUES(course),
               email = VALUES(email),
               mobile_no = VALUES(mobile_no),
               department = VALUES(department),
@@ -614,7 +612,6 @@ export async function POST(request: NextRequest) {
           UPDATE students SET
             name = ?,
             year = ?,
-            course = ?,
             email = ?,
             mobile_no = ?,
             department = ?,
@@ -626,7 +623,6 @@ export async function POST(request: NextRequest) {
           [
             item.rawValues.name,
             item.rawValues.year,
-            item.rawValues.branch,
             item.rawValues.email || '',
             item.rawValues.phone || '',
             item.rawValues.branch,

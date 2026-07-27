@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         name: row.name,
         registrationNo: row.registration_no,
         year: row.year,
-        course: row.course,
+        course: row.department ? `B.Tech- ${row.department}` : 'B.Tech',
         email: row.email || '',
         mobileNo: row.mobile_no || '',
         department: row.department || 'CSE',

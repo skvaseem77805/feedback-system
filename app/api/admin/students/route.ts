@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
                 name: row.name,
                 registrationNo: row.registration_no,
                 year: Number(row.year),
-                course: row.course,
+                course: row.department ? `B.Tech- ${row.department}` : 'B.Tech',
                 email: row.email || '',
                 mobileNo: row.mobile_no || '',
                 department: row.department || 'CSE',
@@ -180,7 +180,6 @@ export async function POST(request: NextRequest) {
         const name = parseString(body?.name);
         const registrationNo = parseString(body?.registrationNo || body?.registration_no || studentId);
         const year = Number(body?.year ?? body?.academicYear ?? 0);
-        const course = parseString(body?.course || body?.branch);
         const email = parseString(body?.email).toLowerCase();
         const mobileNo = parseString(body?.mobileNo || body?.phone);
         const department = parseString(body?.department || body?.branch || 'CSE');
@@ -209,19 +208,19 @@ export async function POST(request: NextRequest) {
                 await connection.query(
                     `
             UPDATE students
-            SET name = ?, registration_no = ?, year = ?, course = ?, email = ?, mobile_no = ?, department = ?, section = ?, linkedin_url = ?, github_url = ?, bio = ?, skills = ?, avatar = ?
+            SET name = ?, registration_no = ?, year = ?, email = ?, mobile_no = ?, department = ?, section = ?, linkedin_url = ?, github_url = ?, bio = ?, skills = ?, avatar = ?
             WHERE id = ?
           `,
-                    [name, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null, studentId]
+                    [name, registrationNo, Number.isFinite(year) ? year : 2, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null, studentId]
                 );
             } else {
                 await connection.query(
                     `
             INSERT INTO students (
-              id, name, registration_no, year, course, email, mobile_no, department, section, linkedin_url, github_url, bio, skills, avatar
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              id, name, registration_no, year, email, mobile_no, department, section, linkedin_url, github_url, bio, skills, avatar
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-                    [studentId, name, registrationNo, Number.isFinite(year) ? year : 2, course, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null]
+                    [studentId, name, registrationNo, Number.isFinite(year) ? year : 2, email, mobileNo, department, section, linkedinUrl || null, githubUrl || null, bio || null, JSON.stringify(skills), avatar || null]
                 );
             }
 

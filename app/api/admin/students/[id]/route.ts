@@ -35,7 +35,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       setField('registration_no', validation.cleaned);
     }
     if (body.year !== undefined) setField('year', Number(body.year));
-    if (body.course !== undefined) setField('course', body.course);
     if (body.email !== undefined) setField('email', body.email);
     if (body.department !== undefined) setField('department', body.department);
     if (body.section !== undefined) setField('section', body.section);
@@ -120,7 +119,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const existingCols = new Set((dbCols || []).map(c => (c as any).Field));
 
     const optionalColumns = [
-      'course',
       'mobile_no',
       'linkedin_url',
       'github_url',
@@ -183,7 +181,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       name: row.name,
       registrationNo: row.registration_no,
       year: row.year,
-      course: row.course ?? undefined,
+      course: row.department ? `B.Tech- ${row.department}` : 'B.Tech',
       email: row.email || '',
       mobileNo: row.mobile_no || '',
       department: row.department || 'CSE',

@@ -11,13 +11,29 @@ async function handleRes<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+const clientCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL_MS = 10000; // 10 seconds client memory cache for fast navigation
+
 export async function apiStudents(params?: { limit?: number; search?: string }): Promise<ApiStudent[]> {
   const q = new URLSearchParams();
   if (typeof params?.limit === 'number') q.set('limit', String(params.limit));
   if (typeof params?.search === 'string' && params.search.trim()) q.set('search', params.search.trim());
   const query = q.toString();
+  const cacheKey = `students:${query}`;
+
+  if (typeof window !== 'undefined') {
+    const cached = clientCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data;
+    }
+  }
+
   const res = await fetch(`${BASE}/api/students${query ? `?${query}` : ''}`);
-  return handleRes<ApiStudent[]>(res);
+  const data = await handleRes<ApiStudent[]>(res);
+  if (typeof window !== 'undefined') {
+    clientCache.set(cacheKey, { data, expiry: Date.now() + CACHE_TTL_MS });
+  }
+  return data;
 }
 
 export async function apiStudent(id: string): Promise<ApiStudent | null> {
@@ -85,8 +101,21 @@ export async function apiProjects(params?: { studentId?: string; category?: stri
   if (typeof params?.offset === 'number') q.set('offset', String(params.offset));
   if (params?.sort) q.set('sort', params.sort);
   const query = q.toString();
+  const cacheKey = `projects:${query}`;
+
+  if (typeof window !== 'undefined') {
+    const cached = clientCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data;
+    }
+  }
+
   const res = await fetch(`${BASE}/api/projects${query ? `?${query}` : ''}`);
-  return handleRes<ApiProject[]>(res);
+  const data = await handleRes<ApiProject[]>(res);
+  if (typeof window !== 'undefined') {
+    clientCache.set(cacheKey, { data, expiry: Date.now() + CACHE_TTL_MS });
+  }
+  return data;
 }
 
 export async function apiProject(id: string, forUserId?: string): Promise<ApiProject | null> {

@@ -27,17 +27,28 @@ interface StudentRow {
   createdAt?: string;
 }
 
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
+
 export default function AdminStudentsPage() {
   const router = useRouter();
+  const savedState = loadPageState('admin_students', {
+    search: '',
+    yearFilter: '',
+    branchFilter: '',
+    sortField: 'name',
+    sortDirection: 'ASC',
+    page: 1,
+  });
+
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentRow[]>([]);
-  const [search, setSearch] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
-  const [branchFilter, setBranchFilter] = useState('');
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('ASC');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(savedState.search);
+  const [yearFilter, setYearFilter] = useState(savedState.yearFilter);
+  const [branchFilter, setBranchFilter] = useState(savedState.branchFilter);
+  const [sortField, setSortField] = useState(savedState.sortField);
+  const [sortDirection, setSortDirection] = useState(savedState.sortDirection);
+  const [page, setPage] = useState(savedState.page);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
@@ -81,6 +92,21 @@ export default function AdminStudentsPage() {
     loadStudents();
   }, [router]);
 
+  useEffect(() => {
+    savePageState('admin_students', { search, yearFilter, branchFilter, sortField, sortDirection, page });
+  }, [search, yearFilter, branchFilter, sortField, sortDirection, page]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('admin_students');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const loadStudents = async () => {
     setLoading(true);
     try {
@@ -106,6 +132,7 @@ export default function AdminStudentsPage() {
       setError(err.message || 'Failed to load students');
     } finally {
       setLoading(false);
+      restoreScrollPosition('admin_students');
     }
   };
 
@@ -239,7 +266,6 @@ export default function AdminStudentsPage() {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      <Toaster />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8 space-y-6">
         {/* Top Header */}
         <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-8">

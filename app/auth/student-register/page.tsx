@@ -148,15 +148,49 @@ export default function StudentRegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success(data.message || 'OTP Verified Successfully.');
-        // Store in localStorage for temporary setup use or redirection
-        localStorage.setItem('tempRegNo', registrationNo.trim().toUpperCase());
-        localStorage.setItem('tempEmail', email.trim());
-        localStorage.setItem('tempName', name.trim());
+        const trimmedRegNo = registrationNo.trim().toUpperCase();
+        const trimmedName = name.trim();
+        const trimmedEmail = email.trim();
+
+        // Automatic Login Attempt
+        try {
+          const loginRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ registrationNo: trimmedRegNo, password })
+          });
+          const loginData = await loginRes.json();
+
+          if (loginRes.ok && loginData.success) {
+            toast.success('Registration & Login Successful!');
+            localStorage.setItem('userType', 'student');
+            localStorage.setItem('studentId', trimmedRegNo);
+            localStorage.setItem('currentStudentId', trimmedRegNo);
+            localStorage.setItem('studentName', loginData.user?.name || trimmedName);
+            localStorage.setItem('studentEmail', loginData.user?.email || trimmedEmail);
+            
+            if (loginData.profile) {
+              localStorage.setItem('studentDepartment', loginData.profile.department || 'CSE');
+              localStorage.setItem('year', String(loginData.profile.year || '2nd Year'));
+              localStorage.setItem('studentSection', loginData.profile.section || 'A');
+            }
+
+            // Redirect directly to profile/dashboard
+            router.push('/profile');
+            return;
+          }
+        } catch (loginErr) {
+          console.warn('Auto-login attempt failed:', loginErr);
+        }
+
+        // If auto-login fallback: store temp items for complete-profile or prompt login
+        localStorage.setItem('tempRegNo', trimmedRegNo);
+        localStorage.setItem('tempEmail', trimmedEmail);
+        localStorage.setItem('tempName', trimmedName);
         localStorage.setItem('tempPassword', password);
 
-        // Redirect to Complete Profile
-        router.push(`/auth/complete-profile?regNo=${encodeURIComponent(registrationNo.trim().toUpperCase())}`);
+        toast.info('Your account has been created successfully. Please sign in using your Registration Number and Password.');
+        router.push(`/auth/complete-profile?regNo=${encodeURIComponent(trimmedRegNo)}`);
       } else {
         setOtpError(data.error || 'Incorrect OTP.');
       }

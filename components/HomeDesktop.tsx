@@ -203,13 +203,13 @@ export function HomeDesktop() {
               </svg>
               <div className="relative z-10 text-center space-y-6">
                 <div className="flex flex-wrap justify-center gap-3">
-                  <Badge className="bg-primary/20 text-primary px-3 py-1 rounded-full">
+                  <Badge className="bg-blue-500/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-500/30 px-3 py-1 rounded-full font-semibold">
                     JNTUK Affiliated
                   </Badge>
-                  <Badge className="bg-secondary/20 text-secondary px-3 py-1 rounded-full">
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-semibold">
                     AICTE Approved
                   </Badge>
-                  <Badge className="bg-accent/20 text-accent px-3 py-1 rounded-full">
+                  <Badge className="bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-semibold">
                     NAAC 'A' Grade
                   </Badge>
                 </div>

@@ -14,16 +14,35 @@ import { getCurrentStudentId } from '@/lib/statsTracker';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 import { smartFilterItems } from '@/lib/smart-search';
 
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
+
 export default function SavedProjectsPage() {
   const router = useRouter();
+  const savedState = loadPageState('saved_projects', { searchQuery: '' });
+
   const [projects, setProjects] = useState<ApiProject[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(savedState.searchQuery);
   const [loading, setLoading] = useState(true);
   const currentStudentId = getCurrentStudentId() ?? '';
 
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [shareTitle, setShareTitle] = useState("");
+
+  useEffect(() => {
+    savePageState('saved_projects', { searchQuery });
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('saved_projects');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleShareClick = (projectId: string, title: string) => {
     if (typeof window !== "undefined") {
@@ -48,6 +67,7 @@ export default function SavedProjectsPage() {
         console.error('Failed to load saved projects:', e);
       } finally {
         setLoading(false);
+        restoreScrollPosition('saved_projects');
       }
     };
 

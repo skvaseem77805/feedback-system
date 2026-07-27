@@ -26,13 +26,17 @@ import { getCurrentStudentId } from '@/lib/statsTracker';
 import { ShareBottomSheet } from '@/components/ShareBottomSheet';
 import { smartFilterItems } from '@/lib/smart-search';
 
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
+
 export default function MyProjectsPage() {
   const router = useRouter();
+  const savedState = loadPageState('my_projects', { searchQuery: '', sortOrder: 'latest' as 'latest' | 'oldest' });
+
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(savedState.searchQuery);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'latest' | 'oldest'>('latest');
+  const [sortOrder, setSortOrder] = useState<'latest' | 'oldest'>(savedState.sortOrder);
 
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
@@ -40,6 +44,21 @@ export default function MyProjectsPage() {
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const currentStudentId = getCurrentStudentId() ?? '';
+
+  useEffect(() => {
+    savePageState('my_projects', { searchQuery, sortOrder });
+  }, [searchQuery, sortOrder]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('my_projects');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!currentStudentId) {
@@ -59,6 +78,7 @@ export default function MyProjectsPage() {
         console.error('Failed to load my projects:', err);
       } finally {
         setLoading(false);
+        restoreScrollPosition('my_projects');
       }
     };
 

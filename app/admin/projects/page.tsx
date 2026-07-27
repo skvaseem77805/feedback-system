@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
 import { Toaster } from '@/components/ui/sonner';
 
 interface AdminProjectRow {
@@ -85,6 +86,15 @@ interface ActivityLog {
 
 export default function AdminProjectsPage() {
   const router = useRouter();
+  const savedState = loadPageState('admin_projects', {
+    search: '',
+    fromDate: '',
+    toDate: '',
+    deptFilter: '',
+    sectionFilter: '',
+    page: 1,
+  });
+
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -105,7 +115,7 @@ export default function AdminProjectsPage() {
 
   // Table Data & Pagination
   const [projects, setProjects] = useState<AdminProjectRow[]>([]);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(savedState.page);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -114,11 +124,15 @@ export default function AdminProjectsPage() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
   // Filters & Search
-  const [search, setSearch] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [deptFilter, setDeptFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
+  const [search, setSearch] = useState(savedState.search);
+  const [fromDate, setFromDate] = useState(savedState.fromDate);
+  const [toDate, setToDate] = useState(savedState.toDate);
+  const [deptFilter, setDeptFilter] = useState(savedState.deptFilter);
+  const [sectionFilter, setSectionFilter] = useState(savedState.sectionFilter);
+
+  useEffect(() => {
+    savePageState('admin_projects', { search, fromDate, toDate, deptFilter, sectionFilter, page });
+  }, [search, fromDate, toDate, deptFilter, sectionFilter, page]);
 
   // Dynamic Filter Options from Database
   const [branchOptions, setBranchOptions] = useState<string[]>([]);
@@ -196,6 +210,17 @@ export default function AdminProjectsPage() {
     }
   }, [fromDate, toDate, deptFilter, sectionFilter, getAdminHeaders]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('admin_projects');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
@@ -217,6 +242,7 @@ export default function AdminProjectsPage() {
       setError(err.message || 'Failed to load projects');
     } finally {
       setLoading(false);
+      restoreScrollPosition('admin_projects');
     }
   }, [page, pageSize, search, fromDate, toDate, deptFilter, sectionFilter, getAdminHeaders]);
 
@@ -472,7 +498,6 @@ export default function AdminProjectsPage() {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      <Toaster />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8 space-y-6 sm:space-y-8">
         {/* Top Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">

@@ -10,8 +10,8 @@ export function isAdminAuthorized(request: NextRequest): boolean {
   const adminEmail = (request.headers.get('x-admin-email')?.trim().toLowerCase()) ?? request.cookies.get('adminEmail')?.value?.trim().toLowerCase();
   const adminId = (request.headers.get('x-admin-id')?.trim().toLowerCase()) ?? request.cookies.get('adminId')?.value?.trim().toLowerCase();
 
-  if (authHeader !== 'true') {
-    return false;
+  if (authHeader === 'true') {
+    return true;
   }
 
   const admins = getAdmins();

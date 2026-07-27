@@ -13,15 +13,37 @@ import { smartFilterItems } from '@/lib/smart-search';
 
 import { apiGetFeedback, apiUpdateFeedbackStatus, apiDeleteFeedback, ApiFeedback } from '@/lib/api';
 
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
+
 type FeedbackSubmission = ApiFeedback;
 
 export default function AdminFeedbackPage() {
   const router = useRouter();
+  const savedState = loadPageState('admin_feedback', {
+    searchQuery: '',
+    filter: 'all' as 'all' | 'unread' | 'resolved' | 'pending',
+  });
+
   const [feedbackList, setFeedbackList] = useState<FeedbackSubmission[]>([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unread' | 'resolved' | 'pending'>('all');
+  const [searchQuery, setSearchQuery] = useState(savedState.searchQuery);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'resolved' | 'pending'>(savedState.filter);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    savePageState('admin_feedback', { searchQuery, filter });
+  }, [searchQuery, filter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('admin_feedback');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const fetchFeedbackFromDb = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -34,6 +56,7 @@ export default function AdminFeedbackPage() {
       console.error('Failed to fetch feedback from database:', err);
     } finally {
       if (showLoading) setLoading(false);
+      restoreScrollPosition('admin_feedback');
     }
   };
 

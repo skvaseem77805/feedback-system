@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiNotifications, apiMarkNotificationRead, apiAcceptCollaboration, apiRejectCollaboration, apiClearNotifications } from '@/lib/api';
 import type { ApiNotification } from '@/lib/api';
 import { getCurrentStudentId } from '@/lib/statsTracker';
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
 
 function getRelativeTime(dateString: string): string {
   try {
@@ -30,13 +31,29 @@ function getRelativeTime(dateString: string): string {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const savedState = loadPageState('notifications', { activeTab: 'all' });
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(savedState.activeTab);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const currentStudentId = getCurrentStudentId();
+
+  useEffect(() => {
+    savePageState('notifications', { activeTab });
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('notifications');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!currentStudentId) {
@@ -48,12 +65,13 @@ export default function NotificationsPage() {
       try {
         setLoading(true);
         const data = await apiNotifications(currentStudentId);
-        setNotifications(data);
-      } catch (err) {
+        setNotifications(data || []);
+      } catch (err: any) {
         console.error('Failed to fetch notifications:', err);
-        setError('Failed to load notifications.');
+        setError(err?.message || 'Failed to load notifications.');
       } finally {
         setLoading(false);
+        restoreScrollPosition('notifications');
       }
     };
 

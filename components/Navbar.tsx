@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   Compass,
   Upload,
@@ -329,8 +330,9 @@ export function Navbar() {
               </div>
             </div>
 
-            {isLoggedIn ? (
-              <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {isLoggedIn ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -340,12 +342,12 @@ export function Navbar() {
                   <LogOut className="w-4 h-4" />
                   Logout
                 </Button>
-              </div>
-            ) : (
-              <Link href="/auth">
-                <Button size="sm">Login</Button>
-              </Link>
-            )}
+              ) : (
+                <Link href="/auth">
+                  <Button size="sm">Login</Button>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Mobile Layout (<768px) */}
@@ -542,6 +544,17 @@ export function Navbar() {
                         )}
                       </>
                     )}
+
+                    {/* Appearance / Theme Section */}
+                    <div className="pt-3 mt-3 border-t border-border/40 space-y-2">
+                      <div className="px-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Appearance
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted/30 border border-border/40">
+                        <span className="text-sm font-medium text-foreground">Theme</span>
+                        <ThemeToggle />
+                      </div>
+                    </div>
                   </div>
 
                   {(isLoggedIn || userType === 'admin') && (

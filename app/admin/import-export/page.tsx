@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
 import { Toaster } from '@/components/ui/sonner';
 import { ImportAnalyticsChart, ChartDataPoint } from '@/components/ImportAnalyticsChart';
 
@@ -84,6 +85,14 @@ export default function AdminImportExportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [authorized, setAuthorized] = useState(false);
 
+  const savedState = loadPageState('admin_import_export', {
+    fromDate: '',
+    toDate: '',
+    monthFilter: '',
+    yearFilter: '',
+    searchQuery: '',
+  });
+
   // Stats & Analytics state
   const [stats, setStats] = useState<StatsData>({
     totalRegistered: 0,
@@ -98,16 +107,20 @@ export default function AdminImportExportPage() {
   });
 
   // Filter state
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [fromDate, setFromDate] = useState(savedState.fromDate);
+  const [toDate, setToDate] = useState(savedState.toDate);
+  const [monthFilter, setMonthFilter] = useState(savedState.monthFilter);
+  const [yearFilter, setYearFilter] = useState(savedState.yearFilter);
 
   // History & Search state
   const [history, setHistory] = useState<ImportBatchItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(savedState.searchQuery);
   const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    savePageState('admin_import_export', { fromDate, toDate, monthFilter, yearFilter, searchQuery });
+  }, [fromDate, toDate, monthFilter, yearFilter, searchQuery]);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -157,11 +170,24 @@ export default function AdminImportExportPage() {
       if (res.ok) {
         const data = await res.json();
         setStats(data);
+      } else {
+        console.error('Failed to load stats: HTTP status', res.status);
       }
     } catch (err) {
       console.warn('Failed to load stats:', err);
     }
   }, [fromDate, toDate, monthFilter, yearFilter, getAdminHeaders]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('admin_import_export');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Fetch Import History Batches
   const loadHistory = useCallback(async () => {
@@ -178,11 +204,14 @@ export default function AdminImportExportPage() {
       if (res.ok) {
         const data = await res.json();
         setHistory(data.history || []);
+      } else {
+        console.error('Failed to load history: HTTP status', res.status);
       }
     } catch (err) {
       console.warn('Failed to load history:', err);
     } finally {
       setHistoryLoading(false);
+      restoreScrollPosition('admin_import_export');
     }
   }, [fromDate, toDate, monthFilter, yearFilter, searchQuery, getAdminHeaders]);
 
@@ -473,7 +502,6 @@ export default function AdminImportExportPage() {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      <Toaster />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex items-center gap-4">

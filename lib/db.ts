@@ -189,10 +189,33 @@ async function ensureTables() {
   if (!hasPasswordHash) {
     await p.query('ALTER TABLE students ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL AFTER avatar');
   }
-  const hasEmailVerified = studentsCols.some((c: any) => c.Field === 'email_verified');
-  if (!hasEmailVerified) {
-    await p.query('ALTER TABLE students ADD COLUMN email_verified TINYINT(1) DEFAULT 0 AFTER password_hash');
+  // Ensure 'batch_id' and 'import_type' columns exist in 'students' table
+  const hasBatchId = studentsCols.some((c: any) => c.Field === 'batch_id');
+  if (!hasBatchId) {
+    await p.query('ALTER TABLE students ADD COLUMN batch_id VARCHAR(64) NULL');
   }
+  const hasImportType = studentsCols.some((c: any) => c.Field === 'import_type');
+  if (!hasImportType) {
+    await p.query("ALTER TABLE students ADD COLUMN import_type VARCHAR(50) DEFAULT 'import'");
+  }
+
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS import_batches (
+      id VARCHAR(64) PRIMARY KEY,
+      file_name VARCHAR(255) NOT NULL,
+      imported_by VARCHAR(255) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      total_records INT DEFAULT 0,
+      imported_count INT DEFAULT 0,
+      updated_count INT DEFAULT 0,
+      skipped_count INT DEFAULT 0,
+      failed_count INT DEFAULT 0,
+      duplicate_count INT DEFAULT 0,
+      duration_ms INT DEFAULT 0,
+      status VARCHAR(50) DEFAULT 'Completed',
+      import_details LONGTEXT
+    ) ENGINE=InnoDB
+  `);
 
   await p.query(`
     CREATE TABLE IF NOT EXISTS otps (

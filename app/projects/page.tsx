@@ -43,16 +43,25 @@ const branchesList = [
   { value: 'Other', label: 'Other' },
 ];
 
+import { loadPageState, savePageState, saveScrollPosition, restoreScrollPosition } from '@/lib/state-preservation';
+
 function ProjectsPageContent() {
   const isMobile = useIsMobile();
+  const savedState = loadPageState('projects', {
+    search: '',
+    filterYear: '',
+    filterBranch: '',
+    filterSection: '',
+  });
+
   const [projects, setProjects] = useState<ApiProject[]>([]);
   const [students, setStudents] = useState<ApiStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filterYear, setFilterYear] = useState('');
-  const [filterBranch, setFilterBranch] = useState('');
-  const [filterSection, setFilterSection] = useState('');
+  const [search, setSearch] = useState(savedState.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(savedState.search);
+  const [filterYear, setFilterYear] = useState(savedState.filterYear);
+  const [filterBranch, setFilterBranch] = useState(savedState.filterBranch);
+  const [filterSection, setFilterSection] = useState(savedState.filterSection);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const currentStudentId = getCurrentStudentId() ?? '';
 
@@ -68,7 +77,6 @@ function ProjectsPageContent() {
     }
   };
 
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -76,48 +84,27 @@ function ProjectsPageContent() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Load initial parameters from URL or sessionStorage on mount
+  // Sync state to sessionStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const searchParam = params.get('search');
-      
-      const savedSearch = searchParam !== null ? searchParam : (sessionStorage.getItem('projects_search') || '');
-      const savedYear = sessionStorage.getItem('projects_filterYear') || '';
-      const savedBranch = sessionStorage.getItem('projects_filterBranch') || '';
-      const savedSection = sessionStorage.getItem('projects_filterSection') || '';
-      
-      setSearch(savedSearch);
-      setFilterYear(savedYear);
-      setFilterBranch(savedBranch);
-      setFilterSection(savedSection);
-    }
+    savePageState('projects', {
+      search,
+      filterYear,
+      filterBranch,
+      filterSection,
+    });
+  }, [search, filterYear, filterBranch, filterSection]);
+
+  // Passive scroll listener
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        saveScrollPosition('projects');
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Update sessionStorage on state changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('projects_search', search);
-    }
-  }, [search]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('projects_filterYear', filterYear);
-    }
-  }, [filterYear]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('projects_filterBranch', filterBranch);
-    }
-  }, [filterBranch]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('projects_filterSection', filterSection);
-    }
-  }, [filterSection]);
 
   useEffect(() => {
     const load = async () => {
@@ -128,6 +115,7 @@ function ProjectsPageContent() {
         console.error('Projects load error:', e);
       } finally {
         setLoading(false);
+        restoreScrollPosition('projects');
       }
     };
     load();

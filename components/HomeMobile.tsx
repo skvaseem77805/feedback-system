@@ -116,14 +116,14 @@ export function HomeMobile() {
             {/* 1. 🏫 College Hero Section */}
             <div className="relative rounded-2xl bg-card/60 border border-border/40 text-center p-5 space-y-4">
               <div className="flex justify-center gap-1.5">
-                <Badge className="bg-primary/20 text-primary text-[9px] px-2 py-0.5 rounded-full border-none shadow-none font-bold">
+                <Badge className="bg-blue-500/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 text-[9px] px-2 py-0.5 rounded-full border border-blue-500/30 shadow-none font-bold">
                   JNTUK Affiliated
                 </Badge>
-                <Badge className="bg-accent/20 text-accent text-[9px] px-2 py-0.5 rounded-full border-none shadow-none font-bold">
-                  NAAC 'A' Grade
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 text-[9px] px-2 py-0.5 rounded-full border border-emerald-500/30 shadow-none font-bold">
+                  AICTE Approved
                 </Badge>
-                <Badge className="bg-secondary/20 text-secondary text-[9px] px-2 py-0.5 rounded-full border-none shadow-none font-bold">
-                  Autonomous
+                <Badge className="bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 text-[9px] px-2 py-0.5 rounded-full border border-amber-500/30 shadow-none font-bold">
+                  NAAC 'A' Grade
                 </Badge>
               </div>
               <h2 className="text-xl font-extrabold leading-tight text-foreground">

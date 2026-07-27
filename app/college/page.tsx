@@ -62,9 +62,9 @@ export default function CollegePage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center space-y-6">
             <div className="inline-flex gap-2">
-              <Badge className="bg-primary/20 text-primary">JNTUK Affiliated</Badge>
-              <Badge className="bg-secondary/20 text-secondary">AICTE Approved</Badge>
-              <Badge className="bg-accent/20 text-accent">NAAC 'A' Grade</Badge>
+              <Badge className="bg-blue-500/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-500/30 font-semibold">JNTUK Affiliated</Badge>
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/30 font-semibold">AICTE Approved</Badge>
+              <Badge className="bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-500/30 font-semibold">NAAC 'A' Grade</Badge>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-primary">Sir C.R. Reddy College of Engineering</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Autonomous Institution Committed to Excellence in Engineering Education</p>

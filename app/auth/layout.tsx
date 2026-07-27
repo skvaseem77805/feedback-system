@@ -13,7 +13,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <section className="relative z-10 px-4 sm:px-6 lg:px-8 w-full">
         {children}
       </section>
-      <Toaster />
     </div>
   );
 }

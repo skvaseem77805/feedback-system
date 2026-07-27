@@ -75,6 +75,8 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [sectionError, setSectionError] = useState<string | null>(null);
   const [linkedinError, setLinkedinError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
 
@@ -96,6 +98,8 @@ export default function ProfilePage() {
     setIsEditing(false);
     setEditData({});
     setPhotoPreview(studentData?.profilePhoto || null);
+    setNameError(null);
+    setSectionError(null);
     setLinkedinError(null);
     setGithubError(null);
   };
@@ -307,35 +311,51 @@ export default function ProfilePage() {
     const trimmedName = (nameToValidate || '').trim();
 
     if (!trimmedName) {
-      toast.error('Student Name is required.');
+      setNameError('Student Name is required.');
       return;
     }
 
     if (!/^[a-zA-Z][a-zA-Z ]*$/.test(trimmedName)) {
-      toast.error('Student name can contain only letters and spaces.');
+      setNameError('Student name can contain only letters and spaces.');
       return;
     }
 
     const formattedName = trimmedName.toUpperCase().replace(/ {2,}/g, ' ');
 
     if (formattedName.length > 20) {
-      toast.error('Student name cannot exceed 20 characters.');
+      setNameError('Student name cannot exceed 20 characters.');
       return;
     }
+    setNameError(null);
 
     const sectionToValidate = editData.section !== undefined ? editData.section : studentData.section;
     const formattedSection = (sectionToValidate || '').trim().toUpperCase();
 
     if (!/^[A-F]$/.test(formattedSection)) {
-      toast.error('Section must be A, B, C, D, E or F.');
+      setSectionError('Section must be A, B, C, D, E or F.');
       return;
     }
+    setSectionError(null);
+
+    const linkedinToValidate = editData.linkedinUrl !== undefined ? editData.linkedinUrl : (studentData.linkedinUrl || '');
+    if (linkedinToValidate && !validateLinkedIn(linkedinToValidate)) {
+      setLinkedinError('Please enter a valid LinkedIn profile URL.');
+      return;
+    }
+    setLinkedinError(null);
+
+    const githubToValidate = editData.githubUrl !== undefined ? editData.githubUrl : (studentData.githubUrl || '');
+    if (githubToValidate && !validateGitHub(githubToValidate)) {
+      setGithubError('Please enter a valid GitHub profile URL.');
+      return;
+    }
+    setGithubError(null);
 
     let avatarUrl = studentData.profilePhoto;
     setIsUploading(true);
 
     try {
-      // Upload image to Cloudinary
+      // Upload image to Cloudinary if selected
       if (selectedFile) {
         const formData = new FormData();
         formData.append("file", selectedFile);
@@ -397,37 +417,41 @@ export default function ProfilePage() {
         payload.avatar = avatarUrl;
       }
 
-      // Save locally
-      const updated: StudentData = {
-        ...studentData,
-        ...editData,
-        name: formattedName,
-        section: formattedSection,
-        profilePhoto: avatarUrl,
-      };
-
-      localStorage.setItem(
-        `studentProfile_${studentData.studentId}`,
-        JSON.stringify(updated)
-      );
-
-      setStudentData(updated);
-
       // Save to backend
+      let saveSuccess = true;
       if (Object.keys(payload).length > 0) {
-        console.log("apiUpdateStudent =", apiUpdateStudent);
         const res = await apiUpdateStudent(studentData.studentId, payload);
-        if (res.success && (payload.avatar !== undefined || payload.profilePhoto !== undefined)) {
-          toast.success("Profile photo updated successfully.");
+        if (res.success) {
+          saveSuccess = true;
+        } else {
+          saveSuccess = false;
+          toast.error(res.message || "Failed to update profile. Please try again.");
         }
       }
 
-      setIsEditing(false);
-      setEditData({});
-      setSelectedFile(null);
-    } catch (e) {
+      if (saveSuccess) {
+        const updated: StudentData = {
+          ...studentData,
+          ...editData,
+          name: formattedName,
+          section: formattedSection,
+          profilePhoto: avatarUrl,
+        };
+
+        localStorage.setItem(
+          `studentProfile_${studentData.studentId}`,
+          JSON.stringify(updated)
+        );
+
+        setStudentData(updated);
+        toast.success("Profile updated successfully.");
+        setIsEditing(false);
+        setEditData({});
+        setSelectedFile(null);
+      }
+    } catch (e: any) {
       console.error("Failed to save profile to server", e);
-      toast.error("Failed to upload image.");
+      toast.error(e?.message || "Failed to save profile. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -572,9 +596,13 @@ export default function ProfilePage() {
                         val = val.substring(0, 20);
                       }
                       setEditData({ ...editData, name: val });
+                      if (val.trim()) setNameError(null);
                     }}
-                    className="mt-1 rounded-xl"
+                    className={`mt-1 rounded-xl ${nameError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {nameError && (
+                    <p className="text-[10px] text-destructive mt-1 font-semibold text-left">{nameError}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -621,9 +649,13 @@ export default function ProfilePage() {
                           val = val.substring(0, 1);
                         }
                         setEditData({ ...editData, section: val });
+                        if (val.trim()) setSectionError(null);
                       }}
-                      className="mt-1 rounded-xl text-xs h-9"
+                      className={`mt-1 rounded-xl text-xs h-9 ${sectionError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                     />
+                    {sectionError && (
+                      <p className="text-[9px] text-destructive mt-1 font-semibold text-left">{sectionError}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -771,8 +803,19 @@ export default function ProfilePage() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={saveProfile} className="flex-1 rounded-xl py-5 font-bold text-xs text-white">
-                    Save
+                  <Button
+                    onClick={saveProfile}
+                    disabled={isUploading}
+                    className="flex-1 rounded-xl py-5 font-bold text-xs text-white flex items-center justify-center gap-2"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Spinner className="w-4 h-4 animate-spin text-white" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save'
+                    )}
                   </Button>
                 </div>
               </Card>
@@ -860,8 +903,6 @@ export default function ProfilePage() {
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* Global sonner toaster notifications */}
-          <Toaster />
           <ShareBottomSheet
             isOpen={shareOpen}
             onClose={() => setShareOpen(false)}
@@ -1155,9 +1196,13 @@ export default function ProfilePage() {
                         val = val.substring(0, 20);
                       }
                       setEditData({ ...editData, name: val });
+                      if (val.trim()) setNameError(null);
                     }}
-                    className="mt-1"
+                    className={`mt-1 ${nameError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                   />
+                  {nameError && (
+                    <p className="text-xs text-destructive mt-1 font-semibold text-left">{nameError}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -1206,9 +1251,13 @@ export default function ProfilePage() {
                           val = val.substring(0, 1);
                         }
                         setEditData({ ...editData, section: val });
+                        if (val.trim()) setSectionError(null);
                       }}
-                      className="mt-1"
+                      className={`mt-1 ${sectionError ? 'border-destructive focus-visible:ring-destructive bg-destructive/5' : ''}`}
                     />
+                    {sectionError && (
+                      <p className="text-xs text-destructive mt-1 font-semibold text-left">{sectionError}</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -1385,9 +1434,17 @@ export default function ProfilePage() {
                 <>
                   <Button
                     onClick={saveProfile}
-                    className="smooth-button bg-accent text-accent-foreground"
+                    disabled={isUploading}
+                    className="smooth-button bg-accent text-accent-foreground flex items-center justify-center gap-2"
                   >
-                    Save
+                    {isUploading ? (
+                      <>
+                        <Spinner className="w-4 h-4 animate-spin text-white" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save'
+                    )}
                   </Button>
                   <Button
                     onClick={cancelEdit}
@@ -1807,8 +1864,6 @@ export default function ProfilePage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Global sonner toaster notifications */}
-      <Toaster />
       <ShareBottomSheet
         isOpen={shareOpen}
         onClose={() => setShareOpen(false)}

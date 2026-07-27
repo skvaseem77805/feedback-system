@@ -80,8 +80,6 @@ interface StatsData {
   dailyRegistrations: ChartDataPoint[];
 }
 
-import { loadPageState, savePageState } from '@/lib/state-preservation';
-
 export default function AdminImportExportPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);

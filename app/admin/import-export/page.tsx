@@ -71,7 +71,9 @@ interface StatsData {
   totalRegistered: number;
   totalImported: number;
   manualAdded: number;
+  todayRegistrations: number;
   todayImports: number;
+  thisMonthRegistrations: number;
   thisMonthImports: number;
   failedImports: number;
   dailyRegistrations: ChartDataPoint[];
@@ -87,7 +89,9 @@ export default function AdminImportExportPage() {
     totalRegistered: 0,
     totalImported: 0,
     manualAdded: 0,
+    todayRegistrations: 0,
     todayImports: 0,
+    thisMonthRegistrations: 0,
     thisMonthImports: 0,
     failedImports: 0,
     dailyRegistrations: []
@@ -196,6 +200,13 @@ export default function AdminImportExportPage() {
     if (!authorized) return;
     loadStats();
     loadHistory();
+
+    const interval = setInterval(() => {
+      loadStats();
+      loadHistory();
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [authorized, loadStats, loadHistory]);
 
   const handleApplyFilters = () => {
@@ -508,11 +519,11 @@ export default function AdminImportExportPage() {
 
           <Card className="p-4 flex flex-col justify-between border-l-4 border-l-teal-500 shadow-xs">
             <div className="flex items-center justify-between text-muted-foreground mb-2">
-              <span className="text-xs font-semibold uppercase">Today's Imports</span>
+              <span className="text-xs font-semibold uppercase">Today's Registrations</span>
               <Calendar className="w-4 h-4 text-teal-500" />
             </div>
-            <div className="text-2xl font-black text-teal-600">{stats.todayImports.toLocaleString()}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Imported today</p>
+            <div className="text-2xl font-black text-teal-600">{stats.todayRegistrations.toLocaleString()}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">{stats.todayImports.toLocaleString()} imported today</p>
           </Card>
 
           <Card className="p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-xs">
@@ -520,8 +531,8 @@ export default function AdminImportExportPage() {
               <span className="text-xs font-semibold uppercase">This Month</span>
               <Calendar className="w-4 h-4 text-amber-500" />
             </div>
-            <div className="text-2xl font-black text-amber-600">{stats.thisMonthImports.toLocaleString()}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Current month total</p>
+            <div className="text-2xl font-black text-amber-600">{stats.thisMonthRegistrations.toLocaleString()}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">{stats.thisMonthImports.toLocaleString()} imported this month</p>
           </Card>
 
           <Card className="p-4 flex flex-col justify-between border-l-4 border-l-rose-500 shadow-xs">

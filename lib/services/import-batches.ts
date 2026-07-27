@@ -182,29 +182,44 @@ export async function getImportStats(filter: ImportStatsFilter) {
   const totalRegistered = Number(regRows?.[0]?.count || 0);
 
   // 2. Manual Added
-  const [manualRows] = await query<any>(`SELECT COUNT(*) as count FROM students ${studentWhere} AND import_type = 'manual'`, studentParams);
+  const [manualRows] = await query<any>(`
+    SELECT COUNT(*) as count FROM students ${studentWhere} AND import_type = 'manual'
+  `, studentParams);
   const manualAdded = Number(manualRows?.[0]?.count || 0);
 
   // 3. Total Imported
-  const totalImported = Math.max(0, totalRegistered - manualAdded);
+  const [importedRows] = await query<any>(`
+    SELECT COUNT(*) as count FROM students ${studentWhere}
+    AND (import_type = 'import' OR (batch_id IS NOT NULL AND batch_id != '' AND (import_type IS NULL OR import_type != 'manual')))
+  `, studentParams);
+  const totalImported = Number(importedRows?.[0]?.count || 0);
 
-  // 4. Today's Imports
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const [todayRows] = await query<any>(`
-    SELECT COUNT(*) as count FROM students
-    WHERE DATE(created_at) = ? AND (import_type IS NULL OR import_type != 'manual')
-  `, [todayStr]);
-  const todayImports = Number(todayRows?.[0]?.count || 0);
+  // 4. Today's Registrations & Today's Imports
+  const [todayRegRows] = await query<any>(`
+    SELECT COUNT(*) as count FROM students WHERE DATE(created_at) = CURDATE()
+  `);
+  const todayRegistrations = Number(todayRegRows?.[0]?.count || 0);
 
-  // 5. This Month Imports
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const [monthRows] = await query<any>(`
+  const [todayImpRows] = await query<any>(`
     SELECT COUNT(*) as count FROM students
-    WHERE YEAR(created_at) = ? AND MONTH(created_at) = ? AND (import_type IS NULL OR import_type != 'manual')
-  `, [currentYear, currentMonth]);
-  const thisMonthImports = Number(monthRows?.[0]?.count || 0);
+    WHERE DATE(created_at) = CURDATE()
+    AND (import_type = 'import' OR (batch_id IS NOT NULL AND batch_id != '' AND (import_type IS NULL OR import_type != 'manual')))
+  `);
+  const todayImports = Number(todayImpRows?.[0]?.count || 0);
+
+  // 5. Current Month Registrations & Current Month Imports
+  const [monthRegRows] = await query<any>(`
+    SELECT COUNT(*) as count FROM students
+    WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())
+  `);
+  const thisMonthRegistrations = Number(monthRegRows?.[0]?.count || 0);
+
+  const [monthImpRows] = await query<any>(`
+    SELECT COUNT(*) as count FROM students
+    WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())
+    AND (import_type = 'import' OR (batch_id IS NOT NULL AND batch_id != '' AND (import_type IS NULL OR import_type != 'manual')))
+  `);
+  const thisMonthImports = Number(monthImpRows?.[0]?.count || 0);
 
   // 6. Failed Imports
   const [failedRows] = await query<any>(`
@@ -218,7 +233,7 @@ export async function getImportStats(filter: ImportStatsFilter) {
       DATE_FORMAT(created_at, '%Y-%m-%d') as date,
       COUNT(*) as total,
       SUM(CASE WHEN import_type = 'manual' THEN 1 ELSE 0 END) as manual,
-      SUM(CASE WHEN import_type IS NULL OR import_type != 'manual' THEN 1 ELSE 0 END) as imported
+      SUM(CASE WHEN import_type = 'import' OR (batch_id IS NOT NULL AND batch_id != '' AND (import_type IS NULL OR import_type != 'manual')) THEN 1 ELSE 0 END) as imported
     FROM students
     ${studentWhere}
     GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
@@ -237,7 +252,9 @@ export async function getImportStats(filter: ImportStatsFilter) {
     totalRegistered,
     totalImported,
     manualAdded,
+    todayRegistrations,
     todayImports,
+    thisMonthRegistrations,
     thisMonthImports,
     failedImports,
     dailyRegistrations

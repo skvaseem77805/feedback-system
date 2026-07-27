@@ -202,6 +202,22 @@ async function ensureTables() {
       created_time DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB
   `);
+
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id VARCHAR(50) PRIMARY KEY,
+      user_role VARCHAR(20) NOT NULL DEFAULT 'student',
+      user_id VARCHAR(50) NOT NULL,
+      subject VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      is_read TINYINT(1) NOT NULL DEFAULT 0,
+      is_resolved TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_feedback_created (created_at),
+      KEY idx_feedback_user (user_id)
+    ) ENGINE=InnoDB
+  `);
 }
 
 export async function query<T = unknown>(

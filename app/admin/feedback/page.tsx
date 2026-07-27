@@ -11,16 +11,9 @@ import { ChevronLeft, Trash2, CheckCircle2, Eye, EyeOff, Clock, Search } from 'l
 import Link from 'next/link';
 import { smartFilterItems } from '@/lib/smart-search';
 
-interface FeedbackSubmission {
-  id: string;
-  userRole: 'student' | 'staff';
-  userId: string;
-  subject: string;
-  message: string;
-  date: string;
-  read: boolean;
-  resolved: boolean;
-}
+import { apiGetFeedback, apiUpdateFeedbackStatus, apiDeleteFeedback, ApiFeedback } from '@/lib/api';
+
+type FeedbackSubmission = ApiFeedback;
 
 export default function AdminFeedbackPage() {
   const router = useRouter();
@@ -29,6 +22,20 @@ export default function AdminFeedbackPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'resolved' | 'pending'>('all');
   const [loading, setLoading] = useState(true);
+
+  const fetchFeedbackFromDb = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    try {
+      const data = await apiGetFeedback();
+      if (data && Array.isArray(data.feedback)) {
+        setFeedbackList(data.feedback);
+      }
+    } catch (err) {
+      console.error('Failed to fetch feedback from database:', err);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Check if user is admin
@@ -39,38 +46,71 @@ export default function AdminFeedbackPage() {
     }
 
     setIsAuthorized(true);
-    loadFeedback();
+    fetchFeedbackFromDb(true);
+
+    // Auto-refresh every 3 seconds for real-time updates without manual refresh
+    const interval = setInterval(() => {
+      fetchFeedbackFromDb(false);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [router]);
 
-  const loadFeedback = () => {
-    const stored = localStorage.getItem('allFeedback');
-    if (stored) {
-      const feedback = JSON.parse(stored) as FeedbackSubmission[];
-      setFeedbackList(feedback);
+  const toggleRead = async (id: string) => {
+    const target = feedbackList.find((f) => f.id === id);
+    if (!target) return;
+    const newReadState = !target.read;
+
+    // Optimistic update
+    setFeedbackList((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, read: newReadState } : f))
+    );
+
+    try {
+      await apiUpdateFeedbackStatus(id, { read: newReadState });
+      await fetchFeedbackFromDb(false);
+    } catch (err) {
+      console.error('Failed to toggle read status:', err);
+      // Revert on error
+      setFeedbackList((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, read: target.read } : f))
+      );
     }
-    setLoading(false);
   };
 
-  const toggleRead = (id: string) => {
-    const updated = feedbackList.map((f) =>
-      f.id === id ? { ...f, read: !f.read } : f
+  const toggleResolved = async (id: string) => {
+    const target = feedbackList.find((f) => f.id === id);
+    if (!target) return;
+    const newResolvedState = !target.resolved;
+
+    // Optimistic update
+    setFeedbackList((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, resolved: newResolvedState } : f))
     );
-    setFeedbackList(updated);
-    localStorage.setItem('allFeedback', JSON.stringify(updated));
+
+    try {
+      await apiUpdateFeedbackStatus(id, { resolved: newResolvedState });
+      await fetchFeedbackFromDb(false);
+    } catch (err) {
+      console.error('Failed to toggle resolved status:', err);
+      // Revert on error
+      setFeedbackList((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, resolved: target.resolved } : f))
+      );
+    }
   };
 
-  const toggleResolved = (id: string) => {
-    const updated = feedbackList.map((f) =>
-      f.id === id ? { ...f, resolved: !f.resolved } : f
-    );
-    setFeedbackList(updated);
-    localStorage.setItem('allFeedback', JSON.stringify(updated));
-  };
+  const deleteFeedback = async (id: string) => {
+    const targetList = feedbackList;
+    setFeedbackList((prev) => prev.filter((f) => f.id !== id));
 
-  const deleteFeedback = (id: string) => {
-    const updated = feedbackList.filter((f) => f.id !== id);
-    setFeedbackList(updated);
-    localStorage.setItem('allFeedback', JSON.stringify(updated));
+    try {
+      await apiDeleteFeedback(id);
+      await fetchFeedbackFromDb(false);
+    } catch (err) {
+      console.error('Failed to delete feedback:', err);
+      setFeedbackList(targetList);
+    }
   };
 
   const filteredFeedback = (() => {

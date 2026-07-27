@@ -9,9 +9,11 @@ import { Input } from '@/components/ui/input';
 import { ChevronLeft, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
+import { apiSubmitFeedback } from '@/lib/api';
+
 interface FeedbackSubmission {
   id: string;
-  userRole: 'student' | 'staff';
+  userRole: 'student' | 'staff' | 'admin';
   userId: string;
   subject: string;
   message: string;
@@ -72,46 +74,21 @@ export default function FeedbackPage() {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Create feedback object
-      const newFeedback: FeedbackSubmission = {
-        id: 'feedback-' + Date.now(),
-        userRole: userRole,
-        userId: userId,
-        subject: subject,
-        message: message,
-        date: new Date().toLocaleString('en-IN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }),
-        read: false,
-        resolved: false,
-      };
-
-      // Get existing feedback from localStorage
-      const existingFeedback = localStorage.getItem('allFeedback');
-      const feedbackList: FeedbackSubmission[] = existingFeedback ? JSON.parse(existingFeedback) : [];
-
-      // Add new feedback
-      feedbackList.push(newFeedback);
-
-      // Save back to localStorage
-      localStorage.setItem('allFeedback', JSON.stringify(feedbackList));
-
-      console.log('[v0] Feedback submitted and saved:', newFeedback);
+      await apiSubmitFeedback({
+        userRole,
+        userId,
+        subject,
+        message,
+      });
 
       setIsSubmitted(true);
 
       setTimeout(() => {
         router.push('/');
       }, 3000);
-    } catch (error) {
-      console.error('[v0] Error submitting feedback:', error);
+    } catch (error: any) {
+      console.error('Error submitting feedback:', error);
+      setErrors({ message: error?.message || 'Failed to submit feedback. Please try again.' });
     } finally {
       setIsLoading(false);
     }

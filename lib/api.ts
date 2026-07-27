@@ -315,3 +315,65 @@ export async function apiCollaborations(studentId: string): Promise<any[]> {
   return handleRes<any[]>(res);
 }
 
+export interface ApiFeedback {
+  id: string;
+  userRole: 'student' | 'staff' | 'admin';
+  userId: string;
+  subject: string;
+  message: string;
+  date: string;
+  read: boolean;
+  resolved: boolean;
+  createdAt?: string;
+}
+
+export interface ApiFeedbackStats {
+  total: number;
+  unread: number;
+  resolved: number;
+  pending: number;
+}
+
+export async function apiSubmitFeedback(data: {
+  userRole: string;
+  userId: string;
+  subject: string;
+  message: string;
+}): Promise<{ success: boolean; feedback: ApiFeedback }> {
+  const res = await fetch(`${BASE}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleRes(res);
+}
+
+export async function apiGetFeedback(): Promise<{
+  success: boolean;
+  feedback: ApiFeedback[];
+  stats: ApiFeedbackStats;
+}> {
+  const res = await fetch(`${BASE}/api/feedback`);
+  return handleRes(res);
+}
+
+export async function apiUpdateFeedbackStatus(
+  id: string,
+  updates: { read?: boolean; resolved?: boolean }
+): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/feedback/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  return handleRes(res);
+}
+
+export async function apiDeleteFeedback(id: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE}/api/feedback/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return handleRes(res);
+}
+
+

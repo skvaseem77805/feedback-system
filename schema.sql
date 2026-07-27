@@ -182,7 +182,25 @@ CREATE TABLE IF NOT EXISTS notifications (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- -----------------------------------------------------------------------------
+-- Feedback
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS feedback (
+  id VARCHAR(50) PRIMARY KEY,
+  user_role VARCHAR(20) NOT NULL DEFAULT 'student',
+  user_id VARCHAR(50) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  is_resolved TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_feedback_created (created_at),
+  INDEX idx_feedback_user (user_id)
+) ENGINE=InnoDB;
+
 -- =============================================================================
 -- End of schema
 -- =============================================================================
+
 

@@ -97,22 +97,11 @@ export function HomeDesktop() {
         const res = await fetch('/api/home-stats');
         const dbData = await res.json();
 
-        let localFeedbacks = 0;
-        if (typeof window !== 'undefined') {
-          const stored = localStorage.getItem('allFeedback');
-          if (stored) {
-            try {
-              const list = JSON.parse(stored);
-              localFeedbacks = Array.isArray(list) ? list.length : 0;
-            } catch { }
-          }
-        }
-
         setStats({
           projects: dbData.totalProjects || 0,
           students: dbData.totalStudents || 0,
           departments: dbData.totalDepartments || 0,
-          feedbacks: localFeedbacks,
+          feedbacks: dbData.totalFeedbacks || 0,
         });
       } catch (err) {
         console.error('Stats load error', err);

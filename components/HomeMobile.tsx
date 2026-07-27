@@ -65,22 +65,11 @@ export function HomeMobile() {
         setTrendingProjects(trending || []);
         setLatestProjects(newest || []);
 
-        let localFeedbacks = 0;
-        if (typeof window !== 'undefined') {
-          const stored = localStorage.getItem('allFeedback');
-          if (stored) {
-            try {
-              const list = JSON.parse(stored);
-              localFeedbacks = Array.isArray(list) ? list.length : 0;
-            } catch { }
-          }
-        }
-
         setStats({
           projects: statsRes.totalProjects || 0,
           students: statsRes.totalStudents || 0,
           departments: statsRes.totalDepartments || 0,
-          feedbacks: localFeedbacks,
+          feedbacks: statsRes.totalFeedbacks || 0,
         });
 
         const sortedContributors = (studentsList || [])

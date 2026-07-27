@@ -80,6 +80,8 @@ interface StatsData {
   dailyRegistrations: ChartDataPoint[];
 }
 
+import { loadPageState, savePageState } from '@/lib/state-preservation';
+
 export default function AdminImportExportPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -809,8 +811,8 @@ export default function AdminImportExportPage() {
                               batch.status === 'Completed'
                                 ? 'default'
                                 : batch.status === 'Partial'
-                                ? 'secondary'
-                                : 'destructive'
+                                  ? 'secondary'
+                                  : 'destructive'
                             }
                             className="text-[10px]"
                           >

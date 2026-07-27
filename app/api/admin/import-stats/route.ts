@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     return Response.json(stats);
   } catch (error: any) {
     console.error('import-stats error:', error);
-    return Response.json({ error: 'Failed to fetch import stats' }, { status: 500 });
+    return Response.json({
+      error: error?.message || 'Failed to fetch import stats',
+      details: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+    }, { status: 500 });
   }
 }

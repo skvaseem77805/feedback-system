@@ -6,12 +6,9 @@ import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 
-function ensureEnvLoaded() {
-  if (process.env.MYSQL_HOST || process.env.MYSQLHOST || process.env.DATABASE_URL) {
-    return;
-  }
+function loadEnvFile(fileName: string) {
   try {
-    const envPath = path.join(process.cwd(), '.env');
+    const envPath = path.join(process.cwd(), fileName);
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
       content.split(/\r?\n/).forEach((line) => {
@@ -31,6 +28,11 @@ function ensureEnvLoaded() {
   }
 }
 
+function ensureEnvLoaded() {
+  loadEnvFile('.env.local');
+  loadEnvFile('.env');
+}
+
 function cleanValue(val: string | undefined): string {
   if (!val) return '';
   return val.trim().replace(/^<|>$/g, '');
@@ -46,8 +48,8 @@ function getConfig(): mysql.ConnectionOptions {
       try {
         const u = new URL(rawUrl);
         let host = decodeURIComponent(u.hostname);
-        if (host === 'mysql.railway.internal') {
-          host = 'hayabusa.proxy.rlwy.net';
+        if (host === 'mysql.railway.internal' && !process.env.RAILWAY_ENVIRONMENT) {
+          host = process.env.MYSQL_HOST || 'localhost';
         }
         return {
           host,
@@ -67,17 +69,17 @@ function getConfig(): mysql.ConnectionOptions {
     return cleanValue(val) || fallback;
   };
 
-  let host = getEnv('MYSQL_HOST', 'MYSQLHOST', 'hayabusa.proxy.rlwy.net');
-  if (host === 'mysql.railway.internal') {
-    host = 'hayabusa.proxy.rlwy.net';
+  let host = getEnv('MYSQL_HOST', 'MYSQLHOST', 'localhost');
+  if (host === 'mysql.railway.internal' && !process.env.RAILWAY_ENVIRONMENT) {
+    host = 'localhost';
   }
 
-  const portStr = getEnv('MYSQL_PORT', 'MYSQLPORT', '47765');
+  const portStr = getEnv('MYSQL_PORT', 'MYSQLPORT', '3306');
   const port = Number.parseInt(portStr, 10);
 
   return {
     host,
-    port: Number.isNaN(port) ? 47765 : port,
+    port: Number.isNaN(port) ? 3306 : port,
     user: getEnv('MYSQL_USER', 'MYSQLUSER', 'root'),
     password: cleanValue(process.env.MYSQL_PASSWORD || process.env.MYSQLPASSWORD),
     database: getEnv('MYSQL_DATABASE', 'MYSQLDATABASE', 'feedback_system'),

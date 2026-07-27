@@ -699,8 +699,11 @@ export async function POST(request: NextRequest) {
     } finally {
       connection.release();
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("General Handler Error:", error);
-    return Response.json({ error: 'Import failed' }, { status: 500 });
+    return Response.json({
+      error: error?.message || 'Import failed',
+      details: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+    }, { status: 500 });
   }
 }

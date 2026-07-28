@@ -122,8 +122,14 @@ export default function StudentRegisterPage() {
     }
   };
 
+  const isVerifyingRef = React.useRef(false);
+
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || isVerifyingRef.current) {
+      console.warn('[FRONTEND REGISTER/LOGIN] Prevented duplicate OTP verification / auto-login attempt.');
+      return;
+    }
     setOtpError('');
 
     const trimmedOtp = otp.trim();
@@ -132,6 +138,7 @@ export default function StudentRegisterPage() {
       return;
     }
 
+    isVerifyingRef.current = true;
     setIsLoading(true);
     try {
       const res = await fetch('/api/auth/register/verify', {
@@ -153,6 +160,14 @@ export default function StudentRegisterPage() {
         const trimmedEmail = email.trim();
 
         // Automatic Login Attempt
+        console.log('[FRONTEND LOGIN CALL]', {
+          timestamp: new Date().toISOString(),
+          body: { registrationNo: trimmedRegNo, password: '***' },
+          caller: 'StudentRegisterPage.handleVerifyOtp (app/auth/student-register/page.tsx)',
+          stack: new Error().stack,
+          reason: 'Auto-login immediately after OTP verification success'
+        });
+
         try {
           const loginRes = await fetch('/api/auth/login', {
             method: 'POST',
@@ -197,6 +212,7 @@ export default function StudentRegisterPage() {
     } catch (err) {
       setOtpError('Connection error. Please try again.');
     } finally {
+      isVerifyingRef.current = false;
       setIsLoading(false);
     }
   };

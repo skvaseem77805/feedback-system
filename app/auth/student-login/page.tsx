@@ -14,9 +14,14 @@ export default function StudentLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = React.useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || isSubmittingRef.current) {
+      console.warn('[FRONTEND LOGIN] Prevented duplicate login request submission attempt.');
+      return;
+    }
     setError('');
 
     const validation = validateRegistrationNo(registrationNo);
@@ -31,7 +36,17 @@ export default function StudentLoginPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsLoading(true);
+
+    console.log('[FRONTEND LOGIN CALL]', {
+      timestamp: new Date().toISOString(),
+      body: { registrationNo: trimmedRegNo, password: '***' },
+      caller: 'StudentLoginPage.handleSubmit (app/auth/student-login/page.tsx)',
+      stack: new Error().stack,
+      reason: 'User submitted student login form'
+    });
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -59,6 +74,7 @@ export default function StudentLoginPage() {
     } catch (err) {
       setError('Connection error. Please try again.');
     } finally {
+      isSubmittingRef.current = false;
       setIsLoading(false);
     }
   };

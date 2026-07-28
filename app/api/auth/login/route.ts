@@ -9,62 +9,44 @@ export async function POST(request: NextRequest) {
     const identifier = rawIdentifier.trim();
     const password = body.password || '';
 
-    console.log('[DEBUG LOGIN] Incoming request with identifier:', identifier, '| password length:', password.length);
-
+    // Missing identifier or password
     if (!identifier || !password) {
-      console.log('[DEBUG LOGIN] HTTP 400 Reason: Missing identifier or password.');
       return Response.json({ error: 'Registration Number or Email and password are required.' }, { status: 400 });
     }
 
     const searchUpper = identifier.toUpperCase();
     const searchLower = identifier.toLowerCase();
 
-    console.log('[DEBUG LOGIN] Normalized search terms - upper:', searchUpper, '| lower:', searchLower);
+    const sqlQuery = 'SELECT registration_no, name, email, password_hash, email_verified FROM students WHERE registration_no = ? OR email = ? OR LOWER(registration_no) = ? OR LOWER(email) = ? LIMIT 1';
+    const sqlParams = [searchUpper, searchLower, searchLower, searchLower];
 
-    // 1. Fetch user from students table by registration_no or email (case-insensitive)
     const user = await queryOne<{ registration_no: string; name: string; email: string; password_hash: string | null; email_verified: number }>(
-      'SELECT registration_no, name, email, password_hash, email_verified FROM students WHERE registration_no = ? OR email = ? OR LOWER(registration_no) = ? OR LOWER(email) = ? LIMIT 1',
-      [searchUpper, searchLower, searchLower, searchLower]
+      sqlQuery,
+      sqlParams
     );
 
-    console.log('[DEBUG LOGIN] SQL User Result:', user ? {
-      registration_no: user.registration_no,
-      name: user.name,
-      email: user.email,
-      has_password_hash: !!user.password_hash,
-      email_verified: user.email_verified
-    } : null);
-
+    // Case 4: Student does not exist
     if (!user) {
-      console.log('[DEBUG LOGIN] HTTP 400 Reason: No student found matching registration_no or email.');
-      return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
+      return Response.json({ error: 'Registration Number not found.' }, { status: 400 });
     }
 
-    console.log('[DEBUG LOGIN] password_hash exists?', !!(user.password_hash));
-    console.log('[DEBUG LOGIN] email_verified:', user.email_verified);
-
+    // Case 3: Student exists but password_hash is NULL (imported / manual entry not yet registered)
     if (!user.password_hash) {
-      console.log('[DEBUG LOGIN] HTTP 400 Reason: Student exists but has no password_hash.');
-      return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
+      return Response.json({ error: 'Please complete your account registration first.' }, { status: 400 });
     }
 
-    // 2. Compare passwords using bcrypt
-    console.log('[DEBUG LOGIN] Executing bcrypt.compare()...');
+    // Case 2 & Case 1: Compare passwords using bcrypt
     const isValid = await comparePassword(password, user.password_hash);
-    console.log('[DEBUG LOGIN] bcrypt compare result:', isValid);
 
     if (!isValid) {
-      console.log('[DEBUG LOGIN] HTTP 400 Reason: Password mismatch.');
-      return Response.json({ error: 'Invalid Registration Number or Email Address.' }, { status: 400 });
+      return Response.json({ error: 'Invalid password.' }, { status: 400 });
     }
 
-    // 3. Fetch user profile details from students table
+    // Case 1: Fetch user profile details from students table upon successful login
     const profile = await queryOne<{ department: string; year: number; section: string }>(
       'SELECT department, year, section FROM students WHERE registration_no = ? LIMIT 1',
       [user.registration_no]
     );
-
-    console.log('[DEBUG LOGIN] Profile result:', profile);
 
     let displayYear = '2nd Year';
     if (profile) {
@@ -73,8 +55,6 @@ export async function POST(request: NextRequest) {
       else if (profile.year === 3) displayYear = '3rd Year';
       else if (profile.year === 4) displayYear = '4th Year';
     }
-
-    console.log('[DEBUG LOGIN] Login successful for user:', user.registration_no);
 
     return Response.json({
       success: true,
@@ -94,8 +74,7 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('[DEBUG LOGIN] Login API Error:', error);
+    console.error('Login API Error:', error);
     return Response.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
